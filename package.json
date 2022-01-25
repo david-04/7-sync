@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@types/node": "^16.11.7"
+  },
+  "name": "7-sync",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "version": "0.0.1"
+}
