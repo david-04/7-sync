@@ -1,27 +1,4 @@
 //----------------------------------------------------------------------------------------------------------------------
-// Result
-//----------------------------------------------------------------------------------------------------------------------
-
-interface InitOptions {
-    command: "init";
-    config: string;
-}
-
-interface SyncOptions {
-    command: "sync";
-    config: string;
-    dryRun: boolean;
-    source: string | undefined;
-    destination: string | undefined;
-    sevenZip: string;
-}
-
-interface ChangePasswordOptions {
-    command: "change-password";
-    config: string;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
 // Parse the command line
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -33,16 +10,6 @@ class CommandLineParser {
 
     private static readonly DEFAULT_CONFIG_FILE = "7-sync.json";
     private static readonly DEFAULT_7_ZIP_EXECUTABLE = "7z";
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Commands
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static readonly COMMANDS = {
-        sync: "sync",
-        init: "init",
-        changePassword: "change-password"
-    };
 
     //------------------------------------------------------------------------------------------------------------------
     // Options
@@ -93,9 +60,9 @@ class CommandLineParser {
             |
             | Commands:
             |
-            |   ${this.COMMANDS.sync}                        sync files (or perform a dry run)
-            |   ${this.COMMANDS.init}                        create a new configuration file
-            |   ${this.COMMANDS.changePassword}             change the password
+            |   ${this.DEFAULT_OPTIONS.sync.command}                        sync files (or perform a dry run)
+            |   ${this.DEFAULT_OPTIONS.init.command}                        create a new configuration file
+            |   ${this.DEFAULT_OPTIONS.changePassword.command}             change the password
             |
             | Options:
             |
@@ -181,7 +148,7 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     private static getDefaultOptions(command: string) {
-        const defaultOptions = this.DEFAULT_OPTIONS[this.getInternalKey(this.COMMANDS, command, false)]
+        const defaultOptions = this.DEFAULT_OPTIONS[this.getInternalKey(this.DEFAULT_OPTIONS, command)];
         if (defaultOptions) {
             return defaultOptions;
         } else {
@@ -194,7 +161,7 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     private static setOption(defaultOptions: object, suppliedKey: string, suppliedValue: any) {
-        const defaultKey = this.getInternalKey(this.OPTIONS, suppliedKey, true);
+        const defaultKey = this.getInternalKey(this.OPTIONS, suppliedKey);
         if ("command" === suppliedKey || !(defaultKey in defaultOptions)) {
             this.exitWithError(`invalid option --${suppliedKey}`);
         }
@@ -216,13 +183,19 @@ class CommandLineParser {
     // Get the internal key for a command or option (e.g. 7-zip => sevenZip)
     //------------------------------------------------------------------------------------------------------------------
 
-    private static getInternalKey(mapping: { [index: string]: string }, key: string, isOption: boolean) {
-        for (const mappedKey of Object.keys(mapping)) {
-            if (key === mapping[mappedKey]) {
-                return mappedKey;
+    private static getInternalKey(mapping: { [index: string]: string }, suppliedKey: string): string
+    private static getInternalKey(mapping: { [index: string]: { command: string } }, suppliedKey: string): string
+    private static getInternalKey(mapping: { [index: string]: string | { command: string } }, suppliedKey: string) {
+        let isOption = false;
+        for (const internalKey of Object.keys(mapping)) {
+            const mappedValue = mapping[internalKey];
+            isOption = "string" !== typeof mappedValue;
+            const externalKey = "string" === typeof mappedValue ? mappedValue : mappedValue.command;
+            if (suppliedKey === externalKey) {
+                return internalKey;
             }
         }
-        this.exitWithError(`invalid ${isOption ? "option --" : "command "}${key}`);
+        this.exitWithError(`invalid ${isOption ? "option --" : "command "}${suppliedKey}`);
     }
 
     //------------------------------------------------------------------------------------------------------------------
