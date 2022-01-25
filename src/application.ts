@@ -22,8 +22,9 @@ class Application {
     //------------------------------------------------------------------------------------------------------------------
 
     private static main(argv: string[]) {
-        const commandLineOptions = CommandLineParser.parse(argv);
-        console.log(commandLineOptions);
+        const options = CommandLineParser.parse(argv);
+        const context = new Context(options);
+        console.log(context);
     }
 }
 

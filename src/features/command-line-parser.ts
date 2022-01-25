@@ -29,7 +29,7 @@ class CommandLineParser {
     // Default options per command
     //------------------------------------------------------------------------------------------------------------------
 
-    private static readonly DEFAULT_OPTIONS: { [index: string]: InitOptions | SyncOptions | ChangePasswordOptions } = {
+    private static readonly DEFAULT_OPTIONS: { [index: string]: AllOptions } = {
         sync: this.as<SyncOptions>({
             command: "sync",
             config: this.DEFAULT_CONFIG_FILE,
