@@ -49,7 +49,7 @@ class FileOutputStream extends OutputStream {
     public constructor(file: string, append: boolean) {
         super();
         try {
-            this.stream = nodeModules.fs.createWriteStream(file, append ? { flags: 'a' } : {});
+            this.stream = node.fs.createWriteStream(file, append ? { flags: 'a' } : {});
         } catch (exception) {
             throw new FriendlyException(`Failed to open file ${file} - ${exception}`);
         }

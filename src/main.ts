@@ -25,7 +25,7 @@ class Application {
                 console.error(exception);
                 this.logger?.error(`${exception}`);
             }
-            nodeModules.process.exit(exception instanceof FriendlyException ? exception.exitCode : 1);
+            node.process.exit(exception instanceof FriendlyException ? exception.exitCode : 1);
         }
     }
 

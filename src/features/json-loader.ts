@@ -54,7 +54,7 @@ class JsonLoader {
 
     private static loadFile<T>(file: string): T {
         try {
-            return JSON.parse(nodeModules.fs.readFileSync(file).toString()) as T;
+            return JSON.parse(node.fs.readFileSync(file).toString()) as T;
         } catch (exception) {
             throw new FriendlyException(firstLineOnly(`${exception}`));
         }
