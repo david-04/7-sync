@@ -18,33 +18,37 @@ class CommandLineParser {
     private static readonly OPTIONS = {
         config: "config",
         dryRun: "dry-run",
-        source: "from",
-        destination: "to",
         sevenZip: "7-zip",
+        silent: "silent",
         help: "help",
-        version: "version"
+        version: "version",
+        debug: "debug"
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Default options per command
     //------------------------------------------------------------------------------------------------------------------
 
-    private static readonly DEFAULT_OPTIONS: { [index: string]: AllOptions } = {
+    private static readonly SHARED_DEFAULT_OPTIONS: SharedOptions = {
+        config: this.DEFAULT_CONFIG_FILE,
+        debug: false,
+        silent: false
+    };
+
+    private static readonly DEFAULT_OPTIONS: { [index: string]: TaskOptions } = {
         sync: this.as<SyncOptions>({
             command: "sync",
-            config: this.DEFAULT_CONFIG_FILE,
+            ...this.SHARED_DEFAULT_OPTIONS,
             dryRun: false,
-            source: undefined,
-            destination: undefined,
             sevenZip: this.DEFAULT_7_ZIP_EXECUTABLE
         }),
         init: this.as<InitOptions>({
             command: "init",
-            config: this.DEFAULT_CONFIG_FILE
+            ...this.SHARED_DEFAULT_OPTIONS
         }),
         changePassword: this.as<ChangePasswordOptions>({
             command: "change-password",
-            config: this.DEFAULT_CONFIG_FILE
+            ...this.SHARED_DEFAULT_OPTIONS
         })
     }
 
@@ -54,7 +58,7 @@ class CommandLineParser {
 
     private static showUsageAndExit(): never {
         this.exitWithMessage(`
-              7-sync ${APPLICATION_VERSION}: Replicate a file and directory structure using 7-zip.
+              Replicate a file and directory structure using 7-zip.
             |
             | Usage: 7-sync [command] [options]
             |
@@ -68,13 +72,13 @@ class CommandLineParser {
             |
             |   --${this.OPTIONS.config}=<CONFIG_JSON>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
-            |   --${this.OPTIONS.source}=<SOURCE_DIR>         sync from the given directory
-            |   --${this.OPTIONS.destination}=<DESTINATION_DIR>      sync to the given directory
-            |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>      the 7-Zip executable to use
+            |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
+            |   --${this.OPTIONS.silent}                    suppress console output
+            |   --${this.OPTIONS.debug}                     enable verbose log file output
             |
-            |   --${this.OPTIONS.help}                                 display this help and exit
-            |   --${this.OPTIONS.version}                                 display version information and exit
-        `.trim().replace(/^\s+/gm, "").replace(/^\| /gm, ""));
+            |   --${this.OPTIONS.help}                      display this help and exit
+            |   --${this.OPTIONS.version}                   display version information and exit
+        `.trim().replace(/^\s+/gm, "").replace(/^\| ?/gm, ""));
     }
 
     //------------------------------------------------------------------------------------------------------------------

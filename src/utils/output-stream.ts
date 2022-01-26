@@ -2,24 +2,31 @@
 // Base class for all output streams
 //----------------------------------------------------------------------------------------------------------------------
 
-interface OutputStream {
-    log(line: string): void;
+abstract class OutputStream {
+
+    public log(...data: any[]) {
+        this.doLog(
+            data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`).join(" ")
+        );
+    }
+
+    protected abstract doLog(data: string): void;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // A muted output stream
 //----------------------------------------------------------------------------------------------------------------------
 
-class NullOutputStream implements OutputStream {
-    log(_line: string) { }
+class NullOutputStream extends OutputStream {
+    protected doLog(_data: string) { }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // A console output stream (stdout)
 //----------------------------------------------------------------------------------------------------------------------
 
-class ConsoleOutputStream implements OutputStream {
-    log(line: string) {
+class ConsoleOutputStream extends OutputStream {
+    protected doLog(line: any) {
         console.log(line);
     }
 }
@@ -28,19 +35,23 @@ class ConsoleOutputStream implements OutputStream {
 // A file output stream
 //----------------------------------------------------------------------------------------------------------------------
 
-class FileOutputStream implements OutputStream {
+class FileOutputStream extends OutputStream {
 
-    private stream: { write: (data: string) => void };
+    private stream: {
+        write(chunk: any, callback?: (error: Error | null | undefined) => void): boolean;
+        write(chunk: any, encoding: BufferEncoding, callback?: (error: Error | null | undefined) => void): boolean;
+    };
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialisation
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(file: string, append: boolean) {
+        super();
         try {
             this.stream = nodeModules.fs.createWriteStream(file, append ? { flags: 'a' } : {});
         } catch (exception) {
-            throw new FriendlyException(`ERROR: Failed to open file ${file} - ${exception}`);
+            throw new FriendlyException(`Failed to open file ${file} - ${exception}`);
         }
     }
 
@@ -48,7 +59,7 @@ class FileOutputStream implements OutputStream {
     // Append a message to the logfile
     //------------------------------------------------------------------------------------------------------------------
 
-    public log(line: string) {
+    protected doLog(line: string) {
         this.stream.write(line + "\n");
     }
 }

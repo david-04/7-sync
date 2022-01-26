@@ -1,32 +1,37 @@
-type AllOptions = InitOptions | SyncOptions | ChangePasswordOptions;
+type TaskOptions = InitOptions | SyncOptions | ChangePasswordOptions;
+
+//----------------------------------------------------------------------------------------------------------------------
+// Shared options that apply to all tasks
+//----------------------------------------------------------------------------------------------------------------------
+
+interface SharedOptions {
+    config: string;
+    silent: boolean;
+    debug: boolean;
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 // Options for the "init" operation
 //----------------------------------------------------------------------------------------------------------------------
 
-interface InitOptions {
+interface InitOptions extends SharedOptions {
     command: "init";
-    config: string;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // Options for the "sync" operation
 //----------------------------------------------------------------------------------------------------------------------
 
-interface SyncOptions {
+interface SyncOptions extends SharedOptions {
     command: "sync";
-    config: string;
     dryRun: boolean;
-    source: string | undefined;
-    destination: string | undefined;
-    sevenZip: string;
+    sevenZip: string | undefined;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // Options for the "change-password" operation
 //----------------------------------------------------------------------------------------------------------------------
 
-interface ChangePasswordOptions {
+interface ChangePasswordOptions extends SharedOptions {
     command: "change-password";
-    config: string;
 }
