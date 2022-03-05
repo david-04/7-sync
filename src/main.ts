@@ -10,9 +10,10 @@ class Application {
     // Entry point and error handling for the main program
     //------------------------------------------------------------------------------------------------------------------
 
-    public static main() {
+    public static async main() {
         try {
-            this.run(process.argv.slice(2));
+            await this.run(process.argv.slice(2));
+            process.exit(0);
         } catch (exception) {
             if (exception instanceof FriendlyException) {
                 if (0 === exception.exitCode) {
@@ -33,61 +34,49 @@ class Application {
     // The main processing logic
     //------------------------------------------------------------------------------------------------------------------
 
-    private static run(argv: string[]) {
+    private static async run(argv: string[]) {
         this.logger = new Logger(LogLevel.ERROR, new NullOutputStream());
         this.logger.info("Parsing the command line options");
         const options = CommandLineParser.parse(argv);
         this.logger.debug("Extracted command line options:", options);
-        const { originalConfig, mergedConfig } = JsonLoader.loadAndValidateConfig(options, this.logger);
-        if (mergedConfig.logfile) {
-            this.logger = new Logger(LogLevel.INFO, new NullOutputStream());
-        }
-        const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
-        const context = new Context(options, originalConfig, mergedConfig, console, this.logger);
-        this.runTask(context);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Initiate the requested task
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static runTask(context: Context<TaskOptions>) {
-        switch (context.options.command) {
-            case "init": return this.init(context.typify(context.options));
-            case "sync": return this.sync(context.typify(context.options));
-            case "change-password": return this.changePassword(context.typify(context.options));
+        switch (options.command) {
+            case CommandLineParser.DEFAULT_OPTIONS.init.command:
+                return await SetupWizard.initialiseConfigFile(options);
+            case CommandLineParser.DEFAULT_OPTIONS.sync.command:
+                return await false // this.sync(this.createContext(options, this.logger));
+            case CommandLineParser.DEFAULT_OPTIONS.changePassword.command:
+                return await true //SetupWizard.changePassword(this.createContext(options, this.logger));
         }
         // @ts-expect-error
         throw `Internal error: Missing handler for ${context.options.command}`
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Run the initialisation
+    // Create a context instance
     //------------------------------------------------------------------------------------------------------------------
 
-    private static init(_context: Context<InitOptions>) {
-
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Run a sync (or a dry run)
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static sync(_context: Context<SyncOptions>) {
-
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Change the password
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static changePassword(_context: Context<ChangePasswordOptions>) {
-
-    }
+    //     private static createContext<T extends SyncOptions | ChangePasswordOptions>(
+    //         options: T, logger: Logger
+    //     ): Context<T> {
+    //         this.logger = logger;
+    //         const { originalConfig, mergedConfig } = JsonLoader.loadAndValidateConfig(options, this.logger);
+    //         if (mergedConfig.logfile) {
+    //             this.logger = new Logger(LogLevel.INFO, new NullOutputStream());
+    //         }
+    //         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
+    //         return new Context(options, originalConfig, mergedConfig, console, this.logger);
+    //     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // Run the application when the whole script has been loaded
 //----------------------------------------------------------------------------------------------------------------------
 
-process.on("exit", () => Application.main());
+let hasStarted = false;
+
+process.on("beforeExit", () => {
+    if (!hasStarted) {
+        hasStarted = true;
+        Application.main();
+    }
+});

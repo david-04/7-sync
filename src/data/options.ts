@@ -1,11 +1,11 @@
 type TaskOptions = InitOptions | SyncOptions | ChangePasswordOptions;
+type TaskOptionsWithConfigFile = TaskOptions & { config: string };
 
 //----------------------------------------------------------------------------------------------------------------------
 // Shared options that apply to all tasks
 //----------------------------------------------------------------------------------------------------------------------
 
 interface SharedOptions {
-    config: string;
     silent: boolean;
     debug: boolean;
 }
@@ -16,6 +16,7 @@ interface SharedOptions {
 
 interface InitOptions extends SharedOptions {
     command: "init";
+    config?: string;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -24,6 +25,7 @@ interface InitOptions extends SharedOptions {
 
 interface SyncOptions extends SharedOptions {
     command: "sync";
+    config: string;
     dryRun: boolean;
     sevenZip: string | undefined;
 }
@@ -34,4 +36,5 @@ interface SyncOptions extends SharedOptions {
 
 interface ChangePasswordOptions extends SharedOptions {
     command: "change-password";
+    config: string;
 }

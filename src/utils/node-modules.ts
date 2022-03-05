@@ -1,9 +1,9 @@
 /// <reference path="node-modules.d.ts" />
 
-const node = (() => {
-    const crypto: typeof _NodeModuleTypes.crypto = require("crypto");
-    const fs: typeof _NodeModuleTypes.fs = require("fs");
-    const path: typeof _NodeModuleTypes.path = require("path");
-    const process: typeof _NodeModuleTypes.process = require("process");
-    return { crypto, fs, path, process };
-})();
+const node = (() => ({
+    crypto: require("crypto") as typeof _NodeModuleTypes.crypto,
+    fs: require("fs") as typeof _NodeModuleTypes.fs,
+    path: require("path") as typeof _NodeModuleTypes.path,
+    process: require("process") as typeof _NodeModuleTypes.process,
+    readline: require("readline") as typeof _NodeModuleTypes.readline
+}))();

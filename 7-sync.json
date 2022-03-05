@@ -1,8 +1,0 @@
-{
-    "source": "config::source",
-    "destination": "config::destination",
-    "registry": "config::registry",
-    "logfile": "config::logfile",
-    "password": "config::password",
-    "sevenZip": "config::7z"
-}

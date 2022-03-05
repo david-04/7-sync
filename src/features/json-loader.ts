@@ -4,7 +4,7 @@ class JsonLoader {
     // Load and validate a JSON configuration
     //------------------------------------------------------------------------------------------------------------------
 
-    public static loadAndValidateConfig(options: TaskOptions, logger: Logger) {
+    public static loadAndValidateConfig(options: TaskOptionsWithConfigFile, logger: Logger) {
         const file = options.config;
         try {
             logger.info(`Loading configuration file ${file}`);

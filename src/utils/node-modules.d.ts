@@ -11,3 +11,6 @@ export const path: typeof _path;
 
 import _process = require("process");
 export const process: typeof _process;
+
+import _readline = require("readline");
+export const readline: typeof _readline;

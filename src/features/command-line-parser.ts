@@ -8,7 +8,7 @@ class CommandLineParser {
     // Default values
     //------------------------------------------------------------------------------------------------------------------
 
-    private static readonly DEFAULT_CONFIG_FILE = "7-sync.json";
+    public static readonly DEFAULT_CONFIG_FILE = "7-sync.cfg";
     private static readonly DEFAULT_7_ZIP_EXECUTABLE = "7z";
 
     //------------------------------------------------------------------------------------------------------------------
@@ -30,25 +30,27 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     private static readonly SHARED_DEFAULT_OPTIONS: SharedOptions = {
-        config: this.DEFAULT_CONFIG_FILE,
         debug: false,
         silent: false
     };
 
-    private static readonly DEFAULT_OPTIONS: { [index: string]: TaskOptions } = {
+    public static readonly DEFAULT_OPTIONS = {
         sync: this.as<SyncOptions>({
             command: "sync",
             ...this.SHARED_DEFAULT_OPTIONS,
+            config: this.DEFAULT_CONFIG_FILE,
             dryRun: false,
             sevenZip: this.DEFAULT_7_ZIP_EXECUTABLE
         }),
         init: this.as<InitOptions>({
             command: "init",
-            ...this.SHARED_DEFAULT_OPTIONS
+            ...this.SHARED_DEFAULT_OPTIONS,
+            config: undefined,
         }),
         changePassword: this.as<ChangePasswordOptions>({
             command: "change-password",
-            ...this.SHARED_DEFAULT_OPTIONS
+            ...this.SHARED_DEFAULT_OPTIONS,
+            config: this.DEFAULT_CONFIG_FILE,
         })
     }
 
@@ -64,19 +66,18 @@ class CommandLineParser {
             |
             | Commands:
             |
-            |   ${this.DEFAULT_OPTIONS.sync.command}                        sync files (or perform a dry run)
-            |   ${this.DEFAULT_OPTIONS.init.command}                        create a new configuration file
             |   ${this.DEFAULT_OPTIONS.changePassword.command}             change the password
+            |   ${this.DEFAULT_OPTIONS.init.command}                        create a new configuration file
+            |   ${this.DEFAULT_OPTIONS.sync.command}                        sync files (or perform a dry run)
             |
             | Options:
             |
-            |   --${this.OPTIONS.config}=<CONFIG_JSON>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
-            |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
-            |   --${this.OPTIONS.silent}                    suppress console output
-            |   --${this.OPTIONS.debug}                     enable verbose log file output
-            |
+            |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
+            |   --${this.OPTIONS.debug}                     enable verbose logging
+            |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
+            |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
         `.trim().replace(/^\s+/gm, "").replace(/^\| ?/gm, ""));
     }
@@ -152,7 +153,8 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     private static getDefaultOptions(command: string) {
-        const defaultOptions = this.DEFAULT_OPTIONS[this.getInternalKey(this.DEFAULT_OPTIONS, command)];
+        const defaultOptionsMap: { [index: string]: TaskOptions } = this.DEFAULT_OPTIONS;
+        const defaultOptions = defaultOptionsMap[this.getInternalKey(this.DEFAULT_OPTIONS, command)];
         if (defaultOptions) {
             return defaultOptions;
         } else {
