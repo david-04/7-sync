@@ -58,7 +58,7 @@ class Optional<T> {
 
     public getOrThrow(): T {
         if (undefined === this.value) {
-            throw "The Optional is empty";
+            throw new Error("The Optional is empty");
         } else {
             return this.value;
         }
@@ -146,7 +146,7 @@ class Optional<T> {
             if (optional instanceof Optional) {
                 return optional;
             } else {
-                throw "The mapping function did not return an Optional instance";
+                throw new Error("The mapping function did not return an Optional instance");
             }
         }
     }
@@ -155,7 +155,7 @@ class Optional<T> {
     // Filter out the value if it matches the filter
     //--------------------------------------------------------------------------------------------------------------
 
-    public filter(filter: (value: T) => any): Optional<T> {
+    public filter(filter: (value: T) => unknown): Optional<T> {
         if (undefined !== this.value && filter(this.value)) {
             return this;
         } else {

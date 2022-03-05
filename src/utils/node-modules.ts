@@ -1,3 +1,4 @@
+/* eslint-disable */
 /// <reference path="node-modules.d.ts" />
 
 const node = (() => ({

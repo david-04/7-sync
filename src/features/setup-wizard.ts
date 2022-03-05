@@ -24,7 +24,7 @@ class SetupWizard {
             presetAnswer: options.config,
             defaultAnswer: CommandLineParser.DEFAULT_CONFIG_FILE,
             normalisePath: true,
-            validate: configFile => this.validateConfigFile(configFile),
+            validate: file => this.validateConfigFile(file),
         });
         const referencePath = FileUtils.getAbsolutePath(FileUtils.normalise(FileUtils.getParent(configFile)));
         const sourceDirectory = await this.prompt({
@@ -33,7 +33,7 @@ class SetupWizard {
                 `The path can be absolute or relative to ${referencePath}.`
             ],
             normalisePath: true,
-            validate: sourceDirectory => this.validateSourceDirectory(configFile, sourceDirectory),
+            validate: source => this.validateSourceDirectory(configFile, source),
         });
         const destinationDirectory = await this.prompt({
             question: [
@@ -41,9 +41,7 @@ class SetupWizard {
                 referencePath ? `The path can be relative to ${referencePath}` : ""
             ],
             normalisePath: true,
-            validate: destinationDirectory => this.validateDestinationDirectory(
-                configFile, sourceDirectory, destinationDirectory
-            ),
+            validate: destination => this.validateDestinationDirectory(configFile, sourceDirectory, destination),
         });
         const password = await this.promptForPassword();
         const config: JsonConfig = {
@@ -96,7 +94,7 @@ class SetupWizard {
         if (!configFile.endsWith(".cfg")) {
             return `ERROR: The filename must end with .cfg.`
         } else if (FileUtils.existsAndIsFile(configFile)) {
-            return await InteractivePrompt.promptYesNo(`${configFile} already exists. Do you want to overwrite it?`);
+            return InteractivePrompt.promptYesNo(`${configFile} already exists. Do you want to overwrite it?`);
         } else if (FileUtils.exists(configFile)) {
             return `ERROR: ${configFile} already exists but is not a regular file and can't be overwritten.`
         } else {
@@ -183,7 +181,7 @@ class SetupWizard {
             console.log("");
             console.log("ERROR: The passwords don't match.");
             console.log("");
-            return await this.promptForPassword();
+            return this.promptForPassword();
         }
     }
 }

@@ -30,15 +30,15 @@ class InteractivePrompt {
         const effectiveOptions: (typeof InteractivePrompt.DEFAULT_OPTIONS) = { ...this.DEFAULT_OPTIONS, ...options };
         this.displayQuestion(effectiveOptions.question);
         while (true) {
-            let answer = await this.readLine({ isPassword: effectiveOptions.isPassword });
-            let result = this.mapAndValidate(answer, effectiveOptions);
+            const answer = await this.readLine({ isPassword: effectiveOptions.isPassword });
+            const result = this.mapAndValidate(answer, effectiveOptions);
             if (result.isPresent()) {
                 if (!effectiveOptions.suppressExtraEmptyLineAfterInput) {
                     console.log("");
                 }
                 return result.getOrThrow();
             }
-        };
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -107,13 +107,13 @@ class InteractivePrompt {
     private static async readLine(options?: { isPassword: boolean }): Promise<string> {
         const readlineInterface = node.readline.createInterface({ input: process.stdin, output: process.stdout });
         if (options?.isPassword) {
-            (readlineInterface as any)._writeToOutput = (x: string) => {
-                if (x === this.PROMPT) {
+            (readlineInterface as unknown as { [index: string]: (text: string) => void })._writeToOutput = (text: string) => {
+                if (text === this.PROMPT) {
                     process.stdout.write(this.PROMPT);
                 }
             };
         }
-        return await new Promise(resolve => readlineInterface.question(this.PROMPT, answer => {
+        return new Promise(resolve => readlineInterface.question(this.PROMPT, answer => {
             readlineInterface.close();
             resolve(answer);
         }));

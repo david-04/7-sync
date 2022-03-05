@@ -34,7 +34,7 @@ class JsonLoader {
 
     private static overwriteConfigWithCommandLineOptions(config: any, options: any) {
         for (const key of Object.keys(options)) {
-            if (config.hasOwnProperty(key) && undefined !== options[key]) {
+            if (Object.prototype.hasOwnProperty.call(config, key) && undefined !== options[key]) {
                 config[key] = options[key];
             }
         }

@@ -166,7 +166,7 @@ class CommandLineParser {
     // Set a single option value
     //------------------------------------------------------------------------------------------------------------------
 
-    private static setOption(defaultOptions: object, suppliedKey: string, suppliedValue: any) {
+    private static setOption(defaultOptions: object, suppliedKey: string, suppliedValue: boolean | string) {
         const defaultKey = this.getInternalKey(this.OPTIONS, suppliedKey);
         if ("command" === suppliedKey || !(defaultKey in defaultOptions)) {
             this.exitWithError(`invalid option --${suppliedKey}`);

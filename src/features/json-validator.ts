@@ -16,7 +16,7 @@ abstract class Validator {
 //----------------------------------------------------------------------------------------------------------------------
 
 class NonEmptyStringValidator extends Validator {
-    validate(path: string, value: any) {
+    validate(path: string, value: string) {
         if ("string" !== typeof value) {
             this.throw(path, `Expected a string but found ${typeof value}`);
         } else if (!value) {
@@ -31,7 +31,7 @@ class NumberValidator extends Validator {
         super();
     }
 
-    public validate(path: string, value: any) {
+    public validate(path: string, value: number) {
         if ("number" !== typeof value) {
             this.throw(path, `Expected a number but found ${typeof path}`);
         } else if (undefined !== this.min && value < this.min) {
@@ -65,14 +65,14 @@ class ObjectValidator<T extends object> extends Validator {
             this.throw(path, `Expected an object but found an array`);
         } else {
             for (const key of Object.keys(this.propertyValidators)) {
-                if (!value.hasOwnProperty(key)) {
+                if (!Object.prototype.hasOwnProperty.call(value, key)) {
                     this.throw(path, `Property ${key} is missing`);
                 } else {
                     this.propertyValidators[key].validate(`${path}/${key}`, (value as any)[key]);
                 }
             }
             for (const key of Object.keys(value)) {
-                if (!this.propertyValidators.hasOwnProperty(key)) {
+                if (!Object.prototype.hasOwnProperty.call(this.propertyValidators, key)) {
                     this.throw(path, `Unknown property ${key}`);
                 }
             }

@@ -28,19 +28,19 @@ class Logger {
     // Add log entries for different severities
     //------------------------------------------------------------------------------------------------------------------
 
-    public debug(...message: any[]) {
+    public debug(...message: (string | object)[]) {
         this.formatAndAppend(LogLevel.DEBUG, message);
     }
 
-    public info(...message: any[]) {
+    public info(...message: (string | object)[]) {
         this.formatAndAppend(LogLevel.INFO, message);
     }
 
-    public warn(...message: any[]) {
+    public warn(...message: (string | object)[]) {
         this.formatAndAppend(LogLevel.WARN, message);
     }
 
-    public error(...message: any[]) {
+    public error(...message: (string | object)[]) {
         this.formatAndAppend(LogLevel.ERROR, message);
     }
 
@@ -48,7 +48,7 @@ class Logger {
     // Format the line and append it to the logfile
     //------------------------------------------------------------------------------------------------------------------
 
-    private formatAndAppend(logLevel: LogLevel, messages: string[]) {
+    private formatAndAppend(logLevel: LogLevel, messages: (string | object)[]) {
         if (logLevel.index <= this.logLevel.index) {
             this.outputStream.log(Logger.getCurrentTimestamp(), ...messages);
         }

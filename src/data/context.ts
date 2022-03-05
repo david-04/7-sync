@@ -20,10 +20,10 @@ class Context<T extends TaskOptions> {
     // A hacky hint to TypeScripts type inferer
     //------------------------------------------------------------------------------------------------------------------
 
-    public typify<T extends TaskOptions>(options: T) {
-        if (this.options !== options as any) {
-            throw `Internal error: Typify must be called with this.options`;
-        }
-        return this as any as Context<T>;
-    }
+    // public typify<T extends TaskOptions>(options: T) {
+    //     if (this.options !== options as unknown) {
+    //         throw new Error(`Internal error: Typify must be called with this.options`);
+    //     }
+    //     return this as any as Context<T>;
+    // }
 }

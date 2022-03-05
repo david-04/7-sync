@@ -41,14 +41,14 @@ class Application {
         this.logger.debug("Extracted command line options:", options);
         switch (options.command) {
             case CommandLineParser.DEFAULT_OPTIONS.init.command:
-                return await SetupWizard.initialiseConfigFile(options);
+                return SetupWizard.initialiseConfigFile(options);
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
-                return await false // this.sync(this.createContext(options, this.logger));
+                return;
             case CommandLineParser.DEFAULT_OPTIONS.changePassword.command:
-                return await true //SetupWizard.changePassword(this.createContext(options, this.logger));
+                return;
         }
-        // @ts-expect-error
-        throw `Internal error: Missing handler for ${context.options.command}`
+        // @ts-expect-error The switch above should be exhaustive
+        throw new Error(`Internal error: Missing handler for ${context.options.command}`)
     }
 
     //------------------------------------------------------------------------------------------------------------------

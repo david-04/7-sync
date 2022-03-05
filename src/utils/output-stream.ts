@@ -4,7 +4,7 @@
 
 abstract class OutputStream {
 
-    public log(...data: any[]) {
+    public log(...data: (string | object)[]) {
         this.doLog(
             data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`).join(" ")
         );
@@ -18,7 +18,9 @@ abstract class OutputStream {
 //----------------------------------------------------------------------------------------------------------------------
 
 class NullOutputStream extends OutputStream {
-    protected doLog(_data: string) { }
+    protected doLog(_data: string) {
+        // supress all output
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -26,7 +28,7 @@ class NullOutputStream extends OutputStream {
 //----------------------------------------------------------------------------------------------------------------------
 
 class ConsoleOutputStream extends OutputStream {
-    protected doLog(line: any) {
+    protected doLog(line: string) {
         console.log(line);
     }
 }
@@ -38,8 +40,8 @@ class ConsoleOutputStream extends OutputStream {
 class FileOutputStream extends OutputStream {
 
     private stream: {
-        write(chunk: any, callback?: (error: Error | null | undefined) => void): boolean;
-        write(chunk: any, encoding: BufferEncoding, callback?: (error: Error | null | undefined) => void): boolean;
+        write(chunk: string, callback?: (error: Error | null | undefined) => void): boolean;
+        write(chunk: string, encoding: BufferEncoding, callback?: (error: Error | null | undefined) => void): boolean;
     };
 
     //------------------------------------------------------------------------------------------------------------------
