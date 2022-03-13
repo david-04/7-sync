@@ -13,12 +13,21 @@ class Context {
     // Initialisation
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(public readonly options: SyncOptions) {
+    private constructor(public readonly options: SyncOptions) {
         this.files = Context.getFileNames(options.config);
         this.console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         this.logger = Context.getLogger(this.files.logfile, options.verbose);
         this.logger.separator();
         this.config = Context.getConfig(this.files.config, options, this.logger, this.console);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Factory method
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static async of(options: SyncOptions) {
+        await Logger.purge(Context.getFileNames(options.config).logfile, 4);
+        return new Context(options);
     }
 
     //------------------------------------------------------------------------------------------------------------------

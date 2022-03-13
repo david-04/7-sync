@@ -10,6 +10,8 @@ abstract class OutputStream {
         );
     }
 
+    public abstract close(): void;
+
     protected abstract doLog(data: string): void;
 }
 
@@ -18,9 +20,14 @@ abstract class OutputStream {
 //----------------------------------------------------------------------------------------------------------------------
 
 class NullOutputStream extends OutputStream {
+
     protected doLog(_data: string) {
         // supress all output
     }
+
+    public close() {
+        // nothing to close
+    };
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -28,9 +35,14 @@ class NullOutputStream extends OutputStream {
 //----------------------------------------------------------------------------------------------------------------------
 
 class ConsoleOutputStream extends OutputStream {
+
     protected doLog(line: string) {
         console.log(line);
     }
+
+    public close() {
+        // nothing to close
+    };
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -65,4 +77,12 @@ class FileOutputStream extends OutputStream {
             throw new FriendlyException(`Failed to write to log file ${this.file}: ${firstLineOnly(exception)}`);
         }
     }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Close the logfile
+    //------------------------------------------------------------------------------------------------------------------
+
+    public close() {
+        node.fs.closeSync(this.fileDescriptor);
+    };
 }
