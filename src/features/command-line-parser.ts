@@ -18,6 +18,7 @@ class CommandLineParser {
     private static readonly OPTIONS = {
         config: "config",
         dryRun: "dry-run",
+        password: "password",
         sevenZip: "7-zip",
         silent: "silent",
         help: "help",
@@ -38,6 +39,7 @@ class CommandLineParser {
             command: "sync",
             ...this.SHARED_DEFAULT_OPTIONS,
             dryRun: false,
+            password: undefined,
             sevenZip: undefined,
             verbose: false,
             silent: false

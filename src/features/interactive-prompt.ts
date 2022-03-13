@@ -14,7 +14,6 @@ class InteractivePrompt {
 
     private static readonly DEFAULT_OPTIONS = {
         question: this.as<string | string[]>(""),
-        preserveLeadingAndTrailingWhitespace: this.as<boolean>(false),
         acceptBlankInput: this.as<boolean>(false),
         isPassword: this.as<boolean>(false),
         validate: this.as<undefined | ((input: string) => boolean)>(undefined),
@@ -86,7 +85,7 @@ class InteractivePrompt {
     //------------------------------------------------------------------------------------------------------------------
 
     private static mapAndValidate(answer: string, options: typeof InteractivePrompt.DEFAULT_OPTIONS): Optional<string> {
-        if (!(options.preserveLeadingAndTrailingWhitespace ?? false)) {
+        if (!(options.isPassword ?? false)) {
             answer = answer.trim();
         }
         if (0 === answer.length && undefined !== options.defaultAnswer) {

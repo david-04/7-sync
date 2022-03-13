@@ -25,9 +25,9 @@ class SevenZip {
     // Initialise
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(executable: string) {
-        if (!SevenZip.isValidExecutable(executable)) {
-            throw new FriendlyException(`Can't execute "${executable}"`);
+    public constructor(_executable: string, _password: string) {
+        if (!SevenZip.isValidExecutable(_executable)) {
+            throw new FriendlyException(`Can't execute "${_executable}"`);
         }
     }
 

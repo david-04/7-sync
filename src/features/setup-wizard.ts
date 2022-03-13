@@ -142,7 +142,11 @@ class SetupWizard {
             }
         }
         while (true) {
-            const password = await this.prompt({ question: ["Please enter the password."], isPassword: true });
+            const password = await this.prompt({
+                question: ["Please enter the password."],
+                isPassword: true,
+
+            });
             if (password === await this.prompt({ question: ["Please repeat the password."], isPassword: true })) {
                 console.log("");
                 return PasswordHelper.createSaltedHash(password);

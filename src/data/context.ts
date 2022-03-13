@@ -4,30 +4,34 @@
 
 class Context {
 
-    public readonly files;
-    public readonly config;
-    public readonly logger;
-    public readonly console;
-
     //------------------------------------------------------------------------------------------------------------------
     // Initialisation
     //------------------------------------------------------------------------------------------------------------------
 
-    private constructor(public readonly options: SyncOptions) {
-        this.files = Context.getFileNames(options.config);
-        this.console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
-        this.logger = Context.getLogger(this.files.logfile, options.verbose);
-        this.logger.separator();
-        this.config = Context.getConfig(this.files.config, options, this.logger, this.console);
-    }
+    private constructor(
+        public readonly options: SyncOptions,
+        public readonly config: JsonConfig,
+        public readonly files: { config: string, database: string, logfile: string },
+        public readonly logger: Logger,
+        public readonly console: OutputStream,
+        public readonly sevenZip: SevenZip
+    ) { }
 
     //------------------------------------------------------------------------------------------------------------------
     // Factory method
     //------------------------------------------------------------------------------------------------------------------
 
     public static async of(options: SyncOptions) {
-        await Logger.purge(Context.getFileNames(options.config).logfile, 4);
-        return new Context(options);
+        const password = options.password ?? node.process.env["7_SYNC_PASSWORD"];
+        delete options.password;
+        const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
+        const files = Context.getFileNames(options.config);
+        await Logger.purge(files.logfile, 4);
+        const logger = Context.getLogger(files.logfile, options.verbose);
+        logger.separator();
+        const config = Context.getConfig(files.config, options, logger);
+        const sevenZip = new SevenZip(config.sevenZip, await this.getPassword(config.password, password));
+        return new Context(options, config, files, logger, console, sevenZip);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -59,8 +63,7 @@ class Context {
     // Load and validate the configuration - and overlay it with command line options
     //------------------------------------------------------------------------------------------------------------------
 
-    private static getConfig(configFile: string, options: SyncOptions, logger: Logger, console: OutputStream) {
-        console.log(`Loading config file ${configFile}`);
+    private static getConfig(configFile: string, options: SyncOptions, logger: Logger) {
         const json = JsonLoader.loadAndValidateConfig(options, logger).mergedConfig;
         const validationResult = ConfigValidator.validate(configFile, json);
         if (true === validationResult) {
@@ -68,5 +71,32 @@ class Context {
         } else {
             throw new FriendlyException(`Invalid configuration: ${validationResult}`);
         }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Obtain the password
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getPassword(saltedHash: string, password?: string) {
+        if (undefined === password) {
+            password = await InteractivePrompt.prompt({
+                question: "Please enter the password.",
+                isPassword: true,
+                validate: password => {
+                    const isCorrect = PasswordHelper.validatePassword(password, saltedHash);
+                    if (!isCorrect) {
+                        console.log("");
+                        console.log("Invalid password. Please try again.");
+                    }
+                    return isCorrect;
+                }
+            });
+            console.log("");
+            console.log("test");
+        }
+        if (!PasswordHelper.validatePassword(password, saltedHash)) {
+            throw new FriendlyException("Invalid password");
+        }
+        return password;
     }
 }

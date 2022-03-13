@@ -31,6 +31,7 @@ interface ReconfigureOptions extends SharedOptions {
 interface SyncOptions extends SharedOptions {
     command: "sync";
     dryRun: boolean;
+    password?: string;
     sevenZip?: string;
     silent: boolean;
     verbose: boolean;
