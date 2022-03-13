@@ -2,6 +2,6 @@
 // Stringify
 //----------------------------------------------------------------------------------------------------------------------
 
-function firstLineOnly(string: string) {
-    return string.replace(/[\r\n].*$/m, "");
+function firstLineOnly(exception: unknown) {
+    return `${exception}`.replace(/[\r\n].*$/m, "");
 }

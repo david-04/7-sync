@@ -18,6 +18,8 @@ class LogLevel {
 
 class Logger {
 
+    public static readonly SEPARATOR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(() => "----------").join("");
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialisation
     //------------------------------------------------------------------------------------------------------------------
@@ -44,13 +46,18 @@ class Logger {
         this.formatAndAppend(LogLevel.ERROR, message);
     }
 
+    public separator() {
+        this.outputStream.log(Logger.SEPARATOR);
+        // this.formatAndAppend(Logger.SEPARATOR.logLevel, [Logger.SEPARATOR.message]);
+    }
+
     //------------------------------------------------------------------------------------------------------------------
     // Format the line and append it to the logfile
     //------------------------------------------------------------------------------------------------------------------
 
     private formatAndAppend(logLevel: LogLevel, messages: (string | object)[]) {
         if (logLevel.index <= this.logLevel.index) {
-            this.outputStream.log(Logger.getCurrentTimestamp(), ...messages);
+            this.outputStream.log(Logger.getCurrentTimestamp(), logLevel.paddedName, ...messages);
         }
     }
 

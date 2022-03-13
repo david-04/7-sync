@@ -52,27 +52,11 @@ class Application {
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
                 return SetupWizard.reconfigure(options);
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
-                return;
+                return new Context(options);
         }
         // @ts-expect-error The switch above should be exhaustive
         throw new Error(`Internal error: Missing handler for ${context.options.command}`)
     }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Create a context instance
-    //------------------------------------------------------------------------------------------------------------------
-
-    //     private static createContext<T extends SyncOptions | ChangePasswordOptions>(
-    //         options: T, logger: Logger
-    //     ): Context<T> {
-    //         this.logger = logger;
-    //         const { originalConfig, mergedConfig } = JsonLoader.loadAndValidateConfig(options, this.logger);
-    //         if (mergedConfig.logfile) {
-    //             this.logger = new Logger(LogLevel.INFO, new NullOutputStream());
-    //         }
-    //         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
-    //         return new Context(options, originalConfig, mergedConfig, console, this.logger);
-    //     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

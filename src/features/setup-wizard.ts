@@ -79,7 +79,7 @@ class SetupWizard {
                             return false;
                         }
                     }
-                    return this.formatValidationResult(ConfigValidator.validateConfigFile(file));
+                    return this.formatValidationResult(ConfigValidator.validateConfigFile(file, false));
                 }
             });
         }

@@ -39,21 +39,18 @@ class ConsoleOutputStream extends OutputStream {
 
 class FileOutputStream extends OutputStream {
 
-    private stream: {
-        write(chunk: string, callback?: (error: Error | null | undefined) => void): boolean;
-        write(chunk: string, encoding: BufferEncoding, callback?: (error: Error | null | undefined) => void): boolean;
-    };
+    private fileDescriptor;
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialisation
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(file: string, append: boolean) {
+    public constructor(private readonly file: string, append: boolean) {
         super();
         try {
-            this.stream = node.fs.createWriteStream(file, append ? { flags: 'a' } : {});
+            this.fileDescriptor = node.fs.openSync(file, append ? "a" : "w");
         } catch (exception) {
-            throw new FriendlyException(`Failed to open file ${file} - ${exception}`);
+            throw new FriendlyException(`Failed to open log file ${file}: ${exception}`);
         }
     }
 
@@ -62,6 +59,10 @@ class FileOutputStream extends OutputStream {
     //------------------------------------------------------------------------------------------------------------------
 
     protected doLog(line: string) {
-        this.stream.write(line + "\n");
+        try {
+            node.fs.writeSync(this.fileDescriptor, `${line}\n`);
+        } catch (exception) {
+            throw new FriendlyException(`Failed to write to log file ${this.file}: ${firstLineOnly(exception)}`);
+        }
     }
 }

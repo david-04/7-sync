@@ -8,11 +8,11 @@ class ConfigValidator {
     // Validate the configuration
     //------------------------------------------------------------------------------------------------------------------
 
-    public static validate(config: string, json: JsonConfig): string | true {
+    public static validate(configFile: string, json: JsonConfig): string | true {
         return [
-            this.validateConfigFile(config),
-            this.validateSourceDirectory(config, json.source),
-            this.validateDestinationDirectory(config, json.source, json.destination),
+            this.validateConfigFile(configFile, true),
+            this.validateSourceDirectory(configFile, json.source),
+            this.validateDestinationDirectory(configFile, json.source, json.destination),
             this.validateSevenZip(json.sevenZip)
         ].find(result => true !== result && undefined !== result) ?? true;
     }
@@ -21,18 +21,22 @@ class ConfigValidator {
     // Validate the configuration file name/path
     //------------------------------------------------------------------------------------------------------------------
 
-    public static validateConfigFile(config: string): string | true {
+    public static validateConfigFile(config: string, mustExist: boolean): string | true {
         const directory = FileUtils.getParent(config);
-        if (!config.endsWith(".cfg")) {
+        if (mustExist && !FileUtils.exists(config)) {
+            return `Config file "${config}" does not exist`;
+        } else if (mustExist && !FileUtils.existsAndIsFile(config)) {
+            return `Config file "${config}" is not a regular file`;
+        } else if (!config.endsWith(".cfg")) {
             return `${config} does not end with .cfg`;
         } else if (FileUtils.existsAndIsFile(config)) {
             return true;
         } else if (FileUtils.exists(config)) {
-            return `${config} exists but is not a regular file`;
+            return `${config} is not a regular file`;
         } else if (FileUtils.existsAndIsDirectory(directory)) {
             return true
         } else if (FileUtils.exists(directory)) {
-            return `${directory} is not a directory`;
+            return `Directory ${directory} is not a directory`;
         } else {
             return `Directory ${directory} does not exist`;
         }

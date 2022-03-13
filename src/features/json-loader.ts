@@ -10,11 +10,11 @@ class JsonLoader {
             throw new FriendlyException(`Configuration file ${file} does not exist`);
         }
         try {
-            if (!options.config.endsWith(".cfg")) {
-                throw new FriendlyException(`The configuration file ${options.config} does not end with .cfg`);
+            if (!file.endsWith(".cfg")) {
+                throw new FriendlyException(`The configuration file ${file} does not end with .cfg`);
             }
             logger.info(`Loading configuration file ${file}`);
-            const originalConfig = this.loadFile<JsonConfig>(options.config);
+            const originalConfig = this.loadFile<JsonConfig>(file);
             logger.debug("Loaded configuration:", originalConfig);
             logger.info("Validating the configuration");
             JsonValidator.validateConfig(originalConfig);
@@ -62,7 +62,7 @@ class JsonLoader {
         try {
             return JSON.parse(node.fs.readFileSync(file).toString()) as T;
         } catch (exception) {
-            throw new FriendlyException(firstLineOnly(`${exception}`));
+            throw new FriendlyException(firstLineOnly(exception));
         }
     }
 }
