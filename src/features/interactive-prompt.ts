@@ -71,6 +71,7 @@ class InteractivePrompt {
 
     private static displayQuestion(question?: string | string[]) {
         const message = (Array.isArray(question) ? question : [question])
+            .filter(line => null !== line && undefined !== line)
             .join("\n")
             .replace(/^\s*/mg, "")
             .replace(/(\r?\n)+/g, "\n")

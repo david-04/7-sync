@@ -1,13 +1,11 @@
-type TaskOptions = InitOptions | SyncOptions | ChangePasswordOptions;
-type TaskOptionsWithConfigFile = TaskOptions & { config: string };
+type TaskOptions = InitOptions | ReconfigureOptions | SyncOptions;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Shared options that apply to all tasks
 //----------------------------------------------------------------------------------------------------------------------
 
 interface SharedOptions {
-    silent: boolean;
-    debug: boolean;
+    config: string;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -16,7 +14,14 @@ interface SharedOptions {
 
 interface InitOptions extends SharedOptions {
     command: "init";
-    config?: string;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Options for the "reconfigure" operation
+//----------------------------------------------------------------------------------------------------------------------
+
+interface ReconfigureOptions extends SharedOptions {
+    command: "reconfigure";
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -25,16 +30,8 @@ interface InitOptions extends SharedOptions {
 
 interface SyncOptions extends SharedOptions {
     command: "sync";
-    config: string;
     dryRun: boolean;
-    sevenZip: string | undefined;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-// Options for the "change-password" operation
-//----------------------------------------------------------------------------------------------------------------------
-
-interface ChangePasswordOptions extends SharedOptions {
-    command: "change-password";
-    config: string;
+    sevenZip?: string;
+    silent: boolean;
+    verbose: boolean;
 }

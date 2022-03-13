@@ -125,8 +125,6 @@ class JsonValidator {
     private static getConfigValidator() {
         return new ObjectValidator<JsonConfig>({
             ...JsonValidator.SOURCE_AND_DESTINATION_VALIDATORS,
-            registry: new NonEmptyStringValidator(),
-            logfile: new NonEmptyStringValidator(),
             password: new NonEmptyStringValidator(),
             sevenZip: new NonEmptyStringValidator()
         });

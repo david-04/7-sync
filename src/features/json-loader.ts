@@ -4,9 +4,15 @@ class JsonLoader {
     // Load and validate a JSON configuration
     //------------------------------------------------------------------------------------------------------------------
 
-    public static loadAndValidateConfig(options: TaskOptionsWithConfigFile, logger: Logger) {
+    public static loadAndValidateConfig(options: TaskOptions, logger: Logger) {
         const file = options.config;
+        if (!FileUtils.existsAndIsFile(file)) {
+            throw new FriendlyException(`Configuration file ${file} does not exist`);
+        }
         try {
+            if (!options.config.endsWith(".cfg")) {
+                throw new FriendlyException(`The configuration file ${options.config} does not end with .cfg`);
+            }
             logger.info(`Loading configuration file ${file}`);
             const originalConfig = this.loadFile<JsonConfig>(options.config);
             logger.debug("Loaded configuration:", originalConfig);

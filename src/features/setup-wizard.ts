@@ -5,51 +5,171 @@
 class SetupWizard {
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialise the configuration
+    // Initialise a new configuration file
     //------------------------------------------------------------------------------------------------------------------
 
-    public static async initialiseConfigFile(options: InitOptions) {
+    public static async initialise(options: InitOptions) {
+        return await this.initialiseOrReconfigure({ config: options.config });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Reconfigure an existing configuration file
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static async reconfigure(options: ReconfigureOptions) {
+        const logger = new Logger(LogLevel.ERROR, new NullOutputStream());
+        const config = JsonLoader.loadAndValidateConfig(options, logger);
+        return await this.initialiseOrReconfigure({ config: options.config, ...config.originalConfig });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Acquire all information and update the file
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static async initialiseOrReconfigure(presets: Partial<JsonConfig> & { config: string }) {
         console.log("");
         console.log("--------------------------------------------------------------------------------");
         console.log("7-sync configuration wizard");
         console.log("--------------------------------------------------------------------------------");
         console.log("");
-        const configFile = await this.prompt({
-            question: [
-                "Please enter the name of the configuration file to create.",
-                "It must end with .cfg and can include a relative or absolute path.",
-                "It must be located outside the directories where to sync from and to.",
-                `Press Enter to use the default: ${CommandLineParser.DEFAULT_CONFIG_FILE}`
-            ],
-            presetAnswer: options.config,
-            defaultAnswer: CommandLineParser.DEFAULT_CONFIG_FILE,
-            normalisePath: true,
-            validate: file => this.validateConfigFile(file),
-        });
-        const referencePath = FileUtils.getAbsolutePath(FileUtils.normalise(FileUtils.getParent(configFile)));
-        const sourceDirectory = await this.prompt({
+        const hasPresets = undefined !== presets.source;
+        const config = await this.getConfigFile(hasPresets, presets.config);
+        const base = FileUtils.getAbsolutePath(FileUtils.normalise(FileUtils.getParent(config)));
+        const source = await this.getSourceDirectory(config, base, presets?.source);
+        const destination = await this.getDestinationDirectory(config, base, source, presets.destination)
+        const password = await this.getPassword(presets.password);
+        const sevenZip = await this.getSevenZip(hasPresets, presets.sevenZip ?? "7z");
+        const configJson: JsonConfig = {
+            source: FileUtils.resolve(config, source),
+            destination: FileUtils.resolve(config, destination),
+            password,
+            sevenZip
+        };
+        node.fs.writeFileSync(config, JSON.stringify(configJson, undefined, 4));
+        if (hasPresets) {
+            console.log(`Config file "${config}" has been updated.`);
+        } else {
+            console.log(`The config file "${config}" has been created.`);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the config file
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getConfigFile(hasPresets: boolean, preset: string) {
+        if (hasPresets) {
+            console.log(`This wizard will reconfigure ${preset}.`);
+            console.log("");
+            return preset;
+        } else {
+            return await this.prompt({
+                question: [
+                    "Please enter the name of the configuration file to create.",
+                    "It must end with .cfg and can include a relative or absolute path.",
+                    "It must be located outside the directories where to sync from and to.",
+                    `Press Enter to use the default: ${preset}`
+                ],
+                defaultAnswer: preset,
+                normalisePath: true,
+                validate: async (file) => {
+                    if (FileUtils.existsAndIsFile(file)) {
+                        const prompt = `${file} already exists. Do you want to overwrite it?`
+                        if (!await InteractivePrompt.promptYesNo(prompt)) {
+                            return false;
+                        }
+                    }
+                    return this.formatValidationResult(ConfigValidator.validateConfigFile(file));
+                }
+            });
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the source directory from where to sync
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getSourceDirectory(configFile: string, base: string, preset?: string) {
+        return await this.prompt({
             question: [
                 "Please enter the source directory where to sync files from.",
-                `The path can be absolute or relative to ${referencePath}.`
+                base ? `The path can be absolute or relative to ${base}` : "The path can be absolute or relative.",
+                ...(preset ? [`Press Enter to use the current setting: ${preset}`] : [])
             ],
             normalisePath: true,
-            validate: source => this.validateSourceDirectory(configFile, source),
+            defaultAnswer: preset,
+            validate: source => Promise.resolve(
+                this.formatValidationResult(ConfigValidator.validateSourceDirectory(configFile, source))
+            )
         });
-        const destinationDirectory = await this.prompt({
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the destination directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getDestinationDirectory(config: string, base: string, source: string, preset?: string) {
+        return await this.prompt({
             question: [
                 "Please enter the destination directory for the encrypted files.",
-                referencePath ? `The path can be relative to ${referencePath}` : ""
+                base ? `The path can be absolute or relative to ${base}` : "The path can be absolute or relative.",
+                ...(preset ? [`Press Enter to use the current setting: ${preset}`] : [])
             ],
             normalisePath: true,
-            validate: destination => this.validateDestinationDirectory(configFile, sourceDirectory, destination),
+            defaultAnswer: preset,
+            validate: destination => Promise.resolve(
+                this.formatValidationResult(ConfigValidator.validateDestinationDirectory(config, source, destination))
+            )
         });
-        const password = await this.promptForPassword();
-        const config: JsonConfig = {
-            source: FileUtils.resolve(sourceDirectory, configFile),
-            destination: FileUtils.resolve(destinationDirectory, configFile),
-            password
-        };
-        node.fs.writeFileSync(configFile, JSON.stringify(config, undefined, 4));
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the password
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getPassword(preset?: string): Promise<string> {
+        if (preset) {
+            if (!await InteractivePrompt.promptYesNo("Do you want to change the password?")) {
+                return preset;
+            }
+            const prompt = [
+                "Changing the password does not re-encrypt any files.",
+                "You'll need to delete everything from the destination before re-sycning.",
+                "Do you still want to change the password?"
+            ];
+            if (!await InteractivePrompt.promptYesNo(prompt)) {
+                return preset;
+            }
+        }
+        while (true) {
+            const password = await this.prompt({ question: ["Please enter the password."], isPassword: true });
+            if (password === await this.prompt({ question: ["Please repeat the password."], isPassword: true })) {
+                console.log("");
+                return PasswordHelper.createSaltedHash(password);
+            } else {
+                console.log("");
+                console.log("ERROR: The passwords don't match.");
+                console.log("");
+            }
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the 7-Zip command
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async getSevenZip(hasPresets: boolean, preset: string) {
+        return await this.prompt({
+            question: [
+                "Please enter the command to run 7-Zip.",
+                `Press Enter to use the ${hasPresets ? "current setting" : "default"}: ${preset}`
+            ],
+            normalisePath: true,
+            defaultAnswer: preset,
+            validate: sevenZip => Promise.resolve(
+                this.formatValidationResult(ConfigValidator.validateSevenZip(sevenZip))
+            )
+        });
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -62,7 +182,8 @@ class SetupWizard {
         presetAnswer?: string,
         validate?: (input: string) => Promise<boolean | string>,
         normalisePath?: boolean,
-        isPassword?: boolean
+        isPassword?: boolean,
+        acceptBlankInput?: boolean
     }) {
         let answer = options.presetAnswer;
         while (true) {
@@ -81,107 +202,17 @@ class SetupWizard {
             answer = await InteractivePrompt.prompt({
                 question: options.question,
                 defaultAnswer: options.defaultAnswer,
-                isPassword: options.isPassword
+                isPassword: options.isPassword,
+                acceptBlankInput: options.acceptBlankInput
             });
         }
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Validate the config file
+    // Format a validation error
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async validateConfigFile(configFile: string) {
-        if (!configFile.endsWith(".cfg")) {
-            return `ERROR: The filename must end with .cfg.`
-        } else if (FileUtils.existsAndIsFile(configFile)) {
-            return InteractivePrompt.promptYesNo(`${configFile} already exists. Do you want to overwrite it?`);
-        } else if (FileUtils.exists(configFile)) {
-            return `ERROR: ${configFile} already exists but is not a regular file and can't be overwritten.`
-        } else {
-            const directory = FileUtils.getParent(configFile);
-            if (FileUtils.existsAndIsDirectory(directory)) {
-                return true;
-            } else if (FileUtils.exists(directory)) {
-                return `ERROR: ${directory} is not a directory.`
-            } else {
-                return `ERROR: Directory ${directory} does not exist.`
-            }
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Validate the source directory
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static async validateSourceDirectory(configFile: string, sourceDirectory: string) {
-        const resolvedSourceDirectory = FileUtils.resolve(sourceDirectory, configFile);
-        if (FileUtils.existsAndIsDirectory(resolvedSourceDirectory)) {
-            if (FileUtils.isParentChild(resolvedSourceDirectory, configFile)) {
-                return `ERROR: The source directory must not contain ${configFile}.`
-            } else {
-                return true;
-            }
-        } else if (FileUtils.exists(resolvedSourceDirectory)) {
-            return `ERROR: ${resolvedSourceDirectory} is not a directory.`
-        } else {
-            return `ERROR: Directory ${resolvedSourceDirectory} does not exist.`
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Validate the destination directory
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static async validateDestinationDirectory(
-        configFile: string,
-        sourceDirectory: string,
-        destinationDirectory: string
-    ) {
-        const resolvedSourceDirectory = FileUtils.resolve(sourceDirectory, configFile);
-        const resolvedDestinationDirectory = FileUtils.resolve(destinationDirectory, configFile);
-        if (FileUtils.existsAndIsDirectory(resolvedDestinationDirectory)) {
-            if (FileUtils.equals(resolvedSourceDirectory, resolvedDestinationDirectory)) {
-                return `ERROR: The source and destination directory can't be the same.`;
-            } else if (FileUtils.isParentChild(resolvedDestinationDirectory, configFile)) {
-                return `ERROR: The destination directory must not contain the configuration file ${configFile}.`;
-            } else if (FileUtils.isParentChild(resolvedDestinationDirectory, resolvedSourceDirectory)) {
-                return `ERROR: The source directory can't be inside the destination directory.`;
-            } else if (FileUtils.isParentChild(resolvedSourceDirectory, resolvedDestinationDirectory)) {
-                return `ERROR: The destination directory can't be inside the source directory.`;
-            } else {
-                return true;
-            }
-        } else if (FileUtils.exists(resolvedDestinationDirectory)) {
-            return `ERROR: ${resolvedDestinationDirectory} is not a directory.`
-        } else {
-            return `ERROR: Directory ${resolvedDestinationDirectory} does not exist.`
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Obtain the password
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static async promptForPassword(): Promise<string> {
-        const password1 = await this.prompt({
-            question: [
-                "Please enter the encryption password.",
-            ],
-            isPassword: true
-        });
-        const password2 = await this.prompt({
-            question: [
-                "Please repeat the password.",
-            ],
-            isPassword: true
-        });
-        if (password1 === password2) {
-            return PasswordHelper.createSaltedHash(password1);
-        } else {
-            console.log("");
-            console.log("ERROR: The passwords don't match.");
-            console.log("");
-            return this.promptForPassword();
-        }
+    private static formatValidationResult(result: string | true): string | true {
+        return "string" === typeof result ? `ERROR: ${result}` : result;
     }
 }

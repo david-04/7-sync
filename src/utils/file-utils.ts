@@ -56,7 +56,7 @@ class FileUtils {
     // Resolve a path relative to the config file (unless it's an absolute path)
     //------------------------------------------------------------------------------------------------------------------
 
-    public static resolve(path: string, configFile: string) {
+    public static resolve(configFile: string, path: string) {
         if (node.path.isAbsolute(path)) {
             return node.path.normalize(path);
         } else {
