@@ -124,11 +124,9 @@ class CommandLineParser {
         argv.forEach(argument => {
             if (argument.startsWith("--")) {
                 const index = argument.indexOf("=");
-                if (3 <= index) {
-                    options.set(argument.substring(2, index).trim(), argument.substring(index + 1).trim());
-                } else {
-                    options.set(argument.substring(2).trim(), true);
-                }
+                const key = 3 <= index ? argument.substring(2, index).trim() : argument.substring(2).trim();
+                const value = 3 <= index ? argument.substring(index + 1) : true;
+                options.set(key, "string" === typeof value && this.OPTIONS.password !== key ? value.trim() : value)
             } else {
                 this.getInternalKey(this.DEFAULT_OPTIONS, argument, false);
                 commands.push(argument);

@@ -10,6 +10,15 @@ abstract class OutputStream {
         );
     }
 
+    public logAligned(padding: string, ...data: (string | object)[]) {
+        this.doLog(
+            data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`)
+                .join(" ")
+                .split(/\r?\n/)
+                .join(padding)
+        );
+    }
+
     public abstract close(): void;
 
     protected abstract doLog(data: string): void;

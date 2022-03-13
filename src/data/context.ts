@@ -26,12 +26,25 @@ class Context {
         delete options.password;
         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         const files = Context.getFileNames(options.config);
-        await Logger.purge(files.logfile, 4);
+        await Logger.purge(files.logfile, 9);
         const logger = Context.getLogger(files.logfile, options.verbose);
         logger.separator();
-        const config = Context.getConfig(files.config, options, logger);
-        const sevenZip = new SevenZip(config.sevenZip, await this.getPassword(config.password, password));
-        return new Context(options, config, files, logger, console, sevenZip);
+        try {
+            logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
+            const config = Context.getConfig(files.config, options, logger);
+            const sevenZip = new SevenZip(config.sevenZip, await this.getPassword(config.password, password));
+            logger.info(`Source .......... ${config.source}`);
+            logger.info(`Destination ..... ${config.destination}`);
+            logger.info(`Configuration ... ${FileUtils.getAbsolutePath(files.config)}`);
+            logger.info(`Logfile ......... ${FileUtils.getAbsolutePath(files.logfile)}`);
+            logger.info(`Database ........ ${FileUtils.getAbsolutePath(files.database)}`);
+            logger.info(`7-Zip command ... ${config.sevenZip}`);
+            logger.info(`Dry-run ......... ${options.dryRun}`);
+            return new Context(options, config, files, logger, console, sevenZip);
+        } catch (exception) {
+            logger.error(exception instanceof FriendlyException ? exception.message : firstLineOnly(exception));
+            throw exception;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -42,9 +55,9 @@ class Context {
         const result = ConfigValidator.validateConfigFile(configFile, true);
         if (true === result) {
             return {
-                config: configFile,
-                database: configFile.replace(/(\.cfg)?$/, ".db"),
-                logfile: configFile.replace(/(\.cfg)?$/, ".log")
+                config: FileUtils.getAbsolutePath(configFile),
+                database: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".db"))),
+                logfile: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".log")))
             };
         } else {
             throw new FriendlyException(result);
@@ -64,7 +77,7 @@ class Context {
     //------------------------------------------------------------------------------------------------------------------
 
     private static getConfig(configFile: string, options: SyncOptions, logger: Logger) {
-        const json = JsonLoader.loadAndValidateConfig(options, logger).mergedConfig;
+        const json = JsonLoader.loadAndValidateConfig(options, logger).finalConfig;
         const validationResult = ConfigValidator.validate(configFile, json);
         if (true === validationResult) {
             return json;

@@ -10,7 +10,10 @@ reconfigure : $(7_SYNC_JS)
 	$(RUN) reconfigure # --config=7-sync.cfg
 
 sync : $(7_SYNC_JS)
-	$(RUN) sync # --config=7-sync.cfg
+    ifneq "$(wildcard *.log)" ""
+	rm *.log
+    endif
+	$(RUN) sync --password=a --7-zip=7z  # --config=7-sync.cfg
 
 help : $(7_SYNC_JS)
 	$(RUN) --help

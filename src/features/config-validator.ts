@@ -91,7 +91,7 @@ class ConfigValidator {
         if (true === SevenZip.isValidExecutable(sevenZip)) {
             return true;
         } else {
-            return `Can't execute "${sevenZip}"\nPlease specify an absolute path if 7-Zip is not in the search path.`;
+            return `Can't execute "${sevenZip}". Please specify an absolute path if 7-Zip is not in the search path.`;
         }
     }
 }

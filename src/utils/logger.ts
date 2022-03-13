@@ -19,6 +19,7 @@ class LogLevel {
 class Logger {
 
     public static readonly SEPARATOR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(() => "----------").join("");
+    public static readonly PADDING = "\n                              ";
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialisation
@@ -57,7 +58,9 @@ class Logger {
 
     private formatAndAppend(logLevel: LogLevel, messages: (string | object)[]) {
         if (logLevel.index <= this.logLevel.index) {
-            this.outputStream.log(Logger.getCurrentTimestamp(), logLevel.paddedName, ...messages);
+            this.outputStream.logAligned(
+                Logger.PADDING, Logger.getCurrentTimestamp(), logLevel.paddedName, ...messages
+            );
         }
     }
 

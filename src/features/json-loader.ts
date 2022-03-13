@@ -13,19 +13,25 @@ class JsonLoader {
             if (!file.endsWith(".cfg")) {
                 throw new FriendlyException(`The configuration file ${file} does not end with .cfg`);
             }
-            logger.info(`Loading configuration file ${file}`);
+            logger.debug(`Loading configuration file ${FileUtils.getAbsolutePath(file)}`);
             const originalConfig = this.loadFile<JsonConfig>(file);
-            logger.debug("Loaded configuration:", originalConfig);
-            logger.info("Validating the configuration");
-            JsonValidator.validateConfig(originalConfig);
-            logger.info("Merging the configuration with the current command line options");
+            logger.debug(originalConfig);
+            logger.debug("Applying command line parameters");
+            logger.debug(options);
+            logger.debug("Merging configuration and command line parameters");
             const mergedConfig = { ...originalConfig };
             this.overwriteConfigWithCommandLineOptions(mergedConfig, options);
-            logger.debug("Merged configuration:", mergedConfig);
-            logger.info("Validating the merged configuration");
-            JsonValidator.validateConfig(mergedConfig);
-            logger.debug("Finished loading the configuration");
-            return { originalConfig, mergedConfig };
+            logger.debug(mergedConfig);
+            logger.debug("Converting relative paths to absolute paths");
+            const finalConfig = {
+                ...mergedConfig,
+                source: FileUtils.getAbsolutePath(FileUtils.resolve(file, mergedConfig.source)),
+                destination: FileUtils.getAbsolutePath(FileUtils.resolve(file, mergedConfig.destination)),
+            }
+            logger.debug(finalConfig);
+            logger.debug("Validating the configuration");
+            JsonValidator.validateConfig(finalConfig);
+            return { originalConfig, finalConfig };
         } catch (exception) {
             if (exception instanceof FriendlyException) {
                 exception.prependMessage(`Failed to load configuration file ${file}:`);
