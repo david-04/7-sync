@@ -18,7 +18,7 @@ class CommandLineParser {
     private static readonly OPTIONS = {
         config: "config",
         dryRun: "dry-run",
-        password: "password",
+        password: "password", //NOSONAR This is not an actual password
         sevenZip: "7-zip",
         silent: "silent",
         help: "help",
@@ -74,7 +74,7 @@ class CommandLineParser {
             |
             |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
-            |   --${this.OPTIONS.verbose}                     enable verbose logging (in the logfile only)
+            |   --${this.OPTIONS.verbose}                     enable verbose logging (in the log file only)
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
             |   --${this.OPTIONS.silent}                    suppress console output
@@ -99,9 +99,9 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     public static parse(argv: string[]) {
-        if (argv.filter(parameter => parameter.match(/^--?v(ersion)?$/)).length) {
+        if (argv.filter(parameter => parameter.match(/^--?(v|version)$/)).length) {
             this.showVersionAndExit();
-        } else if (argv.filter(parameter => parameter.match(/^--?h(elp)?$/)).length) {
+        } else if (argv.filter(parameter => parameter.match(/^--?(h|elp)$/)).length) {
             this.showUsageAndExit();
         }
         const { commands, options } = this.splitParameters(argv);
@@ -188,8 +188,8 @@ class CommandLineParser {
     // Get the internal key for a command or option (e.g. 7-zip => sevenZip)
     //------------------------------------------------------------------------------------------------------------------
 
-    private static getInternalKey(mapping: { [index: string]: string }, suppliedKey: string, isOption: boolean): string
-    private static getInternalKey(mapping: { [index: string]: { command: string } }, suppliedKey: string, isOption: boolean): string
+    private static getInternalKey(mapping: { [index: string]: string }, suppliedKey: string, isOption: true): string
+    private static getInternalKey(mapping: { [index: string]: { command: string } }, suppliedKey: string, isOption: false): string
     private static getInternalKey(mapping: { [index: string]: string | { command: string } }, suppliedKey: string, isOption: boolean) {
         for (const internalKey of Object.keys(mapping)) {
             const mappedValue = mapping[internalKey];

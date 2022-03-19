@@ -95,8 +95,8 @@ class Context {
             password = await InteractivePrompt.prompt({
                 question: "Please enter the password.",
                 isPassword: true,
-                validate: password => {
-                    const isCorrect = PasswordHelper.validatePassword(password, saltedHash);
+                validate: input => {
+                    const isCorrect = PasswordHelper.validatePassword(input, saltedHash);
                     if (!isCorrect) {
                         console.log("");
                         console.log("Invalid password. Please try again.");

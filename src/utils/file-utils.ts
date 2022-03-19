@@ -45,10 +45,10 @@ class FileUtils {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Normalise the path
+    // Normalize the path
     //------------------------------------------------------------------------------------------------------------------
 
-    public static normalise(path: string) {
+    public static normalize(path: string) {
         return node.path.normalize(path);
     }
 
@@ -65,7 +65,7 @@ class FileUtils {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Get the normalised absolute path
+    // Get the normalized absolute path
     //------------------------------------------------------------------------------------------------------------------
 
     public static getAbsolutePath(path: string) {

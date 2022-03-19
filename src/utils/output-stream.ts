@@ -31,12 +31,12 @@ abstract class OutputStream {
 class NullOutputStream extends OutputStream {
 
     protected doLog(_data: string) {
-        // supress all output
+        // suppress all output
     }
 
     public close() {
         // nothing to close
-    };
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ class ConsoleOutputStream extends OutputStream {
 
     public close() {
         // nothing to close
-    };
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class FileOutputStream extends OutputStream {
     private fileDescriptor;
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(private readonly file: string, append: boolean) {
@@ -76,7 +76,7 @@ class FileOutputStream extends OutputStream {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Append a message to the logfile
+    // Append a message to the log file
     //------------------------------------------------------------------------------------------------------------------
 
     protected doLog(line: string) {
@@ -88,10 +88,10 @@ class FileOutputStream extends OutputStream {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Close the logfile
+    // Close the log file
     //------------------------------------------------------------------------------------------------------------------
 
     public close() {
         node.fs.closeSync(this.fileDescriptor);
-    };
+    }
 }

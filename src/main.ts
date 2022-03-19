@@ -5,7 +5,7 @@
 class Application {
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     constructor(private logger: Logger) { }
@@ -48,11 +48,11 @@ class Application {
         this.logger.debug("Extracted command line options:", options);
         switch (options.command) {
             case CommandLineParser.DEFAULT_OPTIONS.init.command:
-                return SetupWizard.initialise(options);
+                return SetupWizard.initialize(options);
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
                 return SetupWizard.reconfigure(options);
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
-                return await Context.of(options);
+                return Context.of(options);
         }
         // @ts-expect-error The switch above should be exhaustive
         throw new Error(`Internal error: Missing handler for ${context.options.command}`)

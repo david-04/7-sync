@@ -22,7 +22,7 @@ class Logger {
     public static readonly PADDING = "\n                              ";
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(protected readonly logLevel: LogLevel, protected readonly outputStream: OutputStream) { }
@@ -49,11 +49,10 @@ class Logger {
 
     public separator() {
         this.outputStream.log(Logger.SEPARATOR);
-        // this.formatAndAppend(Logger.SEPARATOR.logLevel, [Logger.SEPARATOR.message]);
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Format the line and append it to the logfile
+    // Format the line and append it to the log file
     //------------------------------------------------------------------------------------------------------------------
 
     private formatAndAppend(logLevel: LogLevel, messages: (string | object)[]) {
@@ -97,7 +96,7 @@ class Logger {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Purge old logfile entries
+    // Purge old log file entries
     //------------------------------------------------------------------------------------------------------------------
 
     public static async purge(file: string, numberOfSectionsToKeep: number) {
@@ -110,7 +109,7 @@ class Logger {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // count the number of separators in the logfile
+    // count the number of separators in the log file
     //------------------------------------------------------------------------------------------------------------------
 
     private static async countSeparators(file: string) {
