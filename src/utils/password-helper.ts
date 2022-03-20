@@ -13,7 +13,7 @@ class PasswordHelper {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Validate a passworda gainst the given salted hash
+    // Validate a password against the given salted hash
     //------------------------------------------------------------------------------------------------------------------
 
     public static validatePassword(password: string, saltedHash: string) {

@@ -5,7 +5,7 @@
 class FriendlyException {
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(private _message: string, public readonly exitCode: number = 1) { }

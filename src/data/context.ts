@@ -5,13 +5,13 @@
 class Context {
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     private constructor(
         public readonly options: SyncOptions,
         public readonly config: JsonConfig,
-        public readonly files: { config: string, database: string, logfile: string },
+        public readonly files: { config: string, database: string, log: string },
         public readonly logger: Logger,
         public readonly console: OutputStream,
         public readonly sevenZip: SevenZip
@@ -26,8 +26,8 @@ class Context {
         delete options.password;
         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         const files = Context.getFileNames(options.config);
-        await Logger.purge(files.logfile, 9);
-        const logger = Context.getLogger(files.logfile, options.verbose);
+        await Logger.purge(files.log, 9);
+        const logger = Context.getLogger(files.log, options.verbose);
         logger.separator();
         try {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
@@ -36,7 +36,7 @@ class Context {
             logger.info(`Source .......... ${config.source}`);
             logger.info(`Destination ..... ${config.destination}`);
             logger.info(`Configuration ... ${FileUtils.getAbsolutePath(files.config)}`);
-            logger.info(`Logfile ......... ${FileUtils.getAbsolutePath(files.logfile)}`);
+            logger.info(`Log file ........ ${FileUtils.getAbsolutePath(files.log)}`);
             logger.info(`Database ........ ${FileUtils.getAbsolutePath(files.database)}`);
             logger.info(`7-Zip command ... ${config.sevenZip}`);
             logger.info(`Dry-run ......... ${options.dryRun}`);
@@ -57,7 +57,7 @@ class Context {
             return {
                 config: FileUtils.getAbsolutePath(configFile),
                 database: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".db"))),
-                logfile: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".log")))
+                log: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".log")))
             };
         } else {
             throw new FriendlyException(result);
@@ -65,7 +65,7 @@ class Context {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialise the logger
+    // Initialize the logger
     //------------------------------------------------------------------------------------------------------------------
 
     private static getLogger(file: string, verbose: boolean) {

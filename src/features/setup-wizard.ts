@@ -128,25 +128,21 @@ class SetupWizard {
     //------------------------------------------------------------------------------------------------------------------
 
     private static async getPassword(preset?: string): Promise<string> {
-        if (preset) {
-            if (!await InteractivePrompt.promptYesNo("Do you want to change the password?")) {
-                return preset;
-            }
-            const prompt = [
-                "Changing the password does not re-encrypt any files.",
-                "You'll need to delete everything from the destination before re-syncing.",
-                "Do you still want to change the password?"
-            ];
-            if (!await InteractivePrompt.promptYesNo(prompt)) {
-                return preset;
-            }
-        }
         while (true) {
-            const password = await this.prompt({
-                question: ["Please enter the password."],
-                isPassword: true,
-
-            });
+            const question = preset
+                ? [
+                    "Please enter a new password if you want to change it.",
+                    "The next synchronization will delete and re-encrypt all files.",
+                    "Press enter to keep the current password (without changing it)."
+                ]
+                : [
+                    "Please enter the password."
+                ];
+            const password = await this.prompt({ question: question, isPassword: true, acceptBlankInput: !!preset });
+            if (!password && preset) {
+                console.log("");
+                return preset;
+            }
             if (password === await this.prompt({ question: ["Please repeat the password."], isPassword: true })) {
                 console.log("");
                 return PasswordHelper.createSaltedHash(password);

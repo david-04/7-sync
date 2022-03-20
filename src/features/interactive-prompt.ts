@@ -7,7 +7,7 @@ class InteractivePrompt {
     private static readonly PROMPT = "> ";
 
     //------------------------------------------------------------------------------------------------------------------
-    // Customisation options
+    // Customization options
     //------------------------------------------------------------------------------------------------------------------
 
     private static readonly as = <T>(value: T) => value;
@@ -91,7 +91,7 @@ class InteractivePrompt {
         if (0 === answer.length && undefined !== options.defaultAnswer) {
             return Optional.of(options.defaultAnswer);
         }
-        if (0 === answer.trim().length && !options.acceptBlankInput) {
+        if (0 === answer.length && !options.acceptBlankInput) {
             return Optional.empty();
         }
         if (options.validate && !options.validate(answer)) {

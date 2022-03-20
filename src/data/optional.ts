@@ -7,7 +7,7 @@ class Optional<T> {
     private static readonly EMPTY = new Optional<any>();
 
     //--------------------------------------------------------------------------------------------------------------
-    // Initialisation
+    // Initialization
     //--------------------------------------------------------------------------------------------------------------
 
     private constructor(protected readonly value?: T) {
