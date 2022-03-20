@@ -66,14 +66,14 @@ class ObjectValidator<T extends object> extends Validator {
         } else {
             for (const key of Object.keys(this.propertyValidators)) {
                 if (!Object.prototype.hasOwnProperty.call(value, key)) {
-                    this.throw(path, `Property ${key} is missing`);
+                    this.throw(path, `Property "${key}" is missing`);
                 } else {
                     this.propertyValidators[key].validate(`${path}/${key}`, (value as any)[key]);
                 }
             }
             for (const key of Object.keys(value)) {
                 if (!Object.prototype.hasOwnProperty.call(this.propertyValidators, key)) {
-                    this.throw(path, `Unknown property ${key}`);
+                    this.throw(path, `Unknown property "${key}"`);
                 }
             }
         }
@@ -118,9 +118,9 @@ class JsonValidator {
         destination: new NonEmptyStringValidator(),
     }
 
-    // private static readonly NEXT_VALIDATOR = {
-    //     next: new NonEmptyStringValidator()
-    // }
+    private static readonly NEXT_VALIDATOR = {
+        next: new NonEmptyStringValidator()
+    }
 
     private static getConfigValidator() {
         return new ObjectValidator<JsonConfig>({
@@ -130,32 +130,32 @@ class JsonValidator {
         });
     }
 
-    // private static getFileValidator() {
-    //     return new ObjectValidator<JsonFile>({
-    //         ...this.SOURCE_AND_DESTINATION_VALIDATORS,
-    //         created: new NumberValidator(0),
-    //         modified: new NumberValidator(0),
-    //         size: new NumberValidator(0)
-    //     });
-    // }
+    private static getFileValidator() {
+        return new ObjectValidator<JsonFile>({
+            ...this.SOURCE_AND_DESTINATION_VALIDATORS,
+            created: new NumberValidator(0),
+            modified: new NumberValidator(0),
+            size: new NumberValidator(0)
+        });
+    }
 
-    // private static getDirectoryValidator() {
-    //     const validator = new ObjectValidator<JsonDirectory>({
-    //         ...this.SOURCE_AND_DESTINATION_VALIDATORS,
-    //         files: new ArrayValidator(this.getFileValidator()),
-    //         ...this.NEXT_VALIDATOR
-    //     });
-    //     validator.setValidator("directories", new ArrayValidator(validator));
-    //     return validator
-    // }
+    private static getDirectoryValidator() {
+        const validator = new ObjectValidator<JsonDirectory>({
+            ...this.SOURCE_AND_DESTINATION_VALIDATORS,
+            files: new ArrayValidator(this.getFileValidator()),
+            ...this.NEXT_VALIDATOR
+        });
+        validator.setValidator("directories", new ArrayValidator(validator));
+        return validator
+    }
 
-    // private static getRegistryValidator() {
-    //     return new ObjectValidator<JsonRegistry>({
-    //         files: new ArrayValidator(this.getFileValidator()),
-    //         directories: new ArrayValidator(this.getDirectoryValidator()),
-    //         ...this.NEXT_VALIDATOR
-    //     });
-    // }
+    private static getDatabaseValidator() {
+        return new ObjectValidator<JsonDatabase>({
+            files: new ArrayValidator(this.getFileValidator()),
+            directories: new ArrayValidator(this.getDirectoryValidator()),
+            ...this.NEXT_VALIDATOR
+        });
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Perform the validation
@@ -165,7 +165,7 @@ class JsonValidator {
         this.getConfigValidator().validate("", json);
     }
 
-    // public static validateRegistry(json: JsonRegistry) {
-    //     this.getRegistryValidator().validate("", json);
-    // }
+    public static validateDatabase(json: JsonDatabase) {
+        this.getDatabaseValidator().validate("", json);
+    }
 }

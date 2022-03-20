@@ -9,10 +9,10 @@ class JsonLoader {
         if (!FileUtils.existsAndIsFile(file)) {
             throw new FriendlyException(`Configuration file ${file} does not exist`);
         }
+        if (!file.endsWith(".cfg")) {
+            throw new FriendlyException(`The configuration file ${file} does not end with .cfg`);
+        }
         try {
-            if (!file.endsWith(".cfg")) {
-                throw new FriendlyException(`The configuration file ${file} does not end with .cfg`);
-            }
             logger.debug(`Loading configuration file ${FileUtils.getAbsolutePath(file)}`);
             const originalConfig = this.loadFile<JsonConfig>(file);
             logger.debug(originalConfig);
@@ -53,12 +53,34 @@ class JsonLoader {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Load and validate a JSON registry
+    // Load and validate a JSON database
     //------------------------------------------------------------------------------------------------------------------
 
-    // public static loadAndValidateRegistry(file: string, logger: Logger, console: OutputStream) {
-    //     return this.loadAndValidateFile(file, JsonValidator.validateRegistry, "registry", logger, console);
-    // }
+    public static loadAndValidateDatabase(context: Context) {
+        const file = context.files.database;
+        if (FileUtils.exists(file)) {
+            if (!FileUtils.existsAndIsFile(file)) {
+                throw new FriendlyException(`${file} is not a file`);
+            } else {
+                context.logger.info(`Loading database ${file}`);
+                try {
+                    const database = this.loadFile<JsonDatabase>(file);
+                    JsonValidator.validateDatabase(database);
+                    return database;
+                } catch (exception) {
+                    if (exception instanceof FriendlyException) {
+                        exception.prependMessage(`Failed to load database ${file}:`);
+                    }
+                    throw exception;
+                }
+            }
+        } else {
+            context.logger.info(`${file} does not exist - starting with an empty database`);
+            const next = context.filenameEnumerator.getNextFilename()
+            const emptyDatabase: JsonDatabase = { directories: [], files: [], next };
+            return emptyDatabase;
+        }
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Load and validate a JSON file
