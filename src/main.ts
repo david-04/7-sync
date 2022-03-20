@@ -52,7 +52,7 @@ class Application {
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
                 return SetupWizard.reconfigure(options);
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
-                return Context.of(options);
+                return new Synchronizer(await Context.of(options)).run();
         }
         // @ts-expect-error The switch above should be exhaustive
         throw new Error(`Internal error: Missing handler for ${context.options.command}`)

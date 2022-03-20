@@ -14,6 +14,7 @@ class Context {
         public readonly files: { config: string, database: string, log: string },
         public readonly logger: Logger,
         public readonly console: OutputStream,
+        public readonly filenameEnumerator: FilenameEnumerator,
         public readonly sevenZip: SevenZip
     ) { }
 
@@ -33,6 +34,7 @@ class Context {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
             const config = Context.getConfig(files.config, options, logger);
             const sevenZip = new SevenZip(config.sevenZip, await this.getPassword(config.password, password));
+            const filenameEnumerator = new FilenameEnumerator(FilenameEnumerator.DEFAULT_LETTERS)
             logger.info(`Source .......... ${config.source}`);
             logger.info(`Destination ..... ${config.destination}`);
             logger.info(`Configuration ... ${FileUtils.getAbsolutePath(files.config)}`);
@@ -40,7 +42,7 @@ class Context {
             logger.info(`Database ........ ${FileUtils.getAbsolutePath(files.database)}`);
             logger.info(`7-Zip command ... ${config.sevenZip}`);
             logger.info(`Dry-run ......... ${options.dryRun}`);
-            return new Context(options, config, files, logger, console, sevenZip);
+            return new Context(options, config, files, logger, console, filenameEnumerator, sevenZip);
         } catch (exception) {
             logger.error(exception instanceof FriendlyException ? exception.message : firstLineOnly(exception));
             throw exception;
