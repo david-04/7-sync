@@ -5,6 +5,16 @@
 class SevenZip {
 
     //------------------------------------------------------------------------------------------------------------------
+    // Initialization
+    //------------------------------------------------------------------------------------------------------------------
+
+    public constructor(private readonly executable: string, private readonly password: string) {
+        if (!SevenZip.isValidExecutable(executable)) {
+            throw new FriendlyException(`Failed to execute "${executable}"`);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Check if the given executable is a working 7-Zip
     //------------------------------------------------------------------------------------------------------------------
 
@@ -22,22 +32,25 @@ class SevenZip {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialization
+    // Verify if the given file can be accessed (with the current password)
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(_executable: string, _password: string) {
-        if (!SevenZip.isValidExecutable(_executable)) {
-            throw new FriendlyException(`Can't execute "${_executable}"`);
-        }
+    public isReadableWithCurrentPassword(file: string) {
+        const result = this.run(FileUtils.getAbsolutePath("."), [
+            "t",
+            `-p${this.password}`,
+            file
+        ]);
+        return 0 === result.status && !result.error;
     }
 
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Run any 7-Zip command
-    // //------------------------------------------------------------------------------------------------------------------
+    //------------------------------------------------------------------------------------------------------------------
+    // Run any 7-Zip command
+    //------------------------------------------------------------------------------------------------------------------
 
-    // private run(directory: string, parameters: string[]) {
-    //     return SevenZip.runAnyCommand(directory, this.executable, parameters);
-    // }
+    private run(directory: string, parameters: string[]) {
+        return SevenZip.runAnyCommand(directory, this.executable, parameters);
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Run any command
@@ -50,11 +63,6 @@ class SevenZip {
             windowsHide: true,
             encoding: "utf8"
         });
-        return {
-            stdout: result.stdout,
-            stderr: result.stderr,
-            status: result.status,
-            error: result.error
-        };
+        return { stdout: result.stdout, stderr: result.stderr, status: result.status, error: result.error };
     }
 }

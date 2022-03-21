@@ -7,7 +7,11 @@ interface JsonSourceAndDestination {
     destination: string;
 }
 
-interface JsonCreatedModifiedSize {
+//----------------------------------------------------------------------------------------------------------------------
+// A file
+//----------------------------------------------------------------------------------------------------------------------
+
+interface JsonFile extends JsonSourceAndDestination {
     created: number;
     modified: number;
     size: number;
@@ -28,9 +32,3 @@ interface JsonDatabase {
 //----------------------------------------------------------------------------------------------------------------------
 
 interface JsonDirectory extends JsonDatabase, JsonSourceAndDestination { }
-
-//----------------------------------------------------------------------------------------------------------------------
-// A file
-//----------------------------------------------------------------------------------------------------------------------
-
-interface JsonFile extends JsonSourceAndDestination, JsonCreatedModifiedSize { }

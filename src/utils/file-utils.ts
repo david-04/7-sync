@@ -17,7 +17,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static existsAndIsFile(path: string) {
-        return this.getProperties(path).map(item => item.isFile()).getOrDefault(false);
+        return this.exists(path) && this.getProperties(path).isFile();
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static existsAndIsDirectory(path: string) {
-        return this.getProperties(path).map(item => item.isDirectory()).getOrDefault(false);
+        return this.exists(path) && this.getProperties(path).isDirectory();
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static getProperties(path: string) {
-        return Optional.of(this.exists(path) ? node.fs.lstatSync(path) : undefined);
+        return node.fs.lstatSync(path);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -86,5 +86,13 @@ class FileUtils {
 
     public static equals(path1: string, path2: string) {
         return this.getAbsolutePath(path1) === this.getAbsolutePath(path2);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Retrieve a directory's children (files and sub-directories)
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static getChildren(directory: string) {
+        return node.fs.readdirSync(directory, { withFileTypes: true });
     }
 }
