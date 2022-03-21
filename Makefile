@@ -13,7 +13,7 @@ sync : $(7_SYNC_JS)
     ifneq "$(wildcard test/*.log)" ""
 	rm test/*.log
     endif
-	cd test && $(RUN) sync --password=a --7-zip=7z  # --config=7-sync.cfg
+	cd test && $(RUN) sync --password=a --7-zip=7z # --verbose
 
 help : $(7_SYNC_JS)
 	cd test && $(RUN) --help
