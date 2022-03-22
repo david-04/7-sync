@@ -93,6 +93,38 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static getChildren(directory: string) {
-        return node.fs.readdirSync(directory, { withFileTypes: true });
+        const array = node.fs.readdirSync(directory, { withFileTypes: true })
+        const map = new Map<string, Dirent>();
+        array.forEach(item => map.set(item.name, item));
+        return { array, map };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Determine if a given directory entry is a file or a symbolic link to a file
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static isFileOrFileLink(path: string, item: Dirent) {
+        return item.isDirectory() || (item.isSymbolicLink() && this.allowsListingChildren(path, item));
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Determine if a given directory entry is a directory or a symbolic link to a directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static isDirectoryOrDirectoryLink(path: string, item: Dirent) {
+        return item.isFile() || (item.isSymbolicLink() && !this.allowsListingChildren(path, item));
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Check if readdirSync runs without errors
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static allowsListingChildren(path: string, item: Dirent) {
+        try {
+            this.getChildren(node.path.join(path, item.name));
+            return true;
+        } catch (exception) {
+            return false;
+        }
     }
 }

@@ -17,3 +17,5 @@ export const process: typeof _process;
 
 import _readline = require("readline");
 export const readline: typeof _readline;
+
+export type Dirent = _fs.Dirent;

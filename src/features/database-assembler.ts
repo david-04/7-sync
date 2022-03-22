@@ -59,7 +59,7 @@ class DatabaseAssembler {
     //------------------------------------------------------------------------------------------------------------------
 
     private doesPasswordWorkWithAnyFileFrom(directory: string): boolean | undefined {
-        const children = FileUtils.getChildren(directory);
+        const children = FileUtils.getChildren(directory).array;
         for (const child of children.filter(c => c.isFile() && c.name.endsWith(".7z"))) {
             const file = node.path.join(directory, child.name);
             this.logger.debug(`Checking if the password can open ${file}`)
@@ -85,16 +85,25 @@ class DatabaseAssembler {
     //------------------------------------------------------------------------------------------------------------------
 
     private assembleDirectory(database: MappedDirectory, json: JsonDatabase | JsonDirectory) {
-        this.assembleFiles(database, json);
+        const existingSources = FileUtils.getChildren(database.source.absolutePath).map;
+        const existingDestinations = FileUtils.getChildren(database.destination.absolutePath).map;
+        json.files.forEach(file => this.assembleFiles(database, file, existingSources, existingDestinations));
         json.directories.forEach(directory => {
-            const source = new SubDirectory(database.source, directory.source);
-            const destination = new SubDirectory(database.destination, directory.destination);
-            if (!FileUtils.existsAndIsDirectory(source.absolutePath)) {
-                this.logPurged(source.relativePath, "it does not exist (as a directory) in the source");
-            } else if (!FileUtils.existsAndIsDirectory(destination.absolutePath)) {
-                this.logPurged(source.relativePath, "it does not exist (as a directory) in the destination");
+            const source = this.getDirectoryInfo(existingSources, database.source, directory.source);
+            const destination = this.getDirectoryInfo(existingDestinations, database.destination, directory.destination);
+            const relativePath = source.directory.relativePath;
+            if (!source.dirent) {
+                this.logPurged(relativePath, "it does not exist (in the source)");
+            } else if (!FileUtils.isDirectoryOrDirectoryLink(database.source.absolutePath, source.dirent)) {
+                this.logPurged(relativePath, "it's not a directory (in the source)");
+            } else if (!destination.dirent) {
+                this.logPurged(relativePath, "it does not exist (in the destination)");
+            } else if (!destination.dirent.isDirectory()) {
+                this.logPurged(relativePath, "it's not a directory (in the destination)");
             } else {
-                const mappedDirectory = new MappedSubDirectory(database, source, destination, database.next);
+                const mappedDirectory = new MappedSubDirectory(
+                    database, source.directory, destination.directory, database.next
+                );
                 this.assembleDirectory(mappedDirectory, directory);
                 database.directories.push(mappedDirectory);
             }
@@ -102,32 +111,60 @@ class DatabaseAssembler {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Compile directory information into a single object
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getDirectoryInfo(existingDirectories: Map<string, Dirent>, directory: Directory, filename: string) {
+        return {
+            name: filename,
+            directory: new SubDirectory(directory, filename),
+            dirent: existingDirectories.get(filename)
+        };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Assemble the files in a directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private assembleFiles(database: MappedDirectory, json: JsonDatabase | JsonDirectory) {
-        json.files.forEach(file => {
-            const source = new File(database.source, file.source);
-            const destination = new File(database.destination, file.destination);
-            if (!FileUtils.existsAndIsFile(source.absolutePath)) {
-                this.logPurged(source.relativePath, "it does not exist (as a file) in the source");
-            } else if (!FileUtils.existsAndIsFile(destination.absolutePath)) {
-                this.logPurged(source.relativePath, "it does not exist (as a file) in the destination");
+    private assembleFiles(
+        directory: MappedDirectory,
+        file: JsonFile,
+        existingSources: Map<string, Dirent>,
+        existingDestinations: Map<string, Dirent>
+    ) {
+        const source = this.getFileInfo(existingSources, directory.source, file.source);
+        const destination = this.getFileInfo(existingDestinations, directory.destination, file.destination);
+        const relativePath = source.file.relativePath;
+        if (!source.dirent) {
+            this.logPurged(relativePath, "it does not exist (in the source)");
+        } else if (!FileUtils.isFileOrFileLink(directory.source.absolutePath, source.dirent)) {
+            this.logPurged(relativePath, "it's not a file (in the source)");
+        } else if (!destination.dirent) {
+            this.logPurged(relativePath, "it does not exist (in the destination)");
+        } else if (!destination.dirent.isFile()) {
+            this.logPurged(relativePath, "it's not a file (in the destination)");
+        } else {
+            const properties = source.file.getProperties();
+            if (file.size !== properties.size) {
+                this.logPurged(relativePath, "the file size has changed");
+            } else if (file.modified !== properties.mtimeMs) {
+                this.logPurged(relativePath, "the modified date has changed");
+            } else if (file.created !== properties.ctimeMs) {
+                this.logPurged(relativePath, "the create date has changed");
             } else {
-                const properties = source.getProperties();
-                if (file.size !== properties.size) {
-                    this.logPurged(source.relativePath, "the file size has changed");
-                } else if (file.modified !== properties.mtimeMs) {
-                    this.logPurged(source.relativePath, "the modified date has changed");
-                } else if (file.created !== properties.ctimeMs) {
-                    this.logPurged(source.relativePath, "the create date has changed");
-                } else {
-                    database.files.push(
-                        new MappedFile(database, source, destination, file.created, file.modified, file.size)
-                    );
-                }
+                directory.files.push(
+                    new MappedFile(directory, source.file, destination.file, file.created, file.modified, file.size)
+                );
             }
-        });
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Compile file information into a single object
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getFileInfo(existingFiles: Map<string, Dirent>, directory: Directory, filename: string) {
+        return { name: filename, file: new File(directory, filename), dirent: existingFiles.get(filename) };
     }
 
     //------------------------------------------------------------------------------------------------------------------

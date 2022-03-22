@@ -9,3 +9,5 @@ const node = (() => ({
     process: require("process") as typeof _NodeModuleTypes.process,
     readline: require("readline") as typeof _NodeModuleTypes.readline
 }))();
+
+type Dirent = _NodeModuleTypes.Dirent;
