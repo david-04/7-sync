@@ -23,7 +23,7 @@ class RootDirectory {
     //------------------------------------------------------------------------------------------------------------------
 
     public getChildren() {
-        this.assertDirectoryExists(() => FileUtils.getChildren(this.absolutePath));
+        return this.assertDirectoryExists(() => FileUtils.getChildren(this.absolutePath));
     }
 
     //------------------------------------------------------------------------------------------------------------------

@@ -33,10 +33,7 @@ class JsonLoader {
             JsonValidator.validateConfig(finalConfig);
             return { originalConfig, finalConfig };
         } catch (exception) {
-            if (exception instanceof FriendlyException) {
-                exception.prependMessage(`Failed to load configuration file ${file}:`);
-            }
-            throw exception;
+            rethrowWithPrefix(`Failed to load configuration file ${file}:`, exception);
         }
     }
 
@@ -63,15 +60,13 @@ class JsonLoader {
                 throw new FriendlyException(`${file} is not a file`);
             } else {
                 context.logger.info(`Loading database ${file}`);
+                context.print("Loading database");
                 try {
                     const database = this.loadFile<JsonDatabase>(file);
                     JsonValidator.validateDatabase(database);
                     return database;
                 } catch (exception) {
-                    if (exception instanceof FriendlyException) {
-                        exception.prependMessage(`Failed to load database ${file}:`);
-                    }
-                    throw exception;
+                    rethrowWithPrefix(`Failed to load database ${file}:`, exception);
                 }
             }
         } else {

@@ -4,6 +4,8 @@
 
 class Context {
 
+    public readonly print;
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
@@ -13,10 +15,12 @@ class Context {
         public readonly config: JsonConfig,
         public readonly files: { config: string, database: string, log: string },
         public readonly logger: Logger,
-        public readonly console: OutputStream,
+        private readonly console: OutputStream,
         public readonly filenameEnumerator: FilenameEnumerator,
         public readonly sevenZip: SevenZip
-    ) { }
+    ) {
+        this.print = (message: string) => this.console.log(message);
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Factory method

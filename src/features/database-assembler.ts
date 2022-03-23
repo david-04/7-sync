@@ -5,6 +5,7 @@
 class DatabaseAssembler {
 
     private readonly logger;
+    private readonly print;
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -12,6 +13,7 @@ class DatabaseAssembler {
 
     constructor(private readonly context: Context) {
         this.logger = context.logger;
+        this.print = context.print;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -24,18 +26,24 @@ class DatabaseAssembler {
             const destination = new RootDirectory(this.context.config.destination);
             this.assertThatDirectoriesExist(source, destination);
             const database = new MappedRootDirectory(source, destination, json.next);
+            this.logger.debug("Checking if the password has changed");
             if (false !== this.doesPasswordWorkWithAnyFileFrom(this.context.config.destination)) {
-                this.logger.debug("Assembling database from the raw JSON data");
+                const message = this.context.options.dryRun
+                    ? "Would purge outdated and obsolete files from database"
+                    : "Purging outdated and obsolete files from database";
+                this.logger.info(message);
+                this.print(message);
                 this.assembleDirectory(database, json);
             } else {
-                this.logger.info("Deleting the database to force a full re-encrypt because the password has changed");
+                const message = this.context.options.dryRun
+                    ? "The password has changed - would discard the database to force a full re-encrypt"
+                    : "The password has changed - discarding the database to force a full re-encrypt";
+                this.logger.warn(message);
+                this.print(message);
             }
             return database;
         } catch (exception) {
-            if (exception instanceof FriendlyException) {
-                exception.prependMessage(`Failed to assemble database ${this.context.files.database}:`);
-            }
-            throw exception;
+            rethrowWithPrefix(`Failed to assemble database ${this.context.files.database}`, exception);
         }
     }
 

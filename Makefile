@@ -13,6 +13,14 @@ sync : $(7_SYNC_JS)
     ifneq "$(wildcard test/*.log)" ""
 	rm test/*.log
     endif
+	mkdir -p test/out/subfolder
+	mkdir -p test/out/subfolder/sub-sub-folder
+	touch test/out/subfolder/file.txt
+	touch test/out/subfolder/file2.txt
+	touch test/out/subfolder/file3.txt
+	touch test/out/subfolder/sub-sub-folder
+	touch test/out/my-file.txt
+	cp -f test/test-a.7z test/out
 	cd test && $(RUN) sync --password=a --7-zip=7z # --verbose
 
 help : $(7_SYNC_JS)
