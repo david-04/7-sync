@@ -71,8 +71,7 @@ class JsonLoader {
             }
         } else {
             context.logger.info(`${file} does not exist - starting with an empty database`);
-            const next = context.filenameEnumerator.getNextFilename()
-            const emptyDatabase: JsonDatabase = { directories: [], files: [], next };
+            const emptyDatabase: JsonDatabase = { directories: [], files: [], last: "" };
             return emptyDatabase;
         }
     }

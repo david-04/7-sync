@@ -104,7 +104,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static isFileOrFileLink(path: string, item: Dirent) {
-        return item.isDirectory() || (item.isSymbolicLink() && this.allowsListingChildren(path, item));
+        return item.isFile() || (item.isSymbolicLink() && !this.allowsListingChildren(path, item));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static isDirectoryOrDirectoryLink(path: string, item: Dirent) {
-        return item.isFile() || (item.isSymbolicLink() && !this.allowsListingChildren(path, item));
+        return item.isDirectory() || (item.isSymbolicLink() && this.allowsListingChildren(path, item));
     }
 
     //------------------------------------------------------------------------------------------------------------------

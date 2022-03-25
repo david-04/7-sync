@@ -12,7 +12,7 @@ class DatabaseSerializer {
         const json: JsonDatabase = {
             directories: database.directories.map(directory => this.directoryToJson(directory)),
             files: database.files.map(file => this.fileToJson(file)),
-            next: database.next
+            last: database.last
         };
         JsonValidator.validateDatabase(json);
         return JSON.stringify(json, undefined, 4);
@@ -28,7 +28,7 @@ class DatabaseSerializer {
             destination: directory.destination.name,
             directories: directory.directories.map(subDirectory => this.directoryToJson(subDirectory)),
             files: directory.files.map(file => this.fileToJson(file)),
-            next: directory.next
+            last: directory.last
         }
     }
 

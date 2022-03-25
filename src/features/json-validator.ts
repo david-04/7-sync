@@ -25,6 +25,14 @@ class NonEmptyStringValidator extends Validator {
     }
 }
 
+class StringValidator extends Validator {
+    validate(path: string, value: string) {
+        if ("string" !== typeof value) {
+            this.throw(path, `Expected a string but found ${typeof value}`);
+        }
+    }
+}
+
 class NumberValidator extends Validator {
 
     public constructor(private readonly min?: number, private readonly max?: number) {
@@ -118,8 +126,8 @@ class JsonValidator {
         destination: new NonEmptyStringValidator(),
     }
 
-    private static readonly NEXT_VALIDATOR = {
-        next: new NonEmptyStringValidator()
+    private static readonly LAST_VALIDATOR = {
+        last: new StringValidator()
     }
 
     private static getConfigValidator() {
@@ -143,7 +151,7 @@ class JsonValidator {
         const validator = new ObjectValidator<JsonDirectory>({
             ...this.SOURCE_AND_DESTINATION_VALIDATORS,
             files: new ArrayValidator(this.getFileValidator()),
-            ...this.NEXT_VALIDATOR
+            ...this.LAST_VALIDATOR
         });
         validator.setValidator("directories", new ArrayValidator(validator));
         return validator
@@ -153,7 +161,7 @@ class JsonValidator {
         return new ObjectValidator<JsonDatabase>({
             files: new ArrayValidator(this.getFileValidator()),
             directories: new ArrayValidator(this.getDirectoryValidator()),
-            ...this.NEXT_VALIDATOR
+            ...this.LAST_VALIDATOR
         });
     }
 

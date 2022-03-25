@@ -25,12 +25,12 @@ class DatabaseAssembler {
             const source = new RootDirectory(this.context.config.source);
             const destination = new RootDirectory(this.context.config.destination);
             this.assertThatDirectoriesExist(source, destination);
-            const database = new MappedRootDirectory(source, destination, json.next);
+            const database = new MappedRootDirectory(source, destination, json.last);
             this.logger.debug("Checking if the password has changed");
             if (false !== this.doesPasswordWorkWithAnyFileFrom(this.context.config.destination)) {
                 const message = this.context.options.dryRun
-                    ? "Would purge outdated and obsolete files from database"
-                    : "Purging outdated and obsolete files from database";
+                    ? "Would purge outdated and orphaned files from database"
+                    : "Purging outdated and orphaned files from database";
                 this.logger.info(message);
                 this.print(message);
                 this.assembleDirectory(database, json);
@@ -110,7 +110,7 @@ class DatabaseAssembler {
                 this.logPurged(relativePath, "it's not a directory (in the destination)");
             } else {
                 const mappedDirectory = new MappedSubDirectory(
-                    database, source.directory, destination.directory, database.next
+                    database, source.directory, destination.directory, database.last
                 );
                 this.assembleDirectory(mappedDirectory, directory);
                 database.directories.push(mappedDirectory);

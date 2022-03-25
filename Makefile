@@ -21,6 +21,7 @@ sync : $(7_SYNC_JS)
 	touch test/out/subfolder/sub-sub-folder
 	touch test/out/my-file.txt
 	cp -f test/test-a.7z test/out
+	rm -rf test/out/*
 	cd test && $(RUN) sync --password=a --7-zip=7z # --verbose
 
 help : $(7_SYNC_JS)

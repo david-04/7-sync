@@ -45,6 +45,27 @@ class SevenZip {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Add a file to an archive
+    //------------------------------------------------------------------------------------------------------------------
+
+    public compressFile(workingDirectory: string, relativePathToFile: string, zipFile: string) {
+        return this.run(workingDirectory, [
+            "a", // add
+            "-mhc=on", // header compression
+            "-mhe=on", // header encryption
+            "-mx=9", // compression level
+            `-p${this.password}`,
+            "-ssw", // compress files open for writing
+            "-stl", // set archive timestamp to same as file
+            "-t7z",
+            "-y", // assume "yes" for all prompts
+            "-bse1", // stderr => stdout
+            zipFile,
+            relativePathToFile
+        ])
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Run any 7-Zip command
     //------------------------------------------------------------------------------------------------------------------
 

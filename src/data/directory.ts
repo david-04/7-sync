@@ -9,36 +9,6 @@ class RootDirectory {
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(public readonly absolutePath: string) { }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete the directory recursively
-    //------------------------------------------------------------------------------------------------------------------
-
-    public delete() {
-        this.assertDirectoryExists(() => node.fs.rmSync(this.absolutePath, { recursive: true, force: true }));
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Retrieve the child directories and files
-    //------------------------------------------------------------------------------------------------------------------
-
-    public getChildren() {
-        return this.assertDirectoryExists(() => FileUtils.getChildren(this.absolutePath));
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Assert that the file exists (and is a file) and execute the given action
-    //------------------------------------------------------------------------------------------------------------------
-
-    private assertDirectoryExists<T>(action: () => T): T {
-        if (!FileUtils.exists(this.absolutePath)) {
-            throw new Error(`Internal error: ${this.absolutePath} does not exist`);
-        } else if (!FileUtils.existsAndIsFile(this.absolutePath)) {
-            throw new Error(`Internal error: ${this.absolutePath} is not a directory`);
-        } else {
-            return action();
-        }
-    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -81,7 +51,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     constructor(
         public readonly source: T,
         public readonly destination: T,
-        public readonly next: string
+        public last: string
     ) { }
 }
 
@@ -105,9 +75,9 @@ class MappedSubDirectory extends MappedDirectoryBase<SubDirectory> {
         public readonly parent: MappedDirectory,
         source: SubDirectory,
         destination: SubDirectory,
-        next: string
+        last: string
     ) {
-        super(source, destination, next);
+        super(source, destination, last);
     }
 }
 

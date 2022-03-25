@@ -24,7 +24,7 @@ interface JsonFile extends JsonSourceAndDestination {
 interface JsonDatabase {
     directories: JsonDirectory[];
     files: JsonFile[];
-    next: string;
+    last: string;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
