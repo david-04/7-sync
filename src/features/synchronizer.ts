@@ -9,14 +9,18 @@ class Synchronizer {
     private readonly isDryRun;
     private readonly statistics = {
         sync: new Statistics(),
-        orphan: new Statistics()
+        orphans: new Statistics()
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    private constructor(private readonly context: Context) {
+    private constructor(
+        private readonly context: Context,
+        readonly _database: MappedRootDirectory,
+        readonly _passwordChanged: boolean
+    ) {
         this.logger = context.logger;
         this.print = context.print;
         this.isDryRun = context.options.dryRun;
@@ -34,9 +38,11 @@ class Synchronizer {
                 : "Deleting and re-encrypting all files because the password has changed";
             context.logger.info(message);
             context.print(message);
+        } else {
+            context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
         }
-        const synchronizer = new Synchronizer(context);
-        synchronizer.syncDirectory(database, database);
+        const synchronizer = new Synchronizer(context, database, passwordChanged ?? false);
+        synchronizer.syncDirectory(database);
         return synchronizer.statistics.sync;
     }
 
@@ -44,24 +50,112 @@ class Synchronizer {
     // Sync a directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private syncDirectory(database: MappedRootDirectory, directory: MappedDirectory) {
-        const children = FileUtils.getChildren(directory.source.absolutePath).map;
-        directory.files.forEach(file => children.delete(file.source.name));
-        directory.subdirectories.forEach(subdirectory => children.delete(subdirectory.source.name));
-        children.forEach(child => {
-            if (FileUtils.isDirectoryOrDirectoryLink(directory.source.absolutePath, child)) {
-                this.createDirectory(database, directory, child);
+    private syncDirectory(directory: MappedDirectory) {
+        const destinationChildren = FileUtils.getChildren(directory.source.absolutePath).map;
+        this.deleteOrphans(directory, destinationChildren).forEach(name => destinationChildren.delete(name));
+
+        // {name: string, source: dirent, database: mapped, destination: dirent}
+        // this.getCategorizedChildren(directory, destinationChildren).forEach(child => {
+        //     if (child.source && !child.database && FileUtils.isDirectoryOrDirectoryLink(child.source)) {
+        //         //
+        //     }
+        // })
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Delete orphans from a directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteOrphans(directory: MappedDirectory, children: Map<string, Dirent>) {
+        const orphans = Synchronizer.clone(children);
+        directory.subdirectories.byDestinationName.forEach(subdirectory => orphans.delete(subdirectory.destination.name));
+        directory.files.byDestinationName.forEach(file => orphans.delete(file.destination.name));
+        const deletedEntries = new Array<string>();
+        orphans.forEach((dirent, name) => {
+            const childPath = node.path.join(directory.destination.absolutePath, name);
+            if (dirent.isDirectory() ? this.deleteOrphanDirectory(childPath) : this.deleteOrphanFile(childPath)) {
+                deletedEntries.push(name);
+            }
+        });
+        return deletedEntries;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Delete an orphan directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteOrphanDirectory(path: string) {
+        this.deleteOrphanDirectoryContents(path);
+        this.logger.warn(`Deleting orphan directory ${path}`);
+        node.fs.rmSync(path, { recursive: true, force: true });
+        if (FileUtils.exists(path)) {
+            this.logger.error(`Failed to delete orphan directory ${path}`);
+            this.statistics.orphans.directories.success++;
+            return true;
+        } else {
+            this.statistics.orphans.directories.failed++;
+            return false;
+        }
+
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Delete the contents of an orphan directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteOrphanDirectoryContents(path: string) {
+        FileUtils.getChildren(path).array.forEach(dirent => {
+            const childPath = node.path.join(path, dirent.name)
+            if (dirent.isDirectory()) {
+                this.deleteOrphanDirectory(childPath);
             } else {
-                this.compressFile(database, directory, child);
+                this.deleteOrphanFile(childPath);
             }
         });
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Delete an orphan file
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteOrphanFile(path: string) {
+        this.logger.warn(`Deleting orphan file ${path}`);
+        node.fs.rmSync(path);
+        if (FileUtils.exists(path)) {
+            this.logger.error(`Failed to delete orphan file ${path}`);
+            this.statistics.orphans.files.success++;
+            return true;
+        } else {
+            this.statistics.orphans.files.failed++;
+            return false;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Compare the database with the current file contents
+    //------------------------------------------------------------------------------------------------------------------
+
+    public getCategorizedChildren(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
+        const sourceChildren = FileUtils.getChildren(directory.source.absolutePath).map;
+        const databaseChildren = new Map<string, MappedSubDirectory | MappedFile>();
+        directory.files.bySourceName.forEach(file => databaseChildren.set(file.source.name, file));
+        directory.subdirectories.bySourceName.forEach(subdirectory => databaseChildren.set(subdirectory.source.name, subdirectory));
+        const allChildren = new Set<string>();
+        sourceChildren.forEach((_dirent, name) => allChildren.add(name))
+        databaseChildren.forEach((_mappedFileOrDirectory, name) => allChildren.add(name));
+        return Array.from(allChildren).sort().map(name => ({
+            source: sourceChildren.get(name),
+            database: databaseChildren.get(name),
+            destination: destinationChildren.get(databaseChildren.get(name)?.source.name ?? "")
+        }));
+    }
+
+
+    //------------------------------------------------------------------------------------------------------------------
     // Create a new directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private createDirectory(database: MappedRootDirectory, directory: MappedDirectory, entry: Dirent) {
+    public createDirectory(database: MappedRootDirectory, directory: MappedDirectory, entry: Dirent) {
         const result = this.syncAndLog(
             database,
             directory,
@@ -78,9 +172,9 @@ class Synchronizer {
             const source = new SubDirectory(directory.source, entry.name);
             const destination = new SubDirectory(directory.destination, result.filename);
             const newDirectory = new MappedSubDirectory(directory, source, destination, "");
-            directory.subdirectories.push(newDirectory);
+            directory.add(newDirectory);
             directory.last = result.last;
-            this.syncDirectory(database, newDirectory);
+            this.syncDirectory(newDirectory);
         }
     }
 
@@ -88,7 +182,7 @@ class Synchronizer {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    private compressFile(database: MappedRootDirectory, parentDirectory: MappedDirectory, entry: Dirent) {
+    public compressFile(database: MappedRootDirectory, parentDirectory: MappedDirectory, entry: Dirent) {
         const result = this.syncAndLog(
             database,
             parentDirectory,
@@ -114,7 +208,7 @@ class Synchronizer {
             const source = new File(parentDirectory.source, entry.name);
             const destination = new File(parentDirectory.destination, result.filename);
             const properties = source.getProperties();
-            parentDirectory.files.push(new MappedFile(
+            parentDirectory.add(new MappedFile(
                 parentDirectory,
                 source,
                 destination,
@@ -191,5 +285,15 @@ class Synchronizer {
             },
             next: next.enumeratedName
         };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Clone a map
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static clone<K, V>(input: Map<K, V>): Map<K, V> {
+        const output = new Map<K, V>();
+        input.forEach((value, key) => output.set(key, value));
+        return output;
     }
 }

@@ -26,8 +26,8 @@ class DatabaseSerializer {
 
     private static serialize(database: MappedRootDirectory) {
         const json: JsonDatabase = {
-            directories: database.subdirectories.map(directory => this.directoryToJson(directory)),
-            files: database.files.map(file => this.fileToJson(file)),
+            directories: database.subdirectories.bySourceName.sorted().map(directory => this.directoryToJson(directory)),
+            files: database.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: database.last
         };
         JsonValidator.validateDatabase(json);
@@ -42,8 +42,8 @@ class DatabaseSerializer {
         return {
             source: directory.source.name,
             destination: directory.destination.name,
-            directories: directory.subdirectories.map(subDirectory => this.directoryToJson(subDirectory)),
-            files: directory.files.map(file => this.fileToJson(file)),
+            directories: directory.subdirectories.bySourceName.sorted().map(subDirectory => this.directoryToJson(subDirectory)),
+            files: directory.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: directory.last
         }
     }

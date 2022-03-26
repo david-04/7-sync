@@ -43,10 +43,10 @@ class DatabaseAssembler {
 
     private assembleFilesAndSubdirectories(directory: MappedDirectory, json: JsonDatabase | JsonDirectory) {
         json.files.forEach(file =>
-            directory.files.push(this.assembleFile(directory, file))
+            directory.add(this.assembleFile(directory, file))
         );
         json.directories.forEach(subdirectory =>
-            directory.subdirectories.push(this.assembleDirectory(directory, subdirectory))
+            directory.add(this.assembleDirectory(directory, subdirectory))
         );
     }
 

@@ -63,12 +63,9 @@ class Application {
     //------------------------------------------------------------------------------------------------------------------
 
     private sync(context: Context) {
-        const isDryRun = context.options.dryRun;
-        this.logger.info(isDryRun ? "Simulating synchronization" : "Starting synchronization");
         const database = DatabaseAssembler.loadDatabase(context);
         const statistics = Synchronizer.run(context, database);
-        statistics.log(this.logger, isDryRun, "sync", "synced", context.console)
-        database.sortFilesAndSubdirectories();
+        statistics.log(this.logger, context.options.dryRun, "sync", "synced", context.console)
         const recoveryArchiveResult = RecoveryArchiveCreator.create(context, database);
         DatabaseSerializer.saveDatabase(context, database);
         if (true !== recoveryArchiveResult) {
@@ -76,7 +73,7 @@ class Application {
         } else if (statistics.hasFailures()) {
             const counters = Statistics.format(statistics.files.failed, statistics.directories.failed);
             throw new FriendlyException(`${counters} could not be processed`, 2);
-        } else if (!isDryRun) {
+        } else if (!context.options.dryRun) {
             const message = "The synchronization has been completed successfully";
             context.print(message);
             this.logger.info(message);
