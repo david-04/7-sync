@@ -12,7 +12,7 @@ class OrphanRemover {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(context: Context) {
+    public constructor(private readonly context: Context) {
         this.logger = context.logger;
         this.print = context.print;
         this.isDryRun = context.options.dryRun;
@@ -33,7 +33,7 @@ class OrphanRemover {
         }
         const statistics = new Statistics();
         this.purgeDirectory(root, database, statistics);
-        statistics.log(this.logger, this.isDryRun, "delete", "deleted");
+        statistics.log(this.logger, this.isDryRun, "delete", "deleted", this.context.console);
         return statistics;
     }
 

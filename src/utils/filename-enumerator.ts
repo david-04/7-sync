@@ -5,11 +5,10 @@
 class FilenameEnumerator {
 
     public static readonly DEFAULT_LETTERS = "abcdefghijkmnpqrstuvwxyz123456789"; // cspell: disable-line
-    public static readonly RECOVERY_FILE = "---recovery---";
+    public static readonly RECOVERY_FILE_NAME_PREFIX = "_____RECOVERY_____";
 
     private readonly firstLetter;
     private readonly nextLetter;
-    private readonly reservedNames = new Set<string>();
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -19,11 +18,10 @@ class FilenameEnumerator {
         const array = FilenameEnumerator.getUniqueLetters(letters);
         if (0 < array.length) {
             this.firstLetter = array[0];
-            this.nextLetter = FilenameEnumerator.getNextLetters(array);
+            this.nextLetter = FilenameEnumerator.getNextLetterMap(array);
         } else {
             throw new Error("Internal error: No letters have been passed to the FilenameEnumerator");
         }
-        this.reservedNames.add(FilenameEnumerator.RECOVERY_FILE);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -48,12 +46,12 @@ class FilenameEnumerator {
     // For each letter, calculate the next letter
     //------------------------------------------------------------------------------------------------------------------
 
-    private static getNextLetters(letters: string[]) {
-        const nextLetter = new Map<string, string>();
+    private static getNextLetterMap(letters: string[]) {
+        const map = new Map<string, string>();
         for (let index = 1; index < letters.length; index++) {
-            nextLetter.set(letters[index - 1], letters[index]);
+            map.set(letters[index - 1], letters[index]);
         }
-        return nextLetter;
+        return map;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -64,8 +62,8 @@ class FilenameEnumerator {
         if (currentFilename) {
             let nextFilename = currentFilename;
             do {
-                nextFilename = this.calculateNextFilename(currentFilename);
-            } while (this.reservedNames.has(nextFilename));
+                nextFilename = this.calculateNext(currentFilename);
+            } while (nextFilename.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX));
             return nextFilename;
         } else {
             return this.firstLetter;
@@ -76,8 +74,8 @@ class FilenameEnumerator {
     // Calculate the next filename after the current one
     //------------------------------------------------------------------------------------------------------------------
 
-    private calculateNextFilename(currentFilename: string) {
-        const array = currentFilename.split("");
+    private calculateNext(last: string) {
+        const array = last.split("");
         for (let index = array.length - 1; 0 <= index; index--) {
             const nextLetter = this.nextLetter.get(array[index]);
             if (nextLetter) {
@@ -87,6 +85,6 @@ class FilenameEnumerator {
                 array[index] = this.firstLetter;
             }
         }
-        return this.firstLetter + array.join("");
+        return array.join("") + this.firstLetter;
     }
 }

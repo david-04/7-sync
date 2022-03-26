@@ -4,6 +4,8 @@
 
 class SevenZip {
 
+    private readonly SHARED_OPTIONS;
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
@@ -12,6 +14,16 @@ class SevenZip {
         if (!SevenZip.isValidExecutable(executable)) {
             throw new FriendlyException(`Failed to execute "${executable}"`);
         }
+        this.SHARED_OPTIONS = [
+            "a", // add
+            "-t7z",
+            "-mx=9", // compression level
+            "-mhc=on", // header compression
+            "-mhe=on", // header encryption
+            "-y", // assume "yes" for all prompts
+            "-bse1", // stderr => stdout
+            `-p${this.password}`
+        ];
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -48,42 +60,45 @@ class SevenZip {
     // Add a file to an archive
     //------------------------------------------------------------------------------------------------------------------
 
-    public compressFile(workingDirectory: string, relativePathToFile: string, zipFile: string) {
-        return this.run(workingDirectory, [
-            "a", // add
-            "-mhc=on", // header compression
-            "-mhe=on", // header encryption
-            "-mx=9", // compression level
-            `-p${this.password}`,
-            "-ssw", // compress files open for writing
-            "-stl", // set archive timestamp to same as file
-            "-t7z",
-            "-y", // assume "yes" for all prompts
-            "-bse1", // stderr => stdout
-            zipFile,
-            relativePathToFile
-        ])
+    public compressFile(workingDirectory: string, relativePathToFile: string, zipFile: string, fileContent?: string) {
+        if (undefined === fileContent) {
+            return this.run(workingDirectory, [
+                ...this.SHARED_OPTIONS,
+                "-ssw", // compress files open for writing
+                "-stl", // set archive timestamp to same as file
+                zipFile,
+                relativePathToFile
+            ]);
+        } else {
+            return this.run(workingDirectory, [
+                ...this.SHARED_OPTIONS,
+                `-si${relativePathToFile}`,
+                zipFile
+            ], fileContent);
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Run any 7-Zip command
     //------------------------------------------------------------------------------------------------------------------
 
-    private run(directory: string, parameters: string[]) {
-        return SevenZip.runAnyCommand(directory, this.executable, parameters);
+    private run(directory: string, parameters: string[], stdin?: string) {
+        return SevenZip.runAnyCommand(directory, this.executable, parameters, stdin);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Run any command
     //------------------------------------------------------------------------------------------------------------------
 
-    private static runAnyCommand(directory: string, executable: string, parameters: string[]) {
+    private static runAnyCommand(directory: string, executable: string, parameters: string[], stdin?: string) {
         const result = node.child_process.spawnSync(executable, parameters, {
             cwd: directory,
             shell: false,
             windowsHide: true,
-            encoding: "utf8"
+            encoding: "utf8",
+            input: stdin
         });
-        return { stdout: result.stdout, stderr: result.stderr, status: result.status, error: result.error };
+        const error = result.error instanceof Error ? firstLineOnly(result.error) : result.error;
+        return { stdout: result.stdout, stderr: result.stderr, status: result.status, error };
     }
 }

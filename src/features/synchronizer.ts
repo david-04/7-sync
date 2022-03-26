@@ -23,15 +23,46 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     public run() {
-        this.logger.info(this.context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
-        const json = JsonLoader.loadAndValidateDatabase(this.context);
-        const database = new DatabaseAssembler(this.context).assembleFromJson(json);
+        this.logger.info(this.isDryRun ? "Simulating synchronization" : "Starting synchronization");
+        const database = this.loadValidateAndAssembleDatabase();
         const purgeStatistics = new OrphanRemover(this.context).run(database);
-        const syncStatistics = new Statistics();
-        this.syncDirectory(database, database, syncStatistics);
-        console.log({ purgeStatistics, syncStatistics });
-        // Create the recovery/index files
-        this.saveDatabase(database);
+        const syncStatistics = this.performSync(database);
+        syncStatistics.log(this.logger, this.isDryRun, "sync", "synced", this.context.console)
+        const recoveryArchiveResult = this.createRecoveryArchive(database);
+        DatabaseSerializer.saveDatabase(this.context, database);
+        const overallStatistics = Statistics.add(purgeStatistics, syncStatistics);
+        if (true !== recoveryArchiveResult) {
+            throw new FriendlyException(`Failed to create the recovery archive: ${recoveryArchiveResult}`);
+        } else if (overallStatistics.hasFailures()) {
+            const counters = Statistics.format(overallStatistics.files.failed, overallStatistics.directories.failed);
+            throw new FriendlyException(`${counters} could not be processed`, 2);
+        } else if (!this.isDryRun) {
+            const message = "The synchronization has been completed successfully";
+            this.print(message);
+            this.logger.info(message);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Load, validate and assemble the database
+    //------------------------------------------------------------------------------------------------------------------
+
+    private loadValidateAndAssembleDatabase() {
+        const json = JsonLoader.loadAndValidateDatabase(this.context);
+        return new DatabaseAssembler(this.context).assembleFromJson(json);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Run the synchronization
+    //------------------------------------------------------------------------------------------------------------------
+
+    private performSync(database: MappedRootDirectory) {
+        const message = this.isDryRun ? "Would copy new and modified files" : "Copying new and modified files";
+        this.logger.info(message);
+        this.print(message);
+        const statistics = new Statistics();
+        this.syncDirectory(database, database, statistics);
+        return statistics;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -108,7 +139,7 @@ class Synchronizer {
         );
         if (result) {
             const source = new File(parentDirectory.source, entry.name);
-            const destination = new File(parentDirectory.destination, entry.name);
+            const destination = new File(parentDirectory.destination, result.filename);
             const properties = source.getProperties();
             parentDirectory.files.push(new MappedFile(
                 parentDirectory,
@@ -172,9 +203,8 @@ class Synchronizer {
     ) {
         const sourceAbsolute = node.path.join(directory.source.absolutePath, file.name);
         const sourceRelative = node.path.relative(database.source.absolutePath, sourceAbsolute);
-        const next = this.getNextFilename(directory.destination.absolutePath, directory.last, suffix);
-        const filename = next + suffix;
-        const destinationAbsolute = node.path.join(directory.destination.absolutePath, filename);
+        const next = this.getNextFilename(directory.destination.absolutePath, directory.last, "", suffix);
+        const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
         const destinationRelative = node.path.relative(database.destination.absolutePath, destinationAbsolute);
         return {
             source: {
@@ -182,11 +212,11 @@ class Synchronizer {
                 relativePath: sourceRelative
             },
             destination: {
-                filename,
+                filename: next.filename,
                 absolutePath: destinationAbsolute,
                 relativePath: destinationRelative
             },
-            next: next
+            next: next.enumeratedName
         };
     }
 
@@ -194,13 +224,14 @@ class Synchronizer {
     // Determine the next file name
     //------------------------------------------------------------------------------------------------------------------
 
-    private getNextFilename(path: string, last: string, suffix: string) {
+    private getNextFilename(path: string, last: string, prefix: string, suffix: string) {
         let next = last;
         while (true) {
             next = this.context.filenameEnumerator.getNextFilename(next);
-            const filename = node.path.join(path, next + suffix);
-            if (!FileUtils.exists(filename)) {
-                return next;
+            const filename = prefix + next + suffix;
+            const filenameWithPath = node.path.join(path, filename);
+            if (!FileUtils.exists(filenameWithPath) && !next.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
+                return { enumeratedName: next, filename, filenameWithPath };
             } else {
                 this.logger.debug(`The next filename is already occupied: ${filename}`);
                 this.logger.warn(`The database seems to be lagging behind the destination directory`);
@@ -209,18 +240,13 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Save the database
+    // Create the recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private saveDatabase(database: MappedRootDirectory) {
-        const file = this.context.files.database;
-        if (this.context.options.dryRun) {
-            this.logger.info(`Would save database ${file}`);
-            this.print("Would save updated database");
-        } else {
-            this.logger.info(`Saving updated database ${file}`);
-            this.print("Saving updated database");
-            node.fs.writeFileSync(file, DatabaseSerializer.serialize(database));
-        }
+    private createRecoveryArchive(database: MappedRootDirectory) {
+        const recoveryFile = this.getNextFilename(
+            database.destination.absolutePath, database.last, FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX, ".7z"
+        );
+        return new RecoveryArchiveCreator(this.context).create(recoveryFile.filenameWithPath, database);
     }
 }

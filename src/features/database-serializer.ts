@@ -5,17 +5,33 @@
 class DatabaseSerializer {
 
     //------------------------------------------------------------------------------------------------------------------
+    // Save the database
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static saveDatabase(context: Context, database: MappedRootDirectory) {
+        const file = context.files.database;
+        if (context.options.dryRun) {
+            context.logger.info(`Would save database ${file}`);
+            context.print("Would save updated database");
+        } else {
+            context.logger.info(`Saving database ${file}`);
+            context.print("Saving the database");
+            node.fs.writeFileSync(file, this.serialize(database));
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Serialize a database into stringified JSON
     //------------------------------------------------------------------------------------------------------------------
 
-    public static serialize(database: MappedRootDirectory) {
+    private static serialize(database: MappedRootDirectory) {
         const json: JsonDatabase = {
             directories: database.directories.map(directory => this.directoryToJson(directory)),
             files: database.files.map(file => this.fileToJson(file)),
             last: database.last
         };
         JsonValidator.validateDatabase(json);
-        return JSON.stringify(json, undefined, 4);
+        return JSON.stringify(json);
     }
 
     //------------------------------------------------------------------------------------------------------------------

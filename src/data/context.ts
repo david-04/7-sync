@@ -15,7 +15,7 @@ class Context {
         public readonly config: JsonConfig,
         public readonly files: { config: string, database: string, log: string },
         public readonly logger: Logger,
-        private readonly console: OutputStream,
+        public readonly console: OutputStream,
         public readonly filenameEnumerator: FilenameEnumerator,
         public readonly sevenZip: SevenZip
     ) {
@@ -97,25 +97,29 @@ class Context {
     //------------------------------------------------------------------------------------------------------------------
 
     private static async getPassword(saltedHash: string, password?: string) {
-        if (undefined === password) {
-            password = await InteractivePrompt.prompt({
-                question: "Please enter the password.",
-                isPassword: true,
-                validate: input => {
-                    const isCorrect = PasswordHelper.validatePassword(input, saltedHash);
-                    if (!isCorrect) {
-                        console.log("");
-                        console.log("Invalid password. Please try again.");
-                    }
-                    return isCorrect;
-                }
-            });
-            console.log("");
-            console.log("test");
-        }
+        password = password ?? await this.promptForPassword(saltedHash);
         if (!PasswordHelper.validatePassword(password, saltedHash)) {
             throw new FriendlyException("Invalid password");
         }
         return password;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Prompt for the password
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static async promptForPassword(saltedHash: string) {
+        return InteractivePrompt.prompt({
+            question: "Please enter the password.",
+            isPassword: true,
+            validate: input => {
+                console.log("");
+                const isCorrect = PasswordHelper.validatePassword(input, saltedHash);
+                if (!isCorrect) {
+                    console.log("Invalid password. Please try again.");
+                }
+                return isCorrect;
+            }
+        });
     }
 }
