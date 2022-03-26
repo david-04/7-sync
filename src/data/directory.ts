@@ -53,6 +53,30 @@ class MappedDirectoryBase<T extends RootDirectory> {
         public readonly destination: T,
         public last: string
     ) { }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Sort children alphabetically
+    //------------------------------------------------------------------------------------------------------------------
+
+    public sortFilesAndSubdirectories() {
+        this.files.sort(MappedDirectoryBase.compareFilesOrSubdirectories);
+        this.subdirectories.sort(MappedDirectoryBase.compareFilesOrSubdirectories);
+        this.subdirectories.forEach(subdirectory => subdirectory.sortFilesAndSubdirectories())
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Compare two files or subdirectories case-insensitive
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static compareFilesOrSubdirectories(a: { source: { name: string } }, b: { source: { name: string } }) {
+        const name1 = a.source.name.toLowerCase();
+        const name2 = b.source.name.toLowerCase();
+        if (name1 < name2) {
+            return -1;
+        } else {
+            return name1 === name2 ? 0 : 1;
+        }
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

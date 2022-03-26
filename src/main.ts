@@ -68,6 +68,7 @@ class Application {
         const database = DatabaseAssembler.loadDatabase(context);
         const statistics = Synchronizer.run(context, database);
         statistics.log(this.logger, isDryRun, "sync", "synced", context.console)
+        database.sortFilesAndSubdirectories();
         const recoveryArchiveResult = RecoveryArchiveCreator.create(context, database);
         DatabaseSerializer.saveDatabase(context, database);
         if (true !== recoveryArchiveResult) {

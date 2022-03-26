@@ -62,8 +62,6 @@ class RecoveryArchiveCreator {
 
     private createFileIndex(directory: MappedDirectory, lines: string[]) {
         this.addToIndex(directory, lines);
-        this.sort(directory.files);
-        this.sort(directory.subdirectories);
         directory.subdirectories.forEach(subdirectory => this.createFileIndex(subdirectory, lines));
         directory.files.forEach(file => this.addToIndex(file, lines));
         return lines;
@@ -77,22 +75,6 @@ class RecoveryArchiveCreator {
         if (fileOrDirectory instanceof MappedSubDirectory || fileOrDirectory instanceof MappedFile) {
             lines.push(`${fileOrDirectory.source.relativePath} => ${fileOrDirectory.destination.relativePath}`);
         }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Sort an array of files or directories alphabetically
-    //------------------------------------------------------------------------------------------------------------------
-
-    private sort(array: Array<{ source: { name: string } }>) {
-        array.sort((item1, item2) => {
-            const name1 = item1.source.name.toLowerCase();
-            const name2 = item2.source.name.toLowerCase();
-            if (name1 < name2) {
-                return -1;
-            } else {
-                return name1 === name2 ? 0 : 1;
-            }
-        });
     }
 
     //------------------------------------------------------------------------------------------------------------------
