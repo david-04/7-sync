@@ -63,8 +63,8 @@ class RecoveryArchiveCreator {
     private createFileIndex(directory: MappedDirectory, lines: string[]) {
         this.addToIndex(directory, lines);
         this.sort(directory.files);
-        this.sort(directory.directories);
-        directory.directories.forEach(subdirectory => this.createFileIndex(subdirectory, lines));
+        this.sort(directory.subdirectories);
+        directory.subdirectories.forEach(subdirectory => this.createFileIndex(subdirectory, lines));
         directory.files.forEach(file => this.addToIndex(file, lines));
         return lines;
     }

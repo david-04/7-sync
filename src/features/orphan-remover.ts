@@ -44,7 +44,7 @@ class OrphanRemover {
     private purgeDirectory(root: string, directory: MappedDirectory, statistics: Statistics) {
         const children = FileUtils.getChildren(root).map;
         directory.files.forEach(databaseFile => children.delete(databaseFile.destination.name));
-        directory.directories.forEach(databaseDirectory => children.delete(databaseDirectory.destination.name));
+        directory.subdirectories.forEach(databaseDirectory => children.delete(databaseDirectory.destination.name));
         children.forEach(child => {
             const childPath = node.path.join(directory.destination.absolutePath, child.name);
             if (child.isDirectory()) {
@@ -53,7 +53,7 @@ class OrphanRemover {
                 this.deleteFile(root, childPath, statistics);
             }
         });
-        directory.directories.forEach(subdirectory => this.purgeDirectory(root, subdirectory, statistics));
+        directory.subdirectories.forEach(subdirectory => this.purgeDirectory(root, subdirectory, statistics));
     }
 
     //------------------------------------------------------------------------------------------------------------------

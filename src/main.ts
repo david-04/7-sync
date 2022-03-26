@@ -65,7 +65,8 @@ class Application {
     private sync(context: Context) {
         const isDryRun = context.options.dryRun;
         this.logger.info(isDryRun ? "Simulating synchronization" : "Starting synchronization");
-        const database = DatabaseAssembler.load(context);
+        const database = DatabaseAssembler.loadDatabase(context);
+        console.log(database);
         const purgeStatistics = new OrphanRemover(context).run(database);
         const syncStatistics = new Synchronizer(context).run(database);
         syncStatistics.log(this.logger, isDryRun, "sync", "synced", context.console)

@@ -42,7 +42,7 @@ type Directory = RootDirectory | SubDirectory;
 class MappedDirectoryBase<T extends RootDirectory> {
 
     public readonly files = new Array<MappedFile>();
-    public readonly directories = new Array<MappedSubDirectory>();
+    public readonly subdirectories = new Array<MappedSubDirectory>();
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization

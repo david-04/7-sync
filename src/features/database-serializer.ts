@@ -26,7 +26,7 @@ class DatabaseSerializer {
 
     private static serialize(database: MappedRootDirectory) {
         const json: JsonDatabase = {
-            directories: database.directories.map(directory => this.directoryToJson(directory)),
+            directories: database.subdirectories.map(directory => this.directoryToJson(directory)),
             files: database.files.map(file => this.fileToJson(file)),
             last: database.last
         };
@@ -42,7 +42,7 @@ class DatabaseSerializer {
         return {
             source: directory.source.name,
             destination: directory.destination.name,
-            directories: directory.directories.map(subDirectory => this.directoryToJson(subDirectory)),
+            directories: directory.subdirectories.map(subDirectory => this.directoryToJson(subDirectory)),
             files: directory.files.map(file => this.fileToJson(file)),
             last: directory.last
         }

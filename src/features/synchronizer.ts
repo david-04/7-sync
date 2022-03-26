@@ -38,7 +38,7 @@ class Synchronizer {
     private syncDirectory(database: MappedRootDirectory, directory: MappedDirectory, statistics: Statistics) {
         const children = FileUtils.getChildren(directory.source.absolutePath).map;
         directory.files.forEach(file => children.delete(file.source.name));
-        directory.directories.forEach(subdirectory => children.delete(subdirectory.source.name));
+        directory.subdirectories.forEach(subdirectory => children.delete(subdirectory.source.name));
         children.forEach(child => {
             if (FileUtils.isDirectoryOrDirectoryLink(directory.source.absolutePath, child)) {
                 this.createDirectory(database, directory, child, statistics);
@@ -71,7 +71,7 @@ class Synchronizer {
             const source = new SubDirectory(directory.source, entry.name);
             const destination = new SubDirectory(directory.destination, result.filename);
             const newDirectory = new MappedSubDirectory(directory, source, destination, "");
-            directory.directories.push(newDirectory);
+            directory.subdirectories.push(newDirectory);
             directory.last = result.last;
             this.syncDirectory(database, newDirectory, statistics);
         }
