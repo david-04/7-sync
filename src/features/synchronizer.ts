@@ -7,12 +7,16 @@ class Synchronizer {
     private readonly logger;
     private readonly print;
     private readonly isDryRun;
+    private readonly statistics = {
+        sync: new Statistics(),
+        orphan: new Statistics()
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(private readonly context: Context) {
+    private constructor(private readonly context: Context) {
         this.logger = context.logger;
         this.print = context.print;
         this.isDryRun = context.options.dryRun;
@@ -22,28 +26,33 @@ class Synchronizer {
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    public run(database: MappedRootDirectory) {
-        const message = this.isDryRun ? "Would copy new and modified files" : "Copying new and modified files";
-        this.logger.info(message);
-        this.print(message);
-        const statistics = new Statistics();
-        this.syncDirectory(database, database, statistics);
-        return statistics;
+    public static run(context: Context, database: MappedRootDirectory) {
+        const passwordChanged = context.sevenZip.doesPasswordWorkWithAnyFileFrom(context.config.destination);
+        if (passwordChanged) {
+            const message = context.options.dryRun
+                ? "Would delete and re-encrypt all files because the password has changed"
+                : "Deleting and re-encrypting all files because the password has changed";
+            context.logger.info(message);
+            context.print(message);
+        }
+        const synchronizer = new Synchronizer(context);
+        synchronizer.syncDirectory(database, database);
+        return synchronizer.statistics.sync;
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Sync a directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private syncDirectory(database: MappedRootDirectory, directory: MappedDirectory, statistics: Statistics) {
+    private syncDirectory(database: MappedRootDirectory, directory: MappedDirectory) {
         const children = FileUtils.getChildren(directory.source.absolutePath).map;
         directory.files.forEach(file => children.delete(file.source.name));
         directory.subdirectories.forEach(subdirectory => children.delete(subdirectory.source.name));
         children.forEach(child => {
             if (FileUtils.isDirectoryOrDirectoryLink(directory.source.absolutePath, child)) {
-                this.createDirectory(database, directory, child, statistics);
+                this.createDirectory(database, directory, child);
             } else {
-                this.compressFile(database, directory, child, statistics);
+                this.compressFile(database, directory, child);
             }
         });
     }
@@ -52,16 +61,14 @@ class Synchronizer {
     // Create a new directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private createDirectory(
-        database: MappedRootDirectory, directory: MappedDirectory, entry: Dirent, statistics: Statistics
-    ) {
+    private createDirectory(database: MappedRootDirectory, directory: MappedDirectory, entry: Dirent) {
         const result = this.syncAndLog(
             database,
             directory,
             entry,
             "",
-            () => statistics.directories.success++,
-            () => statistics.directories.failed++,
+            () => this.statistics.sync.directories.success++,
+            () => this.statistics.sync.directories.failed++,
             filename => {
                 node.fs.mkdirSync(node.path.join(directory.destination.absolutePath, filename));
                 return true;
@@ -73,7 +80,7 @@ class Synchronizer {
             const newDirectory = new MappedSubDirectory(directory, source, destination, "");
             directory.subdirectories.push(newDirectory);
             directory.last = result.last;
-            this.syncDirectory(database, newDirectory, statistics);
+            this.syncDirectory(database, newDirectory);
         }
     }
 
@@ -81,14 +88,14 @@ class Synchronizer {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    private compressFile(database: MappedRootDirectory, parentDirectory: MappedDirectory, entry: Dirent, statistics: Statistics) {
+    private compressFile(database: MappedRootDirectory, parentDirectory: MappedDirectory, entry: Dirent) {
         const result = this.syncAndLog(
             database,
             parentDirectory,
             entry,
             ".7z",
-            () => statistics.files.success++,
-            () => statistics.files.failed++,
+            () => this.statistics.sync.files.success++,
+            () => this.statistics.sync.files.failed++,
             filename => {
                 const root = database.source.absolutePath;
                 const path = node.path.relative(root, node.path.join(parentDirectory.source.absolutePath, entry.name));

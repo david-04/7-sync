@@ -8,21 +8,6 @@ class Statistics {
     public files = { success: 0, failed: 0 };
 
     //------------------------------------------------------------------------------------------------------------------
-    // Join two statistics
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static add(...statistics: Statistics[]) {
-        const result = new Statistics;
-        for (const currentStatistics of statistics) {
-            result.files.success += currentStatistics.files.success;
-            result.files.failed += currentStatistics.files.failed;
-            result.directories.success += currentStatistics.directories.success;
-            result.directories.failed += currentStatistics.directories.failed;
-        }
-        return result;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Check if it contains failed items
     //------------------------------------------------------------------------------------------------------------------
 
