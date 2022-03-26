@@ -37,8 +37,9 @@ class Context {
         try {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
             const config = Context.getConfig(files.config, options, logger);
-            const sevenZip = new SevenZip(config.sevenZip, await this.getPassword(config.password, password));
-            const filenameEnumerator = new FilenameEnumerator(FilenameEnumerator.DEFAULT_LETTERS)
+            const validatedPassword = await this.validateOrPromptForPassword(config.password, password);
+            const sevenZip = new SevenZip(config.sevenZip, validatedPassword, logger);
+            const filenameEnumerator = new FilenameEnumerator(logger);
             logger.info(`Source .......... ${config.source}`);
             logger.info(`Destination ..... ${config.destination}`);
             logger.info(`Configuration ... ${FileUtils.getAbsolutePath(files.config)}`);
@@ -96,7 +97,7 @@ class Context {
     // Obtain the password
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async getPassword(saltedHash: string, password?: string) {
+    private static async validateOrPromptForPassword(saltedHash: string, password?: string) {
         password = password ?? await this.promptForPassword(saltedHash);
         if (!PasswordHelper.validatePassword(password, saltedHash)) {
             throw new FriendlyException("Invalid password");

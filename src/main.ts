@@ -52,10 +52,36 @@ class Application {
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
                 return SetupWizard.reconfigure(options);
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
-                return new Synchronizer(await Context.of(options)).run();
+                return this.sync(await Context.of(options));
         }
         // @ts-expect-error The switch above should be exhaustive
         throw new Error(`Internal error: Missing handler for ${context.options.command}`)
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Sync process orchestration
+    //------------------------------------------------------------------------------------------------------------------
+
+    private sync(context: Context) {
+        const isDryRun = context.options.dryRun;
+        this.logger.info(isDryRun ? "Simulating synchronization" : "Starting synchronization");
+        const database = DatabaseAssembler.load(context);
+        const purgeStatistics = new OrphanRemover(context).run(database);
+        const syncStatistics = new Synchronizer(context).run(database);
+        syncStatistics.log(this.logger, isDryRun, "sync", "synced", context.console)
+        const recoveryArchiveResult = RecoveryArchiveCreator.create(context, database);
+        DatabaseSerializer.saveDatabase(context, database);
+        const overallStatistics = Statistics.add(purgeStatistics, syncStatistics);
+        if (true !== recoveryArchiveResult) {
+            throw new FriendlyException(`Failed to create the recovery archive: ${recoveryArchiveResult}`);
+        } else if (overallStatistics.hasFailures()) {
+            const counters = Statistics.format(overallStatistics.files.failed, overallStatistics.directories.failed);
+            throw new FriendlyException(`${counters} could not be processed`, 2);
+        } else if (!isDryRun) {
+            const message = "The synchronization has been completed successfully";
+            context.print(message);
+            this.logger.info(message);
+        }
     }
 }
 

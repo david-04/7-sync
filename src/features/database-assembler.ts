@@ -17,17 +17,26 @@ class DatabaseAssembler {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Load, validate and assemble the database
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static load(context: Context) {
+        const json = JsonLoader.loadAndValidateDatabase(context);
+        return new DatabaseAssembler(context).assembleFromJson(json);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Assemble the source and destination file/directory trees
     //------------------------------------------------------------------------------------------------------------------
 
-    public assembleFromJson(json: JsonDatabase) {
+    private assembleFromJson(json: JsonDatabase) {
         try {
             const source = new RootDirectory(this.context.config.source);
             const destination = new RootDirectory(this.context.config.destination);
             this.assertThatDirectoriesExist(source, destination);
             const database = new MappedRootDirectory(source, destination, json.last);
             this.logger.debug("Checking if the password has changed");
-            if (false !== this.doesPasswordWorkWithAnyFileFrom(this.context.config.destination)) {
+            if (false !== this.context.sevenZip.doesPasswordWorkWithAnyFileFrom(this.context.config.destination)) {
                 const message = this.context.options.dryRun
                     ? "Would purge outdated and orphaned files from database"
                     : "Purging outdated and orphaned files from database";
@@ -60,32 +69,6 @@ class DatabaseAssembler {
             }
             this.logger.debug(`Verified that directory ${directory} exists`);
         });
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Verify that the password can decrypt a randomly selected file from the destination
-    //------------------------------------------------------------------------------------------------------------------
-
-    private doesPasswordWorkWithAnyFileFrom(directory: string): boolean | undefined {
-        const children = FileUtils.getChildren(directory).array;
-        for (const child of children.filter(c => c.isFile() && c.name.endsWith(".7z"))) {
-            const file = node.path.join(directory, child.name);
-            this.logger.debug(`Checking if the password can open ${file}`)
-            if (this.context.sevenZip.isReadableWithCurrentPassword(file)) {
-                this.logger.debug("Successfully opened the archive, the password is correct");
-                return true;
-            } else {
-                this.logger.debug("Failed to open the archive, the password is not correct");
-                return false;
-            }
-        }
-        for (const child of children.filter(c => c.isDirectory())) {
-            const result = this.doesPasswordWorkWithAnyFileFrom(node.path.join(directory, child.name));
-            if (undefined !== result) {
-                return result;
-            }
-        }
-        return undefined;
     }
 
     //------------------------------------------------------------------------------------------------------------------

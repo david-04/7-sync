@@ -4,31 +4,28 @@
 
 class RecoveryArchiveCreator {
 
-    private readonly logger;
-    private readonly print;
-
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(private readonly context: Context) {
-        this.logger = context.logger;
-        this.print = context.print;
-    }
+    public constructor(private readonly context: Context) { }
 
     //------------------------------------------------------------------------------------------------------------------
     // Create the recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    public create(zipFile: string, database: MappedRootDirectory) {
-        if (this.context.options.dryRun) {
-            this.logger.info(`Would create recovery archive ${zipFile}`);
-            this.print("Would create the recovery archive");
+    public static create(context: Context, database: MappedRootDirectory) {
+        const zipFile = context.filenameEnumerator.getNextAvailableFilename(
+            database.destination.absolutePath, database.last, FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX, ".7z"
+        ).filenameWithPath;
+        if (context.options.dryRun) {
+            context.logger.info(`Would create recovery archive ${zipFile}`);
+            context.print("Would create the recovery archive");
             return true;
         } else {
-            this.logger.info(`Creating recovery archive ${zipFile}`);
-            this.print("Creating the recovery archive")
-            return this.createRecoveryArchive(zipFile, database);
+            context.logger.info(`Creating recovery archive ${zipFile}`);
+            context.print("Creating the recovery archive")
+            return new RecoveryArchiveCreator(context).createRecoveryArchive(zipFile, database);
         }
     }
 

@@ -19,44 +19,10 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Sync or dry-run
-    //------------------------------------------------------------------------------------------------------------------
-
-    public run() {
-        this.logger.info(this.isDryRun ? "Simulating synchronization" : "Starting synchronization");
-        const database = this.loadValidateAndAssembleDatabase();
-        const purgeStatistics = new OrphanRemover(this.context).run(database);
-        const syncStatistics = this.performSync(database);
-        syncStatistics.log(this.logger, this.isDryRun, "sync", "synced", this.context.console)
-        const recoveryArchiveResult = this.createRecoveryArchive(database);
-        DatabaseSerializer.saveDatabase(this.context, database);
-        const overallStatistics = Statistics.add(purgeStatistics, syncStatistics);
-        if (true !== recoveryArchiveResult) {
-            throw new FriendlyException(`Failed to create the recovery archive: ${recoveryArchiveResult}`);
-        } else if (overallStatistics.hasFailures()) {
-            const counters = Statistics.format(overallStatistics.files.failed, overallStatistics.directories.failed);
-            throw new FriendlyException(`${counters} could not be processed`, 2);
-        } else if (!this.isDryRun) {
-            const message = "The synchronization has been completed successfully";
-            this.print(message);
-            this.logger.info(message);
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Load, validate and assemble the database
-    //------------------------------------------------------------------------------------------------------------------
-
-    private loadValidateAndAssembleDatabase() {
-        const json = JsonLoader.loadAndValidateDatabase(this.context);
-        return new DatabaseAssembler(this.context).assembleFromJson(json);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    private performSync(database: MappedRootDirectory) {
+    public run(database: MappedRootDirectory) {
         const message = this.isDryRun ? "Would copy new and modified files" : "Copying new and modified files";
         this.logger.info(message);
         this.print(message);
@@ -203,7 +169,7 @@ class Synchronizer {
     ) {
         const sourceAbsolute = node.path.join(directory.source.absolutePath, file.name);
         const sourceRelative = node.path.relative(database.source.absolutePath, sourceAbsolute);
-        const next = this.getNextFilename(directory.destination.absolutePath, directory.last, "", suffix);
+        const next = this.context.filenameEnumerator.getNextAvailableFilename(directory.destination.absolutePath, directory.last, "", suffix);
         const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
         const destinationRelative = node.path.relative(database.destination.absolutePath, destinationAbsolute);
         return {
@@ -218,35 +184,5 @@ class Synchronizer {
             },
             next: next.enumeratedName
         };
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Determine the next file name
-    //------------------------------------------------------------------------------------------------------------------
-
-    private getNextFilename(path: string, last: string, prefix: string, suffix: string) {
-        let next = last;
-        while (true) {
-            next = this.context.filenameEnumerator.getNextFilename(next);
-            const filename = prefix + next + suffix;
-            const filenameWithPath = node.path.join(path, filename);
-            if (!FileUtils.exists(filenameWithPath) && !next.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
-                return { enumeratedName: next, filename, filenameWithPath };
-            } else {
-                this.logger.debug(`The next filename is already occupied: ${filename}`);
-                this.logger.warn(`The database seems to be lagging behind the destination directory`);
-            }
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Create the recovery archive
-    //------------------------------------------------------------------------------------------------------------------
-
-    private createRecoveryArchive(database: MappedRootDirectory) {
-        const recoveryFile = this.getNextFilename(
-            database.destination.absolutePath, database.last, FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX, ".7z"
-        );
-        return new RecoveryArchiveCreator(this.context).create(recoveryFile.filenameWithPath, database);
     }
 }

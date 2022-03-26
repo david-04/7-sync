@@ -10,7 +10,11 @@ class SevenZip {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(private readonly executable: string, private readonly password: string) {
+    public constructor(
+        private readonly executable: string,
+        private readonly password: string,
+        private readonly logger: Logger
+    ) {
         if (!SevenZip.isValidExecutable(executable)) {
             throw new FriendlyException(`Failed to execute "${executable}"`);
         }
@@ -100,5 +104,31 @@ class SevenZip {
         });
         const error = result.error instanceof Error ? firstLineOnly(result.error) : result.error;
         return { stdout: result.stdout, stderr: result.stderr, status: result.status, error };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that the password can decrypt a randomly selected file from the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    public doesPasswordWorkWithAnyFileFrom(directory: string): boolean | undefined {
+        const children = FileUtils.getChildren(directory).array;
+        for (const child of children.filter(c => c.isFile() && c.name.endsWith(".7z"))) {
+            const file = node.path.join(directory, child.name);
+            this.logger.debug(`Checking if the password can open ${file}`)
+            if (this.isReadableWithCurrentPassword(file)) {
+                this.logger.debug("Successfully opened the archive, the password is correct");
+                return true;
+            } else {
+                this.logger.debug("Failed to open the archive, the password is not correct");
+                return false;
+            }
+        }
+        for (const child of children.filter(c => c.isDirectory())) {
+            const result = this.doesPasswordWorkWithAnyFileFrom(node.path.join(directory, child.name));
+            if (undefined !== result) {
+                return result;
+            }
+        }
+        return undefined;
     }
 }
