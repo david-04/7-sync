@@ -51,7 +51,7 @@ class Synchronizer {
         const destinationChildren = FileUtils.getChildren(directory.destination.absolutePath).map;
         this.deleteOrphans(directory, destinationChildren);
         const items = this.analyzeDirectory(directory, destinationChildren);
-        items.forEach(item => this.syncItem(directory, item.source, item.database, item.destination));
+        items.forEach(item => this.processItem(directory, item.source, item.database, item.destination));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -152,16 +152,90 @@ class Synchronizer {
     // Synchronize a file or directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private syncItem(
-        _directory: MappedDirectory, _source?: Dirent, _database?: MappedDirectory | MappedFile, _destination?: Dirent
+    private processItem(
+        directory: MappedDirectory, source?: Dirent, database?: MappedDirectory | MappedFile, destination?: Dirent
     ) {
-        // database'd elements
-        // new elements
-        // - new file
-        // - new subdirectory
+        if (database) {
+            return this.processDatabaseItem(directory, database, source, destination);
+        } else if (source) {
+            return this.processNewItem(directory, source);
+        } else {
+            return true;
+        }
     }
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Process an item that is registered in the database
+    //------------------------------------------------------------------------------------------------------------------
 
+    private processDatabaseItem(
+        directory: MappedDirectory, database: MappedDirectory | MappedFile, source?: Dirent, destination?: Dirent
+    ) {
+        if (source && destination) {
+            return this.processPreservedItem(directory, database, source, destination);
+        } else if (source) {
+            return this.processVanishedItem(directory, database, source)
+        } else {
+            return this.processDeletedItem(directory, database, destination);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that still exists in the source and in the destination
+    //------------------------------------------------------------------------------------------------------------------
+    private processPreservedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _source: Dirent, _destination: Dirent
+    ) {
+        // TODO: file might have been modified or the there might have been a swap (file <=> directory)
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that's still in the source but has disappeared from the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processVanishedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _source: Dirent
+    ) {
+        // TODO: the item is still in the source but has vanished from the destination
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that's no longer in the source but might still be in the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processDeletedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _destination?: Dirent
+    ) {
+        // TODO: the item was deleted from the source but is still in the destination
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a new item that's not in the database yet
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processNewItem(directory: MappedDirectory, source: Dirent) {
+        return FileUtils.isDirectoryOrDirectoryLink(directory.source.absolutePath, source)
+            ? this.processNewDirectory(directory, source)
+            : this.processNewFile(directory, source);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a new directory that's not in the database yet
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processNewDirectory(_parentDirectory: MappedDirectory, _source: Dirent) {
+        // TODO: create directory, add to database and recurse into it
+        return true;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a new file that's not in the database yet
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processNewFile(_directory: MappedDirectory, _source: Dirent) {
+        // TODO: new file: zip file and add to database
+        return true;
+    }
 
 
 
@@ -398,7 +472,6 @@ class Synchronizer {
         success ? statistics.success++ : statistics.failed++;
         return success;
     }
-
 
     //------------------------------------------------------------------------------------------------------------------
     // Get thr relative display path for the console output
