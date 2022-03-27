@@ -167,7 +167,13 @@ class Synchronizer {
             if (a.isDirectory === b.isDirectory) {
                 const name1 = (a.database?.source.name ?? a.source?.name ?? "").toLowerCase();
                 const name2 = (b.database?.source.name ?? b.source?.name ?? "").toLowerCase();
-                return name1 < name2 ? -1 : 1
+                if (a.destination?.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
+                    return 1;
+                } else if (b.destination?.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
+                    return -1;
+                } else {
+                    return name1 < name2 ? -1 : 1
+                }
             } else {
                 return a.isDirectory ? -1 : 1;
             }

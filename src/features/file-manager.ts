@@ -25,13 +25,13 @@ class FileManager {
     public createDirectory(directory: MappedDirectory, source: Dirent) {
         const paths = this.getSourceAndDestinationPaths(directory, source, "");
         this.print(`+ ${paths.source.relativePath}`);
-        const pathInfo = `directory ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
+        const pathInfo = this.getLogFilePathInfo("mkdir", paths.destination.absolutePath, paths.source.absolutePath);
         let newDestinationDirectory: Subdirectory | undefined;
         if (this.isDryRun) {
-            this.logger.info(`Would create ${pathInfo}`);
+            this.logger.info(`Would create directory ${pathInfo}`);
             newDestinationDirectory = new Subdirectory(directory.destination, paths.destination.filename);
         } else {
-            this.logger.info(`Creating ${pathInfo}`);
+            this.logger.info(`Creating directory ${pathInfo}`);
             try {
                 node.fs.mkdirSync(paths.destination.absolutePath);
                 if (!FileUtils.exists(paths.destination.absolutePath)) {
@@ -66,15 +66,16 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public compressFile(parentDirectory: MappedDirectory, source: Dirent) {
+    public compressFile(parentDirectory: MappedDirectory, source: Dirent, reason?: string) {
         const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
         this.print(`+ ${paths.source.relativePath}`);
-        const pathInfo = `file ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
+        const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
         let success = true;
+        const suffix = reason ? ` ${reason}` : "";
         if (this.isDryRun) {
-            this.logger.info(`Would zip ${pathInfo}`);
+            this.logger.info(`Would zip ${pathInfo}${suffix}`);
         } else {
-            this.logger.info(`Zipping ${pathInfo}`);
+            this.logger.info(`Zipping ${pathInfo}${suffix}`);
             success = this.compressAndValidate(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
         }
         return success
@@ -136,7 +137,15 @@ class FileManager {
     public deleteFile(
         options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
     ) {
-        return this.deleteFileOrDirectory({ ...options, type: "file" });
+        const isRecoveryArchive = !options.source
+            && this.database.destination.absolutePath === node.path.dirname(options.destination)
+            && node.path.basename(options.destination).startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX);
+        return this.deleteFileOrDirectory({
+            ...options,
+            type: "file",
+            isRecoveryArchive,
+            suppressConsoleOutput: options.suppressConsoleOutput || isRecoveryArchive
+        });
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -158,29 +167,28 @@ class FileManager {
         source?: string,
         suppressConsoleOutput?: boolean,
         reason?: string,
-        type: "file" | "directory"
+        type: "file" | "directory",
+        isRecoveryArchive?: boolean
 
     }) {
         const isOrphan = !options.source;
-        const reason = options.reason ? ` ${options.reason}` : "";
         if (!options.suppressConsoleOutput) {
-            const displayPath = this.getRelativeDisplayPath(options.destination, options.source);
-            const suffix = isOrphan ? " (orphan)" : "";
-            this.print(`- ${displayPath}${suffix}`);
+            this.print(`- ${this.getConsolePathInfo("rm", options.destination, options.source)}`);
         }
-        if (isOrphan) {
+        const pathInfo = this.getLogFilePathInfo("rm", options.destination, options.source);
+        const reason = options.reason ? ` ${options.reason}` : "";
+        if (isOrphan && !options.isRecoveryArchive) {
             this.logger.warn(this.isDryRun
-                ? `Would delete orphaned ${options.type} ${options.destination}`
-                : `Deleting orphaned ${options.type} ${options.destination}`
+                ? `Would delete orphaned ${options.type} ${pathInfo}${reason}`
+                : `Deleting orphaned ${options.type} ${pathInfo}${reason}`
             );
         } else {
             this.logger.info(this.isDryRun
-                ? `Would delete ${options.destination} ${reason}`
-                : `Deleting ${options.destination} ${reason}`
+                ? `Would delete ${pathInfo}${reason}`
+                : `Deleting ${pathInfo}${reason}`
             );
         }
-        const isDirectory = "directory" === options.type;
-        const success = this.doDeleteFileOrDirectory(options.destination, isDirectory);
+        const success = this.doDeleteFileOrDirectory(options.destination, "directory" === options.type);
         if (!success && !options.suppressConsoleOutput) {
             this.print("===> FAILED");
         }
@@ -207,16 +215,6 @@ class FileManager {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Get thr relative display path for the console output
-    //------------------------------------------------------------------------------------------------------------------
-
-    private getRelativeDisplayPath(destinationPath: string, sourcePath?: string) {
-        return sourcePath
-            ? node.path.relative(this.database.source.absolutePath, sourcePath)
-            : node.path.relative(this.database.destination.absolutePath, destinationPath)
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Retrieve source and destination information
     //------------------------------------------------------------------------------------------------------------------
 
@@ -238,6 +236,32 @@ class FileManager {
             },
             next: next.enumeratedName
         };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get source and destination paths for the log file output
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getLogFilePathInfo(operation: "cp" | "mkdir" | "rm", destinationPath: string, sourcePath?: string) {
+        if ("rm" === operation) {
+            return sourcePath ? `${destinationPath} (mirroring ${sourcePath})` : destinationPath;
+        } else {
+            return sourcePath ? `${sourcePath} => ${destinationPath}` : destinationPath;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get source and destination paths for console output
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getConsolePathInfo(operation: "cp" | "mkdir" | "rm", destinationPath: string, sourcePath?: string) {
+        const source = sourcePath ? node.path.relative(this.database.source.absolutePath, sourcePath) : undefined;
+        const destination = node.path.relative(this.database.destination.absolutePath, destinationPath);
+        if ("rm" === operation) {
+            return source ?? `${destination} (orphan)`;
+        } else {
+            return source;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------

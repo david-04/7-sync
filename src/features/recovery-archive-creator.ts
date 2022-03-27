@@ -17,15 +17,16 @@ class RecoveryArchiveCreator {
     public static create(context: Context, database: MappedRootDirectory) {
         const zipFile = context.filenameEnumerator.getNextAvailableFilename(
             database.destination.absolutePath, database.last, FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX, ".7z"
-        ).filenameWithPath;
+        );
+        database.last = zipFile.enumeratedName;
         if (context.options.dryRun) {
-            context.logger.info(`Would create recovery archive ${zipFile}`);
+            context.logger.info(`Would create recovery archive ${zipFile.filenameWithPath}`);
             context.print("Would create the recovery archive");
             return true;
         } else {
-            context.logger.info(`Creating recovery archive ${zipFile}`);
+            context.logger.info(`Creating recovery archive ${zipFile.filenameWithPath}`);
             context.print("Creating the recovery archive")
-            return new RecoveryArchiveCreator(context).createRecoveryArchive(zipFile, database);
+            return new RecoveryArchiveCreator(context).createRecoveryArchive(zipFile.filenameWithPath, database);
         }
     }
 
