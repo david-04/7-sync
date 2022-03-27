@@ -4,9 +4,7 @@
 
 class Synchronizer {
 
-    private readonly logger;
-    private readonly print;
-    private readonly isDryRun;
+    private readonly fileManager;
 
     private readonly statistics = asReadonly({
         delete: asReadonly({
@@ -25,12 +23,10 @@ class Synchronizer {
 
     private constructor(
         readonly context: Context,
-        readonly _database: MappedRootDirectory,
+        readonly database: MappedRootDirectory,
         _forceReEncrypt: boolean
     ) {
-        this.logger = context.logger;
-        this.print = context.print;
-        this.isDryRun = context.options.dryRun;
+        this.fileManager = new FileManager(context, database);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -66,7 +62,7 @@ class Synchronizer {
                 const destination = node.path.join(database.destination.absolutePath, name);
                 const success = dirent.isDirectory()
                     ? this.deleteOrphanedDirectory(destination)
-                    : this.deleteFile({ destination, statistics: this.statistics.delete.orphans });
+                    : this.fileManager.deleteFile({ destination, statistics: this.statistics.delete.orphans });
                 if (success) {
                     children.delete(name);
                 }
@@ -80,7 +76,9 @@ class Synchronizer {
 
     private deleteOrphanedDirectory(absolutePath: string) {
         this.deleteOrphanedChildren(absolutePath);
-        return this.deleteDirectory({ destination: absolutePath, statistics: this.statistics.delete.orphans });
+        return this.fileManager.deleteDirectory({
+            destination: absolutePath, statistics: this.statistics.delete.orphans
+        });
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -92,7 +90,7 @@ class Synchronizer {
             const destination = node.path.join(absoluteParentPath, dirent.name)
             return dirent.isDirectory()
                 ? this.deleteOrphanedDirectory(destination)
-                : this.deleteFile({ destination, statistics: this.statistics.delete.orphans });
+                : this.fileManager.deleteFile({ destination, statistics: this.statistics.delete.orphans });
         }).some(result => !result);
     }
 
@@ -384,102 +382,4 @@ class Synchronizer {
 
     // }
 
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete a single file
-    //------------------------------------------------------------------------------------------------------------------
-
-    private deleteFile(options: {
-        statistics: Statistics,
-        destination: string,
-        source?: string,
-        suppressConsoleOutput?: boolean,
-        reason?: string
-    }) {
-        return this.deleteFileOrDirectory({ ...options, type: "file", statistics: options.statistics.files });
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete a single directory
-    //------------------------------------------------------------------------------------------------------------------
-
-    private deleteDirectory(options: {
-        statistics: Statistics,
-        destination: string,
-        source?: string,
-        suppressConsoleOutput?: boolean,
-        reason?: string
-    }) {
-        return this.deleteFileOrDirectory({ ...options, type: "directory", statistics: options.statistics.directories });
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Generic delete function with logging and dry-run handling
-    //------------------------------------------------------------------------------------------------------------------
-
-    private deleteFileOrDirectory(options: {
-        statistics: { success: number, failed: number },
-        destination: string,
-        source?: string,
-        suppressConsoleOutput?: boolean,
-        reason?: string,
-        type: "file" | "directory"
-    }) {
-        const isOrphan = !options.source;
-        const reason = options.reason ? ` ${options.reason}` : "";
-        if (!options.suppressConsoleOutput) {
-            const displayPath = this.getRelativeDisplayPath(options.destination, options.source);
-            const suffix = isOrphan ? " (orphan)" : "";
-            this.print(`- ${displayPath}${suffix}`);
-        }
-        if (isOrphan) {
-            this.logger.warn(this.isDryRun
-                ? `Would delete orphaned ${options.type} ${options.destination}`
-                : `Deleting orphaned ${options.type} ${options.destination}`
-            );
-        } else {
-            this.logger.info(this.isDryRun
-                ? `Would delete ${options.destination} ${reason}`
-                : `Deleting ${options.destination} ${reason}`
-            );
-        }
-        const isDirectory = "directory" === options.type;
-        const success = this.doDeleteFileOrDirectory(options.destination, options.statistics, isDirectory);
-        if (!success && !options.suppressConsoleOutput) {
-            this.print("===> FAILED");
-        }
-        return success;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete the given file or directory
-    //------------------------------------------------------------------------------------------------------------------
-
-    private doDeleteFileOrDirectory(
-        path: string, statistics: { success: number, failed: number }, isDirectory: boolean
-    ) {
-        let success = true;
-        if (!this.isDryRun) {
-            try {
-                node.fs.rmSync(path, isDirectory ? { recursive: true, force: true } : {});
-                if (FileUtils.exists(path)) {
-                    throw new FriendlyException("No exception was raised but the file is still present");
-                }
-            } catch (exception) {
-                this.logger.error(`Failed to delete ${path} - ${firstLineOnly(exception)}`);
-                success = false;
-            }
-        }
-        success ? statistics.success++ : statistics.failed++;
-        return success;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Get thr relative display path for the console output
-    //------------------------------------------------------------------------------------------------------------------
-
-    private getRelativeDisplayPath(destinationPath: string, sourcePath?: string) {
-        return sourcePath
-            ? node.path.relative(this._database.source.absolutePath, sourcePath)
-            : node.path.relative(this._database.destination.absolutePath, destinationPath)
-    }
 }
