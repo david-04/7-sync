@@ -74,7 +74,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     public add(fileOrSubdirectory: MappedFile | MappedSubDirectory) {
         if (fileOrSubdirectory instanceof MappedFile) {
             this.addTo(this._files.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
-            this.addTo(this._files.bySourceName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
+            this.addTo(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
         } else {
             this.addTo(this._subdirectories.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
             this.addTo(this._subdirectories.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
@@ -87,6 +87,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
 
     private addTo<V extends MappedFile | MappedSubDirectory>(map: Map<string, V>, key: string, value: V) {
         if (map.has(key)) {
+            console.log(map);
             throw new Error(
                 `Internal error: Subdirectory ${value.source.relativePath} has already been added to the database`
             );
