@@ -133,28 +133,20 @@ class FileManager {
     // Delete a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public deleteFile(options: {
-        statistics: Statistics,
-        destination: string,
-        source?: string,
-        suppressConsoleOutput?: boolean,
-        reason?: string
-    }) {
-        return this.deleteFileOrDirectory({ ...options, type: "file", statistics: options.statistics.files });
+    public deleteFile(
+        options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
+    ) {
+        return this.deleteFileOrDirectory({ ...options, type: "file" });
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Delete a single directory
     //------------------------------------------------------------------------------------------------------------------
 
-    public deleteDirectory(options: {
-        statistics: Statistics,
-        destination: string,
-        source?: string,
-        suppressConsoleOutput?: boolean,
-        reason?: string
-    }) {
-        return this.deleteFileOrDirectory({ ...options, type: "directory", statistics: options.statistics.directories });
+    public deleteDirectory(
+        options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
+    ) {
+        return this.deleteFileOrDirectory({ ...options, type: "directory" });
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -162,12 +154,12 @@ class FileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private deleteFileOrDirectory(options: {
-        statistics: { success: number, failed: number },
         destination: string,
         source?: string,
         suppressConsoleOutput?: boolean,
         reason?: string,
         type: "file" | "directory"
+
     }) {
         const isOrphan = !options.source;
         const reason = options.reason ? ` ${options.reason}` : "";
@@ -188,7 +180,7 @@ class FileManager {
             );
         }
         const isDirectory = "directory" === options.type;
-        const success = this.doDeleteFileOrDirectory(options.destination, options.statistics, isDirectory);
+        const success = this.doDeleteFileOrDirectory(options.destination, isDirectory);
         if (!success && !options.suppressConsoleOutput) {
             this.print("===> FAILED");
         }
@@ -199,10 +191,7 @@ class FileManager {
     // Delete the given file or directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private doDeleteFileOrDirectory(
-        path: string, statistics: { success: number, failed: number }, isDirectory: boolean
-    ) {
-        let success = true;
+    private doDeleteFileOrDirectory(path: string, isDirectory: boolean) {
         if (!this.isDryRun) {
             try {
                 node.fs.rmSync(path, isDirectory ? { recursive: true, force: true } : {});
@@ -211,11 +200,10 @@ class FileManager {
                 }
             } catch (exception) {
                 this.logger.error(`Failed to delete ${path} - ${firstLineOnly(exception)}`);
-                success = false;
+                return false;
             }
         }
-        success ? statistics.success++ : statistics.failed++;
-        return success;
+        return true;
     }
 
     //------------------------------------------------------------------------------------------------------------------
