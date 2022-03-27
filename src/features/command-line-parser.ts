@@ -173,7 +173,6 @@ class CommandLineParser {
         const defaultValue = (defaultOptions as any)[defaultKey];
         if ("boolean" === typeof defaultValue) {
             if ("boolean" !== typeof suppliedValue) {
-                console.log(suppliedValue);
                 this.exitWithError(`Option --${suppliedKey} can't have a value assigned`);
             }
         } else {

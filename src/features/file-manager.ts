@@ -12,10 +12,58 @@ class FileManager {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(context: Context, private readonly database: MappedRootDirectory) {
+    constructor(private readonly context: Context, private readonly database: MappedRootDirectory) {
         this.print = context.print;
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Create a new directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    public createDirectory(directory: MappedDirectory, source: Dirent, statistics: Statistics) {
+        const paths = this.getSourceAndDestinationPaths(directory, source, "");
+        this.print(`+ ${paths.source.relativePath}`);
+        const pathInfo = `directory ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
+        let newDestinationDirectory: Subdirectory | undefined;
+        if (this.isDryRun) {
+            this.logger.info(`Would create ${pathInfo}`);
+            newDestinationDirectory = new FakeSubdirectory(directory.destination, paths.destination.filename);
+        } else {
+            this.logger.info(`Creating ${pathInfo}`);
+            try {
+                node.fs.mkdirSync(paths.destination.absolutePath);
+                if (!FileUtils.exists(paths.destination.absolutePath)) {
+                    throw new FriendlyException("No exception was raised");
+                }
+                newDestinationDirectory = new Subdirectory(directory.destination, paths.destination.filename);
+            } catch (exception) {
+                this.logger.error(
+                    `Failed to create directory ${paths.destination.absolutePath} - ${firstLineOnly(exception)}`
+                );
+                this.print("===> FAILED");
+            }
+        }
+        if (newDestinationDirectory) {
+            statistics.directories.success++;
+            return this.storeNewSubdirectory(directory, source.name, newDestinationDirectory, paths.next);
+        } else {
+            statistics.directories.failed++;
+            return undefined;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Wrap a destination directory into a mapped directory and attach it to the database
+    //------------------------------------------------------------------------------------------------------------------
+
+    private storeNewSubdirectory(parent: MappedDirectory, sourceName: string, destination: Subdirectory, last: string) {
+        const source = new Subdirectory(parent.source, sourceName);
+        const newMappedSubdirectory = new MappedSubDirectory(parent, source, destination, "");
+        parent.add(newMappedSubdirectory);
+        parent.last = last;
+        return newMappedSubdirectory;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -115,5 +163,39 @@ class FileManager {
         return sourcePath
             ? node.path.relative(this.database.source.absolutePath, sourcePath)
             : node.path.relative(this.database.destination.absolutePath, destinationPath)
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Retrieve source and destination information
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getSourceAndDestinationPaths(directory: MappedDirectory, source: Dirent, suffix: string) {
+        const sourceAbsolute = node.path.join(directory.source.absolutePath, source.name);
+        const sourceRelative = node.path.relative(this.database.source.absolutePath, sourceAbsolute);
+        const next = this.getNextAvailableFilename(directory, "", suffix);
+        const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
+        const destinationRelative = node.path.relative(this.database.destination.absolutePath, destinationAbsolute);
+        return {
+            source: {
+                absolutePath: sourceAbsolute,
+                relativePath: sourceRelative
+            },
+            destination: {
+                filename: next.filename,
+                absolutePath: destinationAbsolute,
+                relativePath: destinationRelative
+            },
+            next: next.enumeratedName
+        };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the next available enumerated file name
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getNextAvailableFilename(directory: MappedDirectory, prefix: string, suffix: string) {
+        return this.context.filenameEnumerator.getNextAvailableFilename(
+            directory.destination.absolutePath, directory.last, prefix, suffix
+        );
     }
 }

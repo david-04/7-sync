@@ -9,13 +9,21 @@ class RootDirectory {
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(public readonly absolutePath: string) { }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get files and subdirectories
+    //------------------------------------------------------------------------------------------------------------------
+
+    public getChildren() {
+        return FileUtils.getChildren(this.absolutePath);
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // A sub-directory
 //----------------------------------------------------------------------------------------------------------------------
 
-class SubDirectory extends RootDirectory {
+class Subdirectory extends RootDirectory {
 
     public readonly relativePath: string;
 
@@ -25,7 +33,25 @@ class SubDirectory extends RootDirectory {
 
     public constructor(parent: Directory, public readonly name: string) {
         super(node.path.join(parent.absolutePath, name))
-        this.relativePath = parent instanceof SubDirectory ? node.path.join(parent.relativePath, name) : name;
+        this.relativePath = parent instanceof Subdirectory ? node.path.join(parent.relativePath, name) : name;
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Use in the dry-run to represent a directory that was not actually created
+//----------------------------------------------------------------------------------------------------------------------
+
+class FakeSubdirectory extends Subdirectory {
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get files and subdirectories
+    //------------------------------------------------------------------------------------------------------------------
+
+    public getChildren() {
+        return {
+            array: new Array<Dirent>(),
+            map: new Map<string, Dirent>()
+        };
     }
 }
 
@@ -33,7 +59,7 @@ class SubDirectory extends RootDirectory {
 // Any directory
 //----------------------------------------------------------------------------------------------------------------------
 
-type Directory = RootDirectory | SubDirectory;
+type Directory = RootDirectory | Subdirectory | FakeSubdirectory;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Mapping of a source directory to a destination
@@ -87,7 +113,6 @@ class MappedDirectoryBase<T extends RootDirectory> {
 
     private addTo<V extends MappedFile | MappedSubDirectory>(map: Map<string, V>, key: string, value: V) {
         if (map.has(key)) {
-            console.log(map);
             throw new Error(
                 `Internal error: Subdirectory ${value.source.relativePath} has already been added to the database`
             );
@@ -136,7 +161,7 @@ class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> { }
 // A mapped destination directory
 //----------------------------------------------------------------------------------------------------------------------
 
-class MappedSubDirectory extends MappedDirectoryBase<SubDirectory> {
+class MappedSubDirectory extends MappedDirectoryBase<Subdirectory> {
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -144,8 +169,8 @@ class MappedSubDirectory extends MappedDirectoryBase<SubDirectory> {
 
     constructor(
         public readonly parent: MappedDirectory,
-        source: SubDirectory,
-        destination: SubDirectory,
+        source: Subdirectory,
+        destination: Subdirectory,
         last: string
     ) {
         super(source, destination, last);

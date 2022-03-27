@@ -44,7 +44,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private syncDirectory(directory: MappedDirectory) {
-        const destinationChildren = FileUtils.getChildren(directory.destination.absolutePath).map;
+        const destinationChildren = directory.destination.getChildren().map;
         this.deleteOrphans(directory, destinationChildren);
         const items = this.analyzeDirectory(directory, destinationChildren);
         items.forEach(item => this.processItem(directory, item.source, item.database, item.destination));
@@ -99,7 +99,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     public analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
-        const sourceChildren = FileUtils.getChildren(directory.source.absolutePath).map;
+        const sourceChildren = directory.source.getChildren().map;
         const databaseFiles = Array.from(directory.files.bySourceName.values());
         const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
         const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
@@ -221,9 +221,9 @@ class Synchronizer {
     // Process a new directory that's not in the database yet
     //------------------------------------------------------------------------------------------------------------------
 
-    private processNewDirectory(_parentDirectory: MappedDirectory, _source: Dirent) {
-        // TODO: create directory, add to database and recurse into it
-        return true;
+    private processNewDirectory(parentDirectory: MappedDirectory, source: Dirent) {
+        const subdirectory = this.fileManager.createDirectory(parentDirectory, source, this.statistics.copy.new);
+        return subdirectory ? this.syncDirectory(subdirectory) : false;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -344,34 +344,7 @@ class Synchronizer {
     //     }
     // }
 
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Retrieve source and destination information
-    // //------------------------------------------------------------------------------------------------------------------
 
-    // private getSourceAndDestinationPaths(
-    //     database: MappedRootDirectory,
-    //     directory: MappedDirectory,
-    //     file: Dirent,
-    //     suffix: string
-    // ) {
-    //     const sourceAbsolute = node.path.join(directory.source.absolutePath, file.name);
-    //     const sourceRelative = node.path.relative(database.source.absolutePath, sourceAbsolute);
-    //     const next = this.context.filenameEnumerator.getNextAvailableFilename(directory.destination.absolutePath, directory.last, "", suffix);
-    //     const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
-    //     const destinationRelative = node.path.relative(database.destination.absolutePath, destinationAbsolute);
-    //     return {
-    //         source: {
-    //             absolutePath: sourceAbsolute,
-    //             relativePath: sourceRelative
-    //         },
-    //         destination: {
-    //             filename: next.filename,
-    //             absolutePath: destinationAbsolute,
-    //             relativePath: destinationRelative
-    //         },
-    //         next: next.enumeratedName
-    //     };
-    // }
 
 
     // //------------------------------------------------------------------------------------------------------------------

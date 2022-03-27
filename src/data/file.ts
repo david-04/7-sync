@@ -13,7 +13,7 @@ class File {
 
     public constructor(public readonly parent: Directory, public readonly name: string) {
         this.absolutePath = node.path.join(parent.absolutePath, name);
-        this.relativePath = parent instanceof SubDirectory ? node.path.join(parent.relativePath, name) : name;
+        this.relativePath = parent instanceof Subdirectory ? node.path.join(parent.relativePath, name) : name;
     }
 
     //------------------------------------------------------------------------------------------------------------------
