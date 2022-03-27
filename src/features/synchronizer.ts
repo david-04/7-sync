@@ -50,13 +50,8 @@ class Synchronizer {
     private syncDirectory(directory: MappedDirectory) {
         const destinationChildren = FileUtils.getChildren(directory.destination.absolutePath).map;
         this.deleteOrphans(directory, destinationChildren);
-        // {name: string, source: dirent, database: mapped, destination: dirent}
-        // this.getCategorizedChildren(directory, destinationChildren).forEach(child => {
-        //     if (child.source && !child.database && FileUtils.isDirectoryOrDirectoryLink(child.source)) {
-        //         //
-        //     }
-        // })
-        // recursively sync all children
+        const items = this.analyzeDirectory(directory, destinationChildren);
+        items.forEach(item => this.syncItem(directory, item.source, item.database, item.destination));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -101,37 +96,73 @@ class Synchronizer {
         }).some(result => !result);
     }
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Compare the database with the current destination directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    public analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
+        const sourceChildren = FileUtils.getChildren(directory.source.absolutePath).map;
+        const databaseFiles = Array.from(directory.files.bySourceName.values());
+        const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
+        const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
+            source: sourceChildren.get(database.source.name),
+            database,
+            destination: destinationChildren.get(database.destination.name)
+        }));
+        databaseItems.forEach(item => {
+            if (item.source) sourceChildren.delete(item.source.name)
+        });
+        const sourceOnlyItems = Array.from(sourceChildren.values()).map(source => ({
+            source, database: undefined, destination: undefined
+        }));
+        return this.sortAnalysisResults(directory, [...sourceOnlyItems, ...databaseItems]);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Sort directory items case-insensitive alphabetically with directories first
+    //------------------------------------------------------------------------------------------------------------------
+
+    private sortAnalysisResults(
+        directory: MappedDirectory,
+        array: Array<{ source?: Dirent, database?: MappedSubDirectory | MappedFile, destination?: Dirent }>
+    ) {
+        return array.map(item => {
+            let isDirectory = item.database instanceof MappedSubDirectory;
+            if (!isDirectory && item.source) {
+                isDirectory = FileUtils.isDirectoryOrDirectoryLink(
+                    node.path.join(directory.source.absolutePath, item.source.name), item.source
+                );
+            }
+            if (!isDirectory && item.destination) {
+                isDirectory = item.destination.isDirectory();
+            }
+            return { ...item, isDirectory };
+        }).sort((a, b) => {
+            if (a.isDirectory === b.isDirectory) {
+                const name1 = (a.database?.source.name ?? a.source?.name ?? "").toLowerCase();
+                const name2 = (b.database?.source.name ?? b.source?.name ?? "").toLowerCase();
+                return name1 < name2 ? -1 : 1
+            } else {
+                return a.isDirectory ? -1 : 1;
+            }
+        });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Synchronize a file or directory
+    //------------------------------------------------------------------------------------------------------------------
+
+    private syncItem(
+        _directory: MappedDirectory, _source?: Dirent, _database?: MappedDirectory | MappedFile, _destination?: Dirent
+    ) {
+        // database'd elements
+        // new elements
+        // - new file
+        // - new subdirectory
+    }
 
 
 
-
-
-
-
-
-
-
-
-
-
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Compare the database with the current file contents
-    // //------------------------------------------------------------------------------------------------------------------
-
-    // public getCategorizedChildren(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
-    //     const sourceChildren = FileUtils.getChildren(directory.source.absolutePath).map;
-    //     const databaseChildren = new Map<string, MappedSubDirectory | MappedFile>();
-    //     directory.files.bySourceName.forEach(file => databaseChildren.set(file.source.name, file));
-    //     directory.subdirectories.bySourceName.forEach(subdirectory => databaseChildren.set(subdirectory.source.name, subdirectory));
-    //     const allChildren = new Set<string>();
-    //     sourceChildren.forEach((_dirent, name) => allChildren.add(name))
-    //     databaseChildren.forEach((_mappedFileOrDirectory, name) => allChildren.add(name));
-    //     return Array.from(allChildren).sort().map(name => ({
-    //         source: sourceChildren.get(name),
-    //         database: databaseChildren.get(name),
-    //         destination: destinationChildren.get(databaseChildren.get(name)?.source.name ?? "")
-    //     }));
-    // }
 
 
     // //------------------------------------------------------------------------------------------------------------------
