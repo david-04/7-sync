@@ -2,7 +2,7 @@
 // An immutable wrapper for a map
 //----------------------------------------------------------------------------------------------------------------------
 
-class ImmutableMap<T extends MappedFile | MappedSubDirectory> {
+class ImmutableMap<T extends MappedFile | MappedSubdirectory> {
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization

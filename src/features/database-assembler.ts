@@ -57,7 +57,7 @@ class DatabaseAssembler {
     private assembleDirectory(parent: MappedDirectory, json: JsonDirectory) {
         const source = new Subdirectory(parent.source, json.source);
         const destination = new Subdirectory(parent.destination, json.destination);
-        const mappedDirectory = new MappedSubDirectory(parent, source, destination, json.last);
+        const mappedDirectory = new MappedSubdirectory(parent, source, destination, json.last);
         this.assembleFilesAndSubdirectories(mappedDirectory, json);
         return mappedDirectory;
     }

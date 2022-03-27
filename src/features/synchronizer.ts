@@ -4,16 +4,22 @@
 
 class Synchronizer {
 
+    private readonly logger;
+    private readonly isDryRun;
     private readonly fileManager;
 
     private readonly statistics = asReadonly({
         delete: asReadonly({
-            orphans: new Statistics(),
-            outdated: new Statistics()
+            orphans: new Statistics(), // unknown items in the destination
+            outdated: new Statistics(), // the source was modified
+            deleted: new Statistics() // the source was deleted
         }),
         copy: asReadonly({
-            new: new Statistics(),
-            modified: new Statistics()
+            new: new Statistics(), // new source item (previously unseen)
+            modified: new Statistics() // modified source items (changed since the last sync)
+        }),
+        purge: asReadonly({ // purged from the database
+            vanished: new Statistics() // item has disappeared from the destination
         })
     });
 
@@ -27,6 +33,8 @@ class Synchronizer {
         _forceReEncrypt: boolean
     ) {
         this.fileManager = new FileManager(context, database);
+        this.logger = context.logger;
+        this.isDryRun = context.options.dryRun;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -122,10 +130,10 @@ class Synchronizer {
 
     private sortAnalysisResults(
         directory: MappedDirectory,
-        array: Array<{ source?: Dirent, database?: MappedSubDirectory | MappedFile, destination?: Dirent }>
+        array: Array<{ source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent }>
     ) {
         return array.map(item => {
-            let isDirectory = item.database instanceof MappedSubDirectory;
+            let isDirectory = item.database instanceof MappedSubdirectory;
             if (!isDirectory && item.source) {
                 isDirectory = FileUtils.isDirectoryOrDirectoryLink(
                     node.path.join(directory.source.absolutePath, item.source.name), item.source
@@ -151,7 +159,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processItem(
-        directory: MappedDirectory, source?: Dirent, database?: MappedDirectory | MappedFile, destination?: Dirent
+        directory: MappedDirectory, source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent
     ) {
         if (database) {
             return this.processDatabaseItem(directory, database, source, destination);
@@ -167,7 +175,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processDatabaseItem(
-        directory: MappedDirectory, database: MappedDirectory | MappedFile, source?: Dirent, destination?: Dirent
+        directory: MappedDirectory, database: MappedSubdirectory | MappedFile, source?: Dirent, destination?: Dirent
     ) {
         if (source && destination) {
             return this.processPreservedItem(directory, database, source, destination);
@@ -176,35 +184,6 @@ class Synchronizer {
         } else {
             return this.processDeletedItem(directory, database, destination);
         }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Process a previously synced item that still exists in the source and in the destination
-    //------------------------------------------------------------------------------------------------------------------
-    private processPreservedItem(
-        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _source: Dirent, _destination: Dirent
-    ) {
-        // TODO: file might have been modified or the there might have been a swap (file <=> directory)
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Process a previously synced item that's still in the source but has disappeared from the destination
-    //------------------------------------------------------------------------------------------------------------------
-
-    private processVanishedItem(
-        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _source: Dirent
-    ) {
-        // TODO: the item is still in the source but has vanished from the destination
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Process a previously synced item that's no longer in the source but might still be in the destination
-    //------------------------------------------------------------------------------------------------------------------
-
-    private processDeletedItem(
-        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _destination?: Dirent
-    ) {
-        // TODO: the item was deleted from the source but is still in the destination
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -218,7 +197,7 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Process a new directory that's not in the database yet
+    // Process a new directory that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewDirectory(parentDirectory: MappedDirectory, source: Dirent) {
@@ -227,64 +206,49 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Process a new file that's not in the database yet
+    // Process a new file that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
 
-    private processNewFile(_directory: MappedDirectory, _source: Dirent) {
-        return this.fileManager.compressFile(_directory, _source, this.statistics.copy.new);
+    private processNewFile(directory: MappedDirectory, source: Dirent) {
+        return this.fileManager.compressFile(directory, source, this.statistics.copy.new);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that's still in the source but has disappeared from the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processVanishedItem(directory: MappedDirectory, database: MappedSubdirectory | MappedFile, source: Dirent) {
+        const prefix = this.isDryRun ? "Would purge" : "Purging";
+        const sourcePath = database.source.absolutePath;
+        const destinationPath = database.destination.absolutePath;
+        const children = database instanceof MappedFile ? { files: 0, subdirectories: 0 } : database.countChildren();
+        const suffix = children.files || children.subdirectories
+            ? ` (including ${children.files} files in ${children.subdirectories} subdirectories)`
+            : "";
+        this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
+        directory.delete(database)
+        this.processNewItem(directory, source);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that still exists in the source and in the destination
+    //------------------------------------------------------------------------------------------------------------------
+    private processPreservedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _source: Dirent, _destination: Dirent
+    ) {
+        // TODO: file might have been modified or the there might have been a swap (file <=> directory)
     }
 
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that's no longer in the source but might still be in the destination
+    //------------------------------------------------------------------------------------------------------------------
 
+    private processDeletedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _destination?: Dirent
+    ) {
+        // TODO: the item was deleted from the source but is still in the destination
+    }
 
-
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Sync and log the syncing of single item
-    // //------------------------------------------------------------------------------------------------------------------
-
-    // private syncAndLog(
-    //     database: MappedRootDirectory,
-    //     directory: MappedDirectory,
-    //     file: Dirent,
-    //     suffix: string,
-    //     onSuccess: () => void,
-    //     onError: () => void,
-    //     sync: (filename: string) => boolean
-    // ) {
-    //     let success = false;
-    //     const paths = this.getSourceAndDestinationPaths(database, directory, file, suffix);
-    //     const description = `${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
-    //     this.print(`+ ${paths.source.relativePath}`);
-    //     if (this.isDryRun) {
-    //         this.logger.info(`Would sync ${description}`);
-    //         success = true;
-    //     } else {
-    //         this.logger.info(`Syncing ${description}`);
-    //         if (sync(paths.destination.filename) && FileUtils.exists(paths.destination.absolutePath)) {
-    //             success = true;
-    //         } else {
-    //             this.logger.warn(`Failed to sync ${description}`);
-    //             this.print("  => FAILED!")
-    //         }
-    //     }
-    //     if (success) {
-    //         onSuccess();
-    //         return { filename: paths.destination.filename, last: paths.next };
-    //     } else {
-    //         onError();
-    //         return undefined;
-    //     }
-    // }
-
-
-
-
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Copy (zip) a single file
-    // //------------------------------------------------------------------------------------------------------------------
-
-    // private copyFile(statistics: Statistics, sourcePath: string, destinationPath: string) {
-
-    // }
 
 }

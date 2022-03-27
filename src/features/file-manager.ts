@@ -60,7 +60,7 @@ class FileManager {
 
     private storeNewSubdirectory(parent: MappedDirectory, sourceName: string, destination: Subdirectory, last: string) {
         const source = new Subdirectory(parent.source, sourceName);
-        const newMappedSubdirectory = new MappedSubDirectory(parent, source, destination, "");
+        const newMappedSubdirectory = new MappedSubdirectory(parent, source, destination, "");
         parent.add(newMappedSubdirectory);
         parent.last = last;
         return newMappedSubdirectory;

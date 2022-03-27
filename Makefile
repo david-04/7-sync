@@ -10,12 +10,12 @@ reconfigure : $(7_SYNC_JS)
 	cd test && $(RUN) reconfigure # --config=7-sync.cfg
 
 sync : $(7_SYNC_JS)
-    ifneq "$(wildcard test/*.log)" ""
-	rm test/*.log
-    endif
-	rm -rf test/out/*
-	mkdir -p test/out/subfolder
-	touch test/out/subfolder/file.txt
+    # ifneq "$(wildcard test/*.log)" ""
+	# rm test/*.log
+    # endif
+	# rm -rf test/out/*
+	# mkdir -p test/out/subfolder
+	# touch test/out/subfolder/file.txt
 	cd test && $(RUN) sync --password=a --7-zip=7z # --dry-run # --verbose
 
 help : $(7_SYNC_JS)

@@ -72,7 +72,7 @@ class RecoveryArchiveCreator {
     //------------------------------------------------------------------------------------------------------------------
 
     private addToIndex(fileOrDirectory: MappedFile | MappedDirectory, lines: string[]) {
-        if (fileOrDirectory instanceof MappedSubDirectory || fileOrDirectory instanceof MappedFile) {
+        if (fileOrDirectory instanceof MappedSubdirectory || fileOrDirectory instanceof MappedFile) {
             lines.push(`${fileOrDirectory.source.relativePath} => ${fileOrDirectory.destination.relativePath}`);
         }
     }

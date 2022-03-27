@@ -38,7 +38,7 @@ class DatabaseSerializer {
     // Convert a directory to JSON
     //------------------------------------------------------------------------------------------------------------------
 
-    private static directoryToJson(directory: MappedSubDirectory): JsonDirectory {
+    private static directoryToJson(directory: MappedSubdirectory): JsonDirectory {
         return {
             source: directory.source.name,
             destination: directory.destination.name,

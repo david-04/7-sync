@@ -78,8 +78,8 @@ class MappedDirectoryBase<T extends RootDirectory> {
     });
 
     private readonly _subdirectories = asReadonly({
-        bySourceName: new Map<string, MappedSubDirectory>(),
-        byDestinationName: new Map<string, MappedSubDirectory>()
+        bySourceName: new Map<string, MappedSubdirectory>(),
+        byDestinationName: new Map<string, MappedSubdirectory>()
     });
 
     public readonly subdirectories = asReadonly({
@@ -97,7 +97,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     // Add a file or subdirectory
     //------------------------------------------------------------------------------------------------------------------
 
-    public add(fileOrSubdirectory: MappedFile | MappedSubDirectory) {
+    public add(fileOrSubdirectory: MappedFile | MappedSubdirectory) {
         if (fileOrSubdirectory instanceof MappedFile) {
             this.addTo(this._files.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
             this.addTo(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
@@ -111,7 +111,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     // Add a key-value pair to the given map - or throw an exception if it already exist
     //------------------------------------------------------------------------------------------------------------------
 
-    private addTo<V extends MappedFile | MappedSubDirectory>(map: Map<string, V>, key: string, value: V) {
+    private addTo<V extends MappedFile | MappedSubdirectory>(map: Map<string, V>, key: string, value: V) {
         if (map.has(key)) {
             throw new Error(
                 `Internal error: Subdirectory ${value.source.relativePath} has already been added to the database`
@@ -125,7 +125,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     // Delete a file or subdirectory
     //------------------------------------------------------------------------------------------------------------------
 
-    public delete(fileOrSubdirectory: MappedFile | MappedSubDirectory) {
+    public delete(fileOrSubdirectory: MappedFile | MappedSubdirectory) {
         if (fileOrSubdirectory instanceof MappedFile) {
             this.deleteFrom(this._files.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
             this.deleteFrom(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
@@ -139,7 +139,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     // Add a key-value pair to the given map - or throw an exception if it already exist
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteFrom<V extends MappedFile | MappedSubDirectory>(map: Map<string, V>, key: string, value: V) {
+    private deleteFrom<V extends MappedFile | MappedSubdirectory>(map: Map<string, V>, key: string, value: V) {
         const mapValue = map.get(key);
         if (undefined === mapValue) {
             throw new Error(`Internal error: Directory entry ${key} does not exist`);
@@ -148,6 +148,18 @@ class MappedDirectoryBase<T extends RootDirectory> {
         } else {
             map.delete(key);
         }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Recursively count the the children
+    //------------------------------------------------------------------------------------------------------------------
+
+    public countChildren(statistics?: { files: number, subdirectories: number }) {
+        const realStatistics = statistics ?? { files: 0, subdirectories: 0 };
+        realStatistics.files += this._files.byDestinationName.size;
+        realStatistics.subdirectories += this._subdirectories.byDestinationName.size;
+        this._subdirectories.byDestinationName.forEach((subdirectory) => subdirectory.countChildren(realStatistics));
+        return realStatistics;
     }
 }
 
@@ -161,7 +173,7 @@ class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> { }
 // A mapped destination directory
 //----------------------------------------------------------------------------------------------------------------------
 
-class MappedSubDirectory extends MappedDirectoryBase<Subdirectory> {
+class MappedSubdirectory extends MappedDirectoryBase<Subdirectory> {
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -181,4 +193,4 @@ class MappedSubDirectory extends MappedDirectoryBase<Subdirectory> {
 // Any mapped directory
 //----------------------------------------------------------------------------------------------------------------------
 
-type MappedDirectory = MappedRootDirectory | MappedSubDirectory;
+type MappedDirectory = MappedRootDirectory | MappedSubdirectory;
