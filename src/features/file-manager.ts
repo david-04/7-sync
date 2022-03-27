@@ -22,14 +22,14 @@ class FileManager {
     // Create a new directory
     //------------------------------------------------------------------------------------------------------------------
 
-    public createDirectory(directory: MappedDirectory, source: Dirent, statistics: Statistics) {
+    public createDirectory(directory: MappedDirectory, source: Dirent) {
         const paths = this.getSourceAndDestinationPaths(directory, source, "");
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = `directory ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
         let newDestinationDirectory: Subdirectory | undefined;
         if (this.isDryRun) {
             this.logger.info(`Would create ${pathInfo}`);
-            newDestinationDirectory = new FakeSubdirectory(directory.destination, paths.destination.filename);
+            newDestinationDirectory = new Subdirectory(directory.destination, paths.destination.filename);
         } else {
             this.logger.info(`Creating ${pathInfo}`);
             try {
@@ -45,13 +45,9 @@ class FileManager {
                 this.print("===> FAILED");
             }
         }
-        if (newDestinationDirectory) {
-            statistics.directories.success++;
-            return this.storeNewSubdirectory(directory, source.name, newDestinationDirectory, paths.next);
-        } else {
-            statistics.directories.failed++;
-            return undefined;
-        }
+        return newDestinationDirectory
+            ? this.storeNewSubdirectory(directory, source.name, newDestinationDirectory, paths.next)
+            : undefined;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -70,25 +66,20 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public compressFile(parentDirectory: MappedDirectory, source: Dirent, statistics: Statistics) {
+    public compressFile(parentDirectory: MappedDirectory, source: Dirent) {
         const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = `file ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
         let success = true;
         if (this.isDryRun) {
             this.logger.info(`Would zip ${pathInfo}`);
-            statistics.files.success++;
         } else {
             this.logger.info(`Zipping ${pathInfo}`);
             success = this.compressAndValidate(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
         }
-        if (success) {
-            statistics.files.success++;
-            return this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next);
-        } else {
-            statistics.files.failed++;
-        }
         return success
+            ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next)
+            : undefined
     }
 
     //------------------------------------------------------------------------------------------------------------------

@@ -52,7 +52,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private syncDirectory(directory: MappedDirectory) {
-        const destinationChildren = directory.destination.getChildren().map;
+        const destinationChildren = FileUtils.getChildrenIfDirectoryExists(directory.destination.absolutePath).map;
         this.deleteOrphans(directory, destinationChildren);
         const items = this.analyzeDirectory(directory, destinationChildren);
         items.forEach(item => this.processItem(directory, item.source, item.database, item.destination));
@@ -62,8 +62,8 @@ class Synchronizer {
     // Delete orphan children from a directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteOrphans(database: MappedDirectory, children: Map<string, Dirent>) {
-        Array.from(children).forEach(array => {
+    private deleteOrphans(database: MappedDirectory, destinationChildren: Map<string, Dirent>) {
+        Array.from(destinationChildren).forEach(array => {
             const name = array[0];
             const dirent = array[1];
             if (!database.files.byDestinationName.has(name) && !database.subdirectories.byDestinationName.has(name)) {
@@ -72,7 +72,7 @@ class Synchronizer {
                     ? this.deleteOrphanedDirectory(destination)
                     : this.fileManager.deleteFile({ destination, statistics: this.statistics.delete.orphans });
                 if (success) {
-                    children.delete(name);
+                    destinationChildren.delete(name);
                 }
             }
         });
@@ -107,7 +107,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     public analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
-        const sourceChildren = directory.source.getChildren().map;
+        const sourceChildren = FileUtils.getChildrenIfDirectoryExists(directory.source.absolutePath).map;
         const databaseFiles = Array.from(directory.files.bySourceName.values());
         const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
         const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
@@ -196,13 +196,33 @@ class Synchronizer {
             : this.processNewFile(directory, source);
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     //------------------------------------------------------------------------------------------------------------------
     // Process a new directory that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewDirectory(parentDirectory: MappedDirectory, source: Dirent) {
-        const subdirectory = this.fileManager.createDirectory(parentDirectory, source, this.statistics.copy.new);
-        return subdirectory ? this.syncDirectory(subdirectory) : false;
+        const subdirectory = this.fileManager.createDirectory(parentDirectory, source);
+        if (subdirectory) {
+            this.statistics.copy.new.directories.success++;
+            return this.syncDirectory(subdirectory);
+        } else {
+            this.statistics.copy.new.directories.failed++;
+            return false;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -210,7 +230,13 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewFile(directory: MappedDirectory, source: Dirent) {
-        return this.fileManager.compressFile(directory, source, this.statistics.copy.new);
+        if (this.fileManager.compressFile(directory, source)) {
+            this.statistics.copy.new.files.success++;
+            return true;
+        } else {
+            this.statistics.copy.new.files.failed++;
+            return false;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -226,8 +252,21 @@ class Synchronizer {
             ? ` (including ${children.files} files in ${children.subdirectories} subdirectories)`
             : "";
         this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
-        directory.delete(database)
+        directory.delete(database);
+        this.statistics.purge.vanished.files.success += children.files;
+        this.statistics.purge.vanished.directories.success += children.subdirectories + 1;
         this.processNewItem(directory, source);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Process a previously synced item that's no longer in the source but might still be in the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processDeletedItem(
+        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _destination?: Dirent
+    ) {
+
+        // TODO: the item was deleted from the source but is still in the destination
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -239,16 +278,6 @@ class Synchronizer {
         // TODO: file might have been modified or the there might have been a swap (file <=> directory)
     }
 
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Process a previously synced item that's no longer in the source but might still be in the destination
-    //------------------------------------------------------------------------------------------------------------------
-
-    private processDeletedItem(
-        _directory: MappedDirectory, _database: MappedDirectory | MappedFile, _destination?: Dirent
-    ) {
-        // TODO: the item was deleted from the source but is still in the destination
-    }
 
 
 }

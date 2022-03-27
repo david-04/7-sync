@@ -100,6 +100,14 @@ class FileUtils {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Retrieve a directory's children if the directory exists (and return an empty array otherwise)
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static getChildrenIfDirectoryExists(directory: string) {
+        return this.exists(directory) ? this.getChildren(directory) : { array: [], map: new Map<string, Dirent>() };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Determine if a given directory entry is a file or a symbolic link to a file
     //------------------------------------------------------------------------------------------------------------------
 
