@@ -35,7 +35,7 @@ class FileManager {
             try {
                 node.fs.mkdirSync(paths.destination.absolutePath);
                 if (!FileUtils.exists(paths.destination.absolutePath)) {
-                    throw new FriendlyException("No exception was raised");
+                    throw new Error("No exception was raised");
                 }
                 newDestinationDirectory = new Subdirectory(directory.destination, paths.destination.filename);
             } catch (exception) {
@@ -64,6 +64,78 @@ class FileManager {
         parent.add(newMappedSubdirectory);
         parent.last = last;
         return newMappedSubdirectory;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Synchronize a single file
+    //------------------------------------------------------------------------------------------------------------------
+
+    public compressFile(parentDirectory: MappedDirectory, source: Dirent, statistics: Statistics) {
+        const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
+        this.print(`+ ${paths.source.relativePath}`);
+        const pathInfo = `file ${paths.source.absolutePath} => ${paths.destination.absolutePath}`;
+        let success = true;
+        if (this.isDryRun) {
+            this.logger.info(`Would zip ${pathInfo}`);
+            statistics.files.success++;
+        } else {
+            this.logger.info(`Zipping ${pathInfo}`);
+            success = this.compressAndValidate(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
+        }
+        if (success) {
+            statistics.files.success++;
+            return this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next);
+        } else {
+            statistics.files.failed++;
+        }
+        return success
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Compress the given file, check if it was successful and log errors if applicable
+    //------------------------------------------------------------------------------------------------------------------
+
+    private compressAndValidate(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
+        try {
+            const result = this.context.sevenZip.compressFile(
+                this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath
+            );
+            if (0 !== result.status || result.error) {
+                this.logger.error(result.stdout);
+                throw new Error(result.error
+                    ? `${result.error} (exit code ${result.status}`
+                    : `7-Zip exited with status code ${result.status}`
+                );
+            }
+            if (!FileUtils.exists(destinationAbsolutePath)) {
+                this.logger.error(result.stdout);
+                throw new Error("No exception was raised");
+            }
+            return true;
+        } catch (exception) {
+            this.logger.error(`Failed to create ${pathInfo} - ${firstLineOnly(exception)}`);
+            this.print("===> FAILED");
+            return false;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Wrap a destination file into a mapped file and attach it to the database
+    //------------------------------------------------------------------------------------------------------------------
+
+    private storeNewFile(parent: MappedDirectory, sourceName: string, destinationName: string, last: string) {
+        const properties = FileUtils.getProperties(node.path.join(parent.source.absolutePath, sourceName));
+        const newMappedFile = new MappedFile(
+            parent,
+            new File(parent.source, sourceName),
+            new File(parent.destination, destinationName),
+            properties.ctimeMs,
+            properties.mtimeMs,
+            properties.size
+        );
+        parent.add(newMappedFile);
+        parent.last = last;
+        return newMappedFile;
     }
 
     //------------------------------------------------------------------------------------------------------------------

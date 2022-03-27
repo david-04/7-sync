@@ -16,7 +16,7 @@ sync : $(7_SYNC_JS)
 	rm -rf test/out/*
 	mkdir -p test/out/subfolder
 	touch test/out/subfolder/file.txt
-	cd test && $(RUN) sync --password=a --7-zip=7z --dry-run # --verbose
+	cd test && $(RUN) sync --password=a --7-zip=7z # --dry-run # --verbose
 
 help : $(7_SYNC_JS)
 	cd test && $(RUN) --help

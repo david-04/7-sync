@@ -231,80 +231,12 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewFile(_directory: MappedDirectory, _source: Dirent) {
-        // TODO: new file: zip file and add to database
-        return true;
+        return this.fileManager.compressFile(_directory, _source, this.statistics.copy.new);
     }
 
 
 
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Create a new directory
-    // //------------------------------------------------------------------------------------------------------------------
 
-    // public createDirectory(database: MappedRootDirectory, directory: MappedDirectory, entry: Dirent) {
-    //     const result = this.syncAndLog(
-    //         database,
-    //         directory,
-    //         entry,
-    //         "",
-    //         () => this.statistics.sync.directories.success++,
-    //         () => this.statistics.sync.directories.failed++,
-    //         filename => {
-    //             node.fs.mkdirSync(node.path.join(directory.destination.absolutePath, filename));
-    //             return true;
-    //         }
-    //     );
-    //     if (result) {
-    //         const source = new SubDirectory(directory.source, entry.name);
-    //         const destination = new SubDirectory(directory.destination, result.filename);
-    //         const newDirectory = new MappedSubDirectory(directory, source, destination, "");
-    //         directory.add(newDirectory);
-    //         directory.last = result.last;
-    //         this.syncDirectory(newDirectory);
-    //     }
-    // }
-
-    // //------------------------------------------------------------------------------------------------------------------
-    // // Synchronize a single file
-    // //------------------------------------------------------------------------------------------------------------------
-
-    // public compressFile(database: MappedRootDirectory, parentDirectory: MappedDirectory, entry: Dirent) {
-    //     const result = this.syncAndLog(
-    //         database,
-    //         parentDirectory,
-    //         entry,
-    //         ".7z",
-    //         () => this.statistics.sync.files.success++,
-    //         () => this.statistics.sync.files.failed++,
-    //         filename => {
-    //             const root = database.source.absolutePath;
-    //             const path = node.path.relative(root, node.path.join(parentDirectory.source.absolutePath, entry.name));
-    //             const zipFile = node.path.join(parentDirectory.destination.absolutePath, filename);
-    //             const { status, stdout } = this.context.sevenZip.compressFile(root, path, zipFile);
-    //             if (0 === status) {
-    //                 return true;
-    //             } else {
-    //                 this.logger.error(`7-Zip exited with error code ${status}`, stdout);
-    //                 node.fs.rmSync(zipFile);
-    //                 return false;
-    //             }
-    //         }
-    //     );
-    //     if (result) {
-    //         const source = new File(parentDirectory.source, entry.name);
-    //         const destination = new File(parentDirectory.destination, result.filename);
-    //         const properties = source.getProperties();
-    //         parentDirectory.add(new MappedFile(
-    //             parentDirectory,
-    //             source,
-    //             destination,
-    //             properties.ctimeMs,
-    //             properties.mtimeMs,
-    //             properties.size
-    //         ));
-    //         parentDirectory.last = result.last;
-    //     }
-    // }
 
     // //------------------------------------------------------------------------------------------------------------------
     // // Sync and log the syncing of single item
