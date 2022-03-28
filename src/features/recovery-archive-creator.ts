@@ -38,7 +38,7 @@ class RecoveryArchiveCreator {
         const filesAndContent = this.getFilesAndContent(database);
         for (const result of filesAndContent.map(file => this.addToArchive(zipFile, file.name, file.content))) {
             if (true !== result) {
-                return result;
+                return false;
             }
         }
         return true;

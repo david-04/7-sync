@@ -8,20 +8,13 @@ class Synchronizer {
     private readonly isDryRun;
     private readonly fileManager;
 
-    private readonly statistics = asReadonly({
-        delete: asReadonly({
-            orphaned: new Statistics(), // unknown items in the destination
-            outdated: new Statistics(), // the source was modified
-            recoveryArchive: new Statistics(),
-        }),
-        copy: asReadonly({
-            new: new Statistics(), // new source item (previously unseen)
-            modified: new Statistics() // modified source items (changed since the last sync)
-        }),
-        purge: asReadonly({ // purged from the database
-            vanished: new Statistics() // item has disappeared from the destination
-        })
-    });
+    private readonly statistics = {
+        copied: new Statistics(),
+        deleted: new Statistics(),
+        orphans: new Statistics(),
+        purged: new Statistics(),
+        recoveryArchive: new Statistics()
+    };
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -44,8 +37,16 @@ class Synchronizer {
     public static run(context: Context, database: MappedRootDirectory, forceReEncrypt: boolean) {
         const synchronizer = new Synchronizer(context, database, forceReEncrypt);
         synchronizer.syncDirectory(database);
-        synchronizer.processRecoveryArchive();
-        DatabaseSerializer.saveDatabase(context, database);
+        const statistics = synchronizer.statistics;
+        if (!statistics.copied.hasAny() && !statistics.deleted.hasAny()) {
+            context.print("The destination is already up to date");
+        }
+        const recoveryArchiveIsUpToDate = synchronizer.processRecoveryArchive();
+        const databaseIsUpToDate = DatabaseSerializer.saveDatabase(context, database);
+        const reportGenerator = new ReportGenerator(
+            context, synchronizer.statistics, recoveryArchiveIsUpToDate, databaseIsUpToDate
+        );
+        reportGenerator.logStatistics();
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -102,11 +103,11 @@ class Synchronizer {
         } else if (isRootFolder && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
             return true;
         } else {
-            const success = this.fileManager.deleteFile({ destination });
+            const success = this.fileManager.deleteFile({ destination, suppressConsoleOutput: true });
             if (success) {
-                this.statistics.delete.orphaned.files.success++;
+                this.statistics.orphans.files.success++;
             } else {
-                this.statistics.delete.orphaned.files.failed++;
+                this.statistics.orphans.files.failed++;
             }
             return success;
         }
@@ -120,9 +121,9 @@ class Synchronizer {
         this.deleteOrphanedChildren(absolutePath);
         const success = this.fileManager.deleteDirectory({ destination: absolutePath });
         if (success) {
-            this.statistics.delete.orphaned.directories.success++;
+            this.statistics.orphans.directories.success++;
         } else {
-            this.statistics.delete.orphaned.directories.failed++;
+            this.statistics.orphans.directories.failed++;
         }
         return success;
     }
@@ -250,20 +251,6 @@ class Synchronizer {
             : this.processDeletedDirectory(parentDirectory, databaseEntry, destinationDirent)
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     //------------------------------------------------------------------------------------------------------------------
     // Process a new directory that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
@@ -271,10 +258,10 @@ class Synchronizer {
     private processNewDirectory(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
         const subdirectory = this.fileManager.createDirectory(parentDirectory, sourceDirent);
         if (subdirectory) {
-            this.statistics.copy.new.directories.success++;
+            this.statistics.copied.directories.success++;
             return this.syncDirectory(subdirectory);
         } else {
-            this.statistics.copy.new.directories.failed++;
+            this.statistics.copied.directories.failed++;
             return false;
         }
     }
@@ -285,10 +272,10 @@ class Synchronizer {
 
     private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
         if (this.fileManager.compressFile(parentDirectory, sourceDirent)) {
-            this.statistics.copy.new.files.success++;
+            this.statistics.copied.files.success++;
             return true;
         } else {
-            this.statistics.copy.new.files.failed++;
+            this.statistics.copied.files.failed++;
             return false;
         }
     }
@@ -311,8 +298,8 @@ class Synchronizer {
             : "";
         this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
         parentDirectory.delete(databaseEntry);
-        this.statistics.purge.vanished.files.success += children.files;
-        this.statistics.purge.vanished.directories.success += children.subdirectories + 1;
+        this.statistics.purged.files.success += children.files;
+        this.statistics.purged.directories.success += children.subdirectories + 1;
         this.processNewItem(parentDirectory, sourceDirent);
         return true;
     }
@@ -332,13 +319,13 @@ class Synchronizer {
                 reason: "because the source file was deleted"
             });
             if (success) {
-                this.statistics.delete.outdated.files.success++;
+                this.statistics.deleted.files.success++;
             } else {
-                this.statistics.delete.outdated.files.failed++;
+                this.statistics.deleted.files.failed++;
             }
             return success;
         } else {
-            this.statistics.purge.vanished.files.success++;
+            this.statistics.purged.files.success++;
             return true;
         }
     }
@@ -371,9 +358,9 @@ class Synchronizer {
                 reason: "because the source directory was deleted"
             });
             if (success3) {
-                this.statistics.delete.outdated.directories.success++;
+                this.statistics.deleted.directories.success++;
             } else {
-                this.statistics.delete.outdated.directories.failed++;
+                this.statistics.deleted.directories.failed++;
             }
             return success3;
         }
@@ -433,15 +420,15 @@ class Synchronizer {
             suppressConsoleOutput: true
         });
         if (deleteSucceeded) {
-            this.statistics.delete.outdated.files.success++;
+            this.statistics.deleted.files.success++;
         } else {
-            this.statistics.delete.outdated.files.failed++;
+            this.statistics.deleted.files.failed++;
         }
         const copySucceeded = !!this.fileManager.compressFile(parentDirectory, sourceDirent);
         if (copySucceeded) {
-            this.statistics.copy.modified.files.success++;
+            this.statistics.copied.files.success++;
         } else {
-            this.statistics.copy.modified.files.failed++;
+            this.statistics.copied.files.failed++;
         }
         return deleteSucceeded && copySucceeded;
     }
@@ -452,16 +439,18 @@ class Synchronizer {
 
     private processRecoveryArchive() {
         const destinationHasChanged = new Statistics(
-            this.statistics.delete.orphaned,
-            this.statistics.copy.new,
-            this.statistics.copy.modified,
-            this.statistics.purge.vanished
+            this.statistics.copied,
+            this.statistics.deleted,
+            this.statistics.orphans,
+            this.statistics.purged
         ).hasSuccess();
         const recoveryArchives = this.getRecoveryArchives();
         if (destinationHasChanged || 1 !== recoveryArchives.length || this.forceReEncrypt) {
             this.deleteRecoveryArchives(recoveryArchives);
             return RecoveryArchiveCreator.create(this.context, this.database);
         } else {
+            const archiveName = node.path.basename(recoveryArchives[0].name);
+            this.logger.info(`The recovery archive ${archiveName} does not need to be updated`);
             return true;
         }
     }
@@ -490,9 +479,9 @@ class Synchronizer {
                 suppressConsoleOutput: true
             });
             if (success) {
-                this.statistics.delete.recoveryArchive.files.success++;
+                this.statistics.recoveryArchive.files.success++;
             } else {
-                this.statistics.delete.recoveryArchive.files.failed++;
+                this.statistics.recoveryArchive.files.failed++;
             }
             return success;
         });

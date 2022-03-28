@@ -13,10 +13,21 @@ class DatabaseSerializer {
         if (context.options.dryRun) {
             context.logger.info(`Would save database ${file}`);
             context.print("Would save updated database");
+            return true;
         } else {
             context.logger.info(`Saving database ${file}`);
             context.print("Saving the database");
-            node.fs.writeFileSync(file, this.serialize(database));
+            try {
+                node.fs.writeFileSync(file, this.serialize(database));
+                if (!FileUtils.existsAndIsFile(file)) {
+                    throw new Error("No exception was raised");
+                }
+                return true;
+            } catch (exception) {
+                context.print("===> FAILED")
+                context.logger.error(`Failed to save database ${file} - ${firstLineOnly(exception)}`);
+                return false;
+            }
         }
     }
 

@@ -243,10 +243,10 @@ class FileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private getLogFilePathInfo(operation: "cp" | "mkdir" | "rm", destinationPath: string, sourcePath?: string) {
-        if ("rm" === operation) {
-            return sourcePath ? `${destinationPath} (mirroring ${sourcePath})` : destinationPath;
-        } else {
+        if ("cp" === operation) {
             return sourcePath ? `${sourcePath} => ${destinationPath}` : destinationPath;
+        } else {
+            return sourcePath ? `${destinationPath} (mirroring ${sourcePath})` : destinationPath;
         }
     }
 
