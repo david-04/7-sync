@@ -12,6 +12,7 @@ class Synchronizer {
         delete: asReadonly({
             orphaned: new Statistics(), // unknown items in the destination
             outdated: new Statistics(), // the source was modified
+            recoveryArchive: new Statistics(),
         }),
         copy: asReadonly({
             new: new Statistics(), // new source item (previously unseen)
@@ -29,7 +30,7 @@ class Synchronizer {
     private constructor(
         readonly context: Context,
         readonly database: MappedRootDirectory,
-        _forceReEncrypt: boolean
+        private readonly forceReEncrypt: boolean
     ) {
         this.fileManager = new FileManager(context, database);
         this.logger = context.logger;
@@ -43,9 +44,8 @@ class Synchronizer {
     public static run(context: Context, database: MappedRootDirectory, forceReEncrypt: boolean) {
         const synchronizer = new Synchronizer(context, database, forceReEncrypt);
         synchronizer.syncDirectory(database);
-
-        synchronizer.deleteRecoveryArchive();
-        return synchronizer.statistics;
+        synchronizer.processRecoveryArchive();
+        DatabaseSerializer.saveDatabase(context, database);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -136,27 +136,6 @@ class Synchronizer {
             FileUtils.getChildren(absoluteParentPath).array,
             dirent => this.deleteOrphanedItem(absoluteParentPath, dirent)
         );
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete recovery archives from the root folder
-    //------------------------------------------------------------------------------------------------------------------
-
-    private deleteRecoveryArchive() {
-        const path = this.database.destination.absolutePath;
-        return this.mapAndReduce(FileUtils.getChildrenIfDirectoryExists(path).array, dirent => {
-            if (!dirent.isDirectory()
-                && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)
-                && !this.database.files.byDestinationName.has(dirent.name)
-                && !this.database.subdirectories.byDestinationName.has(dirent.name)) {
-                return this.fileManager.deleteFile({
-                    destination: node.path.join(path, dirent.name),
-                    suppressConsoleOutput: true
-                });
-            } else {
-                return true;
-            }
-        });
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -436,7 +415,8 @@ class Synchronizer {
         const properties = databaseEntry.source.getProperties();
         const isUnchanged = databaseEntry.created === properties.ctimeMs
             && databaseEntry.modified === properties.mtimeMs
-            && databaseEntry.size === properties.size;
+            && databaseEntry.size === properties.size
+            && !this.forceReEncrypt;
         return isUnchanged || this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent);
     }
 
@@ -449,7 +429,7 @@ class Synchronizer {
         const deleteSucceeded = this.fileManager.deleteFile({
             destination: databaseEntry.destination.absolutePath,
             source: databaseEntry.source.absolutePath,
-            reason: "because the source file was modified",
+            reason: this.forceReEncrypt ? "because the password has changed" : "because the source file was modified",
             suppressConsoleOutput: true
         });
         if (deleteSucceeded) {
@@ -464,5 +444,57 @@ class Synchronizer {
             this.statistics.copy.modified.files.failed++;
         }
         return deleteSucceeded && copySucceeded;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Recreate the recovery archive
+    //------------------------------------------------------------------------------------------------------------------
+
+    private processRecoveryArchive() {
+        const destinationHasChanged = new Statistics(
+            this.statistics.delete.orphaned,
+            this.statistics.copy.new,
+            this.statistics.copy.modified,
+            this.statistics.purge.vanished
+        ).hasSuccess();
+        const recoveryArchives = this.getRecoveryArchives();
+        if (destinationHasChanged || 1 !== recoveryArchives.length || this.forceReEncrypt) {
+            this.deleteRecoveryArchives(recoveryArchives);
+            return RecoveryArchiveCreator.create(this.context, this.database);
+        } else {
+            return true;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get a list of all recovery archives
+    //------------------------------------------------------------------------------------------------------------------
+
+    private getRecoveryArchives() {
+        return FileUtils.getChildrenIfDirectoryExists(this.database.destination.absolutePath).array.filter(dirent =>
+            !dirent.isDirectory()
+            && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)
+            && !this.database.files.byDestinationName.has(dirent.name)
+            && !this.database.subdirectories.byDestinationName.has(dirent.name)
+        );
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Delete recovery archives from the root folder
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteRecoveryArchives(archives: Dirent[]) {
+        return this.mapAndReduce(archives, dirent => {
+            const success = this.fileManager.deleteFile({
+                destination: node.path.join(this.database.destination.absolutePath, dirent.name),
+                suppressConsoleOutput: true
+            });
+            if (success) {
+                this.statistics.delete.recoveryArchive.files.success++;
+            } else {
+                this.statistics.delete.recoveryArchive.files.failed++;
+            }
+            return success;
+        });
     }
 }

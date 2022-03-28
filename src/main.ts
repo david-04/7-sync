@@ -75,18 +75,6 @@ class Application {
             context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
         }
         Synchronizer.run(context, database, forceReEncrypt);
-        const recoveryArchiveResult = RecoveryArchiveCreator.create(context, database);
-        DatabaseSerializer.saveDatabase(context, database);
-        if (true !== recoveryArchiveResult) {
-            throw new FriendlyException(`Failed to create the recovery archive: ${recoveryArchiveResult}`);
-        } /*else if (statistics.hasFailures()) {
-            const counters = Statistics.format(statistics.files.failed, statistics.directories.failed);
-            throw new FriendlyException(`${counters} could not be processed`, 2);
-        } */ else if (!context.options.dryRun) {
-            const message = "The synchronization has been completed successfully";
-            context.print(message);
-            this.logger.info(message);
-        }
     }
 }
 
