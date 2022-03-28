@@ -32,7 +32,7 @@ class Context {
         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         const files = Context.getFileNames(options.config);
         await Logger.purge(files.log, 9);
-        const logger = Context.getLogger(files.log, options.verbose);
+        const logger = Context.getLogger(files.log, false);
         logger.separator();
         try {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);

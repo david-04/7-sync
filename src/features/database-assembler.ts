@@ -82,7 +82,6 @@ class DatabaseAssembler {
             } else if (!FileUtils.existsAndIsDirectory(directory)) {
                 throw new FriendlyException(`${directory} is not a directory`);
             }
-            this.context.logger.debug(`Verified that directory ${directory} exists`);
         });
     }
 }

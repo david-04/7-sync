@@ -22,8 +22,7 @@ class CommandLineParser {
         sevenZip: "7-zip",
         silent: "silent",
         help: "help",
-        version: "version",
-        verbose: "verbose"
+        version: "version"
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -41,7 +40,6 @@ class CommandLineParser {
             dryRun: false,
             password: undefined,
             sevenZip: undefined,
-            verbose: false,
             silent: false
         }),
         init: this.as<Readonly<InitOptions>>({
@@ -74,7 +72,6 @@ class CommandLineParser {
             |
             |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
-            |   --${this.OPTIONS.verbose}                     enable verbose logging (in the log file only)
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
             |   --${this.OPTIONS.silent}                    suppress console output
