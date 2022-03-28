@@ -8,6 +8,19 @@ class Statistics {
     public files = { success: 0, failed: 0 };
 
     //------------------------------------------------------------------------------------------------------------------
+    // Initialize a set of statistics as sum of all the given source statistics
+    //------------------------------------------------------------------------------------------------------------------
+
+    constructor(...statistics: Statistics[]) {
+        statistics.forEach(item => {
+            this.directories.success += item.directories.success;
+            this.directories.failed += item.directories.failed;
+            this.files.success += item.files.success;
+            this.files.failed += item.files.failed;
+        });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Check if it contains failed items
     //------------------------------------------------------------------------------------------------------------------
 

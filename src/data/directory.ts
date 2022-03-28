@@ -87,9 +87,9 @@ class MappedDirectoryBase<T extends RootDirectory> {
 
     private addTo<V extends MappedFile | MappedSubdirectory>(map: Map<string, V>, key: string, value: V) {
         if (map.has(key)) {
-            throw new Error(
-                `Internal error: Subdirectory ${value.source.relativePath} has already been added to the database`
-            );
+            const type = value instanceof MappedFile ? "File" : "Subdirectory";
+            const path = value.source.relativePath;
+            throw new Error(`Internal error: ${type} ${path} has already been added to the database`);
         } else {
             map.set(key, value);
         }

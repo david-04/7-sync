@@ -74,8 +74,7 @@ class Application {
         } else {
             context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
         }
-        /*const statistics = */Synchronizer.run(context, database, forceReEncrypt);
-        /*statistics.log(this.logger, context.options.dryRun, "sync", "synced", context.console)*/
+        Synchronizer.run(context, database, forceReEncrypt);
         const recoveryArchiveResult = RecoveryArchiveCreator.create(context, database);
         DatabaseSerializer.saveDatabase(context, database);
         if (true !== recoveryArchiveResult) {

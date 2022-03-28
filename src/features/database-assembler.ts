@@ -30,7 +30,6 @@ class DatabaseAssembler {
         try {
             const database = new MappedRootDirectory(source, destination, json.last);
             this.assembleFilesAndSubdirectories(database, json);
-            DatabaseSerializer.saveDatabase(this.context, database);
             return database;
         } catch (exception) {
             rethrowWithPrefix(`Failed to assemble database ${this.context.files.database}`, exception);
