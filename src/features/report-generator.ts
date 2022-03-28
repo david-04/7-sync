@@ -13,7 +13,7 @@ class ReportGenerator {
 
     constructor(
         context: Context,
-        private readonly statistics: Record<"copied" | "deleted" | "orphans" | "purged" | "recoveryArchive", Statistics>,
+        private readonly statistics: SyncStats,
         _recoveryArchiveIsUpToDate: boolean,
         _databaseIsUpToDate: boolean
     ) {
@@ -61,7 +61,7 @@ class ReportGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     public logOperationStatistics(
-        statistics: Statistics,
+        statistics: FileAndDirectoryStats,
         infinitive: string,
         simplePast: string,
         descriptionSingular: string,
@@ -81,7 +81,7 @@ class ReportGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private logDryRunStatistics(
-        statistics: Statistics, verb: string, descriptionSingular: string, descriptionPlural: string
+        statistics: FileAndDirectoryStats, verb: string, descriptionSingular: string, descriptionPlural: string
     ) {
         const files = statistics.files.success + statistics.files.failed;
         const directories = statistics.directories.success + statistics.directories.failed
@@ -100,7 +100,7 @@ class ReportGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private logSuccessStatistics(
-        statistics: Statistics, verb: string, descriptionSingular: string, descriptionPlural: string
+        statistics: FileAndDirectoryStats, verb: string, descriptionSingular: string, descriptionPlural: string
     ) {
         const filesAndDirectories = this.formatStatistics(statistics.files.success, statistics.directories.success);
         if (filesAndDirectories) {
@@ -119,7 +119,7 @@ class ReportGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private logFailureStatistics(
-        statistics: Statistics, verb: string, descriptionSingular: string, descriptionPlural: string
+        statistics: FileAndDirectoryStats, verb: string, descriptionSingular: string, descriptionPlural: string
     ) {
         const failed = this.formatStatistics(statistics.files.failed, statistics.directories.failed);
         if (failed) {
@@ -131,7 +131,7 @@ class ReportGenerator {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Format the quantiies of files and directories
+    // Format the quantities of files and directories
     //------------------------------------------------------------------------------------------------------------------
 
     private formatStatistics(files: number, directories: number) {

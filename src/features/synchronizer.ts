@@ -8,13 +8,7 @@ class Synchronizer {
     private readonly isDryRun;
     private readonly fileManager;
 
-    private readonly statistics = {
-        copied: new Statistics(),
-        deleted: new Statistics(),
-        orphans: new Statistics(),
-        purged: new Statistics(),
-        recoveryArchive: new Statistics()
-    };
+    private readonly statistics = new SyncStats();
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -38,7 +32,7 @@ class Synchronizer {
         const synchronizer = new Synchronizer(context, database, forceReEncrypt);
         synchronizer.syncDirectory(database);
         const statistics = synchronizer.statistics;
-        if (!statistics.copied.hasAny() && !statistics.deleted.hasAny()) {
+        if (!statistics.copied.total && !statistics.deleted.total) {
             context.print("The destination is already up to date");
         }
         const recoveryArchiveIsUpToDate = synchronizer.processRecoveryArchive();
@@ -438,12 +432,12 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processRecoveryArchive() {
-        const destinationHasChanged = new Statistics(
+        const destinationHasChanged = new FileAndDirectoryStats(
             this.statistics.copied,
             this.statistics.deleted,
             this.statistics.orphans,
             this.statistics.purged
-        ).hasSuccess();
+        ).success;
         const recoveryArchives = this.getRecoveryArchives();
         if (destinationHasChanged || 1 !== recoveryArchives.length || this.forceReEncrypt) {
             this.deleteRecoveryArchives(recoveryArchives);
@@ -472,18 +466,17 @@ class Synchronizer {
     // Delete recovery archives from the root folder
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteRecoveryArchives(archives: Dirent[]) {
-        return this.mapAndReduce(archives, dirent => {
-            const success = this.fileManager.deleteFile({
-                destination: node.path.join(this.database.destination.absolutePath, dirent.name),
-                suppressConsoleOutput: true
-            });
-            if (success) {
-                this.statistics.recoveryArchive.files.success++;
-            } else {
-                this.statistics.recoveryArchive.files.failed++;
-            }
-            return success;
-        });
+    private deleteRecoveryArchives(recoveryArchives: Dirent[]) {
+        if (recoveryArchives.length) {
+            const success = recoveryArchives
+                .map(dirent => node.path.join(this.database.destination.absolutePath, dirent.name))
+                .filter(name => this.fileManager.deleteFile({ destination: name, suppressConsoleOutput: true }))
+                .length;
+            this.statistics.deleted.files.success += success ? 1 : 0;
+            this.statistics.deleted.files.failed += success ? 0 : 1;
+            this.statistics.orphans.files.success += Math.max(0, success - 1);
+            this.statistics.orphans.files.failed += Math.max(0, recoveryArchives.length - success - (success ? 0 : 1));
+            this.statistics.recoveryArchive.hasLingeringOrphans = success < recoveryArchives.length;
+        }
     }
 }

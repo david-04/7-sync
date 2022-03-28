@@ -1,94 +1,130 @@
 //----------------------------------------------------------------------------------------------------------------------
-// Processing statistics
+// Counting success and failures
 //----------------------------------------------------------------------------------------------------------------------
 
-class Statistics {
+class SuccessAndFailureStats {
 
-    public directories = { success: 0, failed: 0 };
-    public files = { success: 0, failed: 0 };
+    public success = 0;
+    public failed = 0;
 
     //------------------------------------------------------------------------------------------------------------------
-    // Initialize a set of statistics as sum of all the given source statistics
+    // Initialize with the sum of other statistics
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(...statistics: Statistics[]) {
+    public constructor(...statistics: SuccessAndFailureStats[]) {
         statistics.forEach(item => {
-            this.directories.success += item.directories.success;
-            this.directories.failed += item.directories.failed;
-            this.files.success += item.files.success;
-            this.files.failed += item.files.failed;
+            this.success += item.success;
+            this.failed += item.failed;
         });
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Check if it contains failed items
+    // Count the total number items (success and failure)
     //------------------------------------------------------------------------------------------------------------------
 
-    public hasFailures() {
-        return 0 < this.directories.failed || 0 < this.files.failed;
+    public get total() {
+        return this.success + this.failed
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Counting success and failures for files and directories
+//----------------------------------------------------------------------------------------------------------------------
+
+class FileAndDirectoryStats {
+
+    public readonly files: SuccessAndFailureStats;
+    public readonly directories: SuccessAndFailureStats;
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Initialize with the sum of other statistics
+    //------------------------------------------------------------------------------------------------------------------
+
+    public constructor(...statistics: FileAndDirectoryStats[]) {
+        this.files = new SuccessAndFailureStats(...statistics.map(item => item.files));
+        this.directories = new SuccessAndFailureStats(...statistics.map(item => item.directories));
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Check if it contains successful items
+    // Count the total number items (success and failure)
     //------------------------------------------------------------------------------------------------------------------
 
-    public hasSuccess() {
-        return 0 < this.directories.success || 0 < this.files.success;
+    public get total() {
+        return this.files.total + this.directories.total
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Check if it contains any (successful or failed) items
+    // Count the total number of successful items
     //------------------------------------------------------------------------------------------------------------------
 
-    public hasAny() {
-        return this.hasSuccess() || this.hasFailures();
+    public get success() {
+        return this.files.success + this.directories.success;
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Log the statistics
+    // Count the total number of successful items
     //------------------------------------------------------------------------------------------------------------------
 
-    public log(logger: Logger, isDryRun: boolean, infinitive: string, simplePast: string, console: OutputStream) {
-        const hasSuccess = this.hasSuccess();
-        const hasFailures = this.hasFailures();
-        if (hasSuccess || hasFailures) {
-            if (hasSuccess) {
-                const intro = isDryRun ? `Would have ${simplePast}` : `Successfully ${simplePast}`;
-                const statistics = Statistics.format(this.files.success, this.directories.success);
-                const message = `${intro} ${statistics}`;
-                logger.info(message);
-                console.log(message);
-            }
-            if (hasFailures) {
-                const intro = isDryRun ? `Would have ${simplePast}` : `Failed to ${infinitive}`;
-                const statistics = Statistics.format(this.files.failed, this.directories.failed);
-                const message = `${intro} ${statistics}`;
-                logger.warn(message);
-                console.log(message);
-            }
+    public get failed() {
+        return this.files.failed + this.directories.failed;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Format successful counts as "5 files and 2 directories"
+    //------------------------------------------------------------------------------------------------------------------
+
+    public formatSuccess() {
+        return FileAndDirectoryStats.formatFilesAndDirectories(this.files.success, this.directories.success);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Format failure counts as "5 files and 2 directories"
+    //------------------------------------------------------------------------------------------------------------------
+
+    public formatFailed() {
+        return FileAndDirectoryStats.formatFilesAndDirectories(this.files.failed, this.directories.failed);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Format the given counters as "5 files and 2 directories"
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static formatFilesAndDirectories(files: number, directories: number) {
+        if (0 === files || 0 === directories) {
+            return "0 files and 0 directories";
+        } else if (0 === files) {
+            return FileAndDirectoryStats.formatNumberAndUnit(directories, "directory", "directories");
+        } else if (0 === directories) {
+            return FileAndDirectoryStats.formatNumberAndUnit(files, "file", "files");
         } else {
-            const message = isDryRun ?
-                `Would have ${simplePast} any files or directories`
-                : `There are no files or directories that need to be ${simplePast}`;
-            logger.info(message);
-            console.log(message);
+            return [
+                FileAndDirectoryStats.formatNumberAndUnit(files, "file", "files"),
+                FileAndDirectoryStats.formatNumberAndUnit(directories, "directory", "directories")
+            ].join(" and ")
         }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Format the file and directory counter
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static format(files: number, directories: number) {
-        return [this.formatNumber(files, "file", "files"), this.formatNumber(directories, "directory", "directories")]
-            .filter(message => message).join(" and ");
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Format a single counter
     //------------------------------------------------------------------------------------------------------------------
 
-    private static formatNumber(quantity: number, singular: string, plural: string) {
+    private static formatNumberAndUnit(quantity: number, singular: string, plural: string) {
         return `${quantity} ${1 === quantity ? singular : plural}`;
     }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Counting synchronization activities
+//----------------------------------------------------------------------------------------------------------------------
+
+class SyncStats {
+
+    public readonly copied = new FileAndDirectoryStats();
+    public readonly deleted = new FileAndDirectoryStats();
+    public readonly orphans = new FileAndDirectoryStats();
+    public readonly purged = new FileAndDirectoryStats();
+    public readonly recoveryArchive = {
+        hasLingeringOrphans: false,
+        hasCreatedLatest: false
+    };
 }
