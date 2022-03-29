@@ -11,15 +11,21 @@ class SevenZip {
     public constructor(
         private readonly executable: string, private readonly password: string, logger: Logger, console: OutputStream
     ) {
-        const result = SevenZip.checkIfSevenZipIsWorking(executable);
-        logger.info(`Testing if 7-Zip command/executable ${executable} is working`);
-        console.log("Verifying that 7-Zip is working");
-        if (true !== result) {
-            if (result.stdout) {
-                logger.error(result.stdout);
+        logger.info(`Verifying that the 7-Zip command "${executable}" is working`);
+        console.log("Verifying that 7-Zip is working correctly");
+        try {
+            SevenZip.assertThatSevenZipIsWorking(executable);
+        } catch (exception) {
+            if (exception instanceof SevenZipSelfTestException) {
+                if (exception.stdout) {
+                    logger.error(exception.stdout);
+                }
+                logger.error(exception.message);
+                throw new FriendlyException(
+                    `7-Zip is not working: ${exception.message}`
+                );
             }
-            logger.error(result.error);
-            throw new FriendlyException(`The 7-Zip command/executable ${executable} does not work: ${result.error}`);
+
         }
         logger.debug("All tests have passed");
     }
@@ -28,67 +34,31 @@ class SevenZip {
     // Verify that
     //------------------------------------------------------------------------------------------------------------------
 
-    public static checkIfSevenZipIsWorking(executable: string): true | { error: string, stdout?: string } {
-        const testData = this.setUpTestData();
-        if ("string" === typeof testData) {
-            return { error: testData };
-        } else {
-            const tests = [
-                () => this.verifyHelp(executable),
-                // () => this.assertUnknownOption(executable),
-                // () => this.assertZipFile(executable, correctPassword, tempDirectory, fileSource.name, zipFile),
-                // () => this.assertZipString(executable, correctPassword, tempDirectory, stringSource.content, stringSource.name, zipFile),
-                // () => this.assertUnzipCorrectPassword(),
-                // () => this.assertUnzipWrongPassword(),
-                // () => this.assertListCorrectPassword(),
-                // () => this.assertListWrongPassword()
-            ]
-            for (const test of tests) {
-                const testResult = test();
-                if (true !== testResult) {
-                    this.removeTestData(testData.workingDirectory, testData.sourceFile.name, testData.zipFile);
-                    return testResult;
-                }
+    public static assertThatSevenZipIsWorking(executable: string) {
+        const directory = this.createWorkingDirectory();
+        const sourceFilename = "data.txt";
+        const sourceContent = "Test data";
+        const sourceFilePath = node.path.join(directory, sourceFilename);
+        const password = "my-password";
+        const virtualFilename = "_" + sourceFilename;
+        const virtualContent = "_" + sourceContent;
+        const zipFile = node.path.join(directory, "archive.7z");
+        try {
+            this.createTestSourceFile(sourceFilePath, sourceContent);
+            this.selfTestExecutable(executable);
+            this.selfTestCommandLineError(executable);
+            this.selfTestZipFile(executable, password, directory, sourceFilename, sourceContent, zipFile);
+            this.selfTestZipString(executable, password, virtualFilename, virtualContent, zipFile);
+            this.selfTestUnzip(executable, password, sourceFilename, sourceContent, zipFile);
+            this.selfTestList(executable, password, zipFile);
+            this.removeTestDirectory(directory);
+        } catch (exception) {
+            try {
+                this.removeTestDirectory(directory);
+            } catch (exception) {
+                // ignored
             }
-            const result = this.removeTestData(testData.workingDirectory, testData.sourceFile.name, testData.zipFile);
-            return true === result ? result : { error: result, stdout: "" };
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Set up a sample file in the temp folder to use for testing
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static setUpTestData() {
-        const workingDirectory = this.createWorkingDirectory();
-        if ("string" === typeof workingDirectory) {
-            const sourceFileName = "data.txt";
-            const sourceFilePath = node.path.join(workingDirectory, sourceFileName);
-            const sourceFileContent = "Test data";
-            const result = this.createTestSourceFile(sourceFilePath, sourceFileContent);
-            if (true !== result) {
-                this.removeTestData(workingDirectory, sourceFileName);
-                return result;
-            }
-            return {
-                workingDirectory,
-                sourceFile: {
-                    absolutePath: sourceFilePath,
-                    name: sourceFileName,
-                    content: sourceFileContent
-                },
-                sourceString: {
-                    name: "_" + sourceFileName,
-                    content: "_" + sourceFileContent
-                },
-                password: {
-                    correct: "correct-password",
-                    invalid: "invalid-password"
-                },
-                zipFile: node.path.join(workingDirectory, "archive.7z")
-            };
-        } else {
-            return workingDirectory.error;
+            throw exception;
         }
     }
 
@@ -100,11 +70,15 @@ class SevenZip {
         const tempDirectory = node.path.resolve(node.os.tmpdir());
         try {
             const workingDirectory = node.fs.mkdtempSync(`${tempDirectory}${node.path.sep}7-sync-self-test-`);
-            return FileUtils.existsAndIsDirectory(workingDirectory)
-                ? workingDirectory
-                : { error: `Failed to create a working directory in ${tempDirectory}` };
+            if (FileUtils.existsAndIsDirectory(workingDirectory)) {
+                return workingDirectory;
+            } else {
+                throw new SevenZipSelfTestException(`Failed to create a working directory in ${tempDirectory}`);
+            }
         } catch (exception) {
-            return { error: `Failed to create a working directory in ${tempDirectory} - ${firstLineOnly(exception)}` };
+            throw new SevenZipSelfTestException(
+                `Failed to create a working directory in ${tempDirectory} - ${firstLineOnly(exception)}`
+            );
         };
     }
 
@@ -115,11 +89,13 @@ class SevenZip {
     private static createTestSourceFile(absolutePath: string, content: string) {
         try {
             node.fs.writeFileSync(absolutePath, content);
-            return FileUtils.existsAndIsFile(absolutePath)
-                ? true
-                : `Failed to create the test file ${absolutePath}`;
+            if (FileUtils.existsAndIsDirectory(absolutePath)) {
+                throw new SevenZipSelfTestException(`Failed to create the test file ${absolutePath}`);
+            }
         } catch (exception) {
-            return `Failed to create the test file ${absolutePath} - ${firstLineOnly(exception)}`;
+            throw new SevenZipSelfTestException(
+                `Failed to create the test file ${absolutePath} - ${firstLineOnly(exception)}`
+            );
         }
     }
 
@@ -127,62 +103,131 @@ class SevenZip {
     // Delete the self-test files
     //------------------------------------------------------------------------------------------------------------------
 
-    private static removeTestData(directory: string, ...files: string[]) {
-        for (const file of [...files, "."]) {
-            const absolutePath = node.path.normalize(node.path.join(directory, file));
-            if (FileUtils.exists(absolutePath)) {
-                try {
-                    node.fs.rmSync(absolutePath, { recursive: "." === file });
-                    if (FileUtils.exists(absolutePath)) {
-                        return `Failed to delete ${absolutePath}`;
-                    }
-                } catch (exception) {
-                    return `Failed to delete ${absolutePath} - ${firstLineOnly(exception)}`;
+    private static removeTestDirectory(directory: string) {
+        if (FileUtils.exists(directory)) {
+            try {
+                node.fs.rmSync(directory, { recursive: true });
+                if (FileUtils.exists(directory)) {
+                    throw new SevenZipSelfTestException(`Failed to delete ${directory}`);
                 }
+            } catch (exception) {
+                throw new SevenZipSelfTestException(`Failed to delete ${directory} - ${firstLineOnly(exception)}`);
             }
         }
-        return true;
     }
 
-
     //------------------------------------------------------------------------------------------------------------------
-    // Verify that --help returns with exit code 0 (and no error)
+    // Verify that 7-Zip can be executed
     //------------------------------------------------------------------------------------------------------------------
 
-    private static verifyHelp(executable: string) {
-        const result = this.run({ executable, parameters: ["--help"] });
-        return result.success || {
-            error: `${executable} --help failed (${result.errorMessage})`,
-            stdout: result.stdout
-        };
+    private static selfTestExecutable(executable: string) {
+        const result = this.run({ executable });
+        const message = `${executable} could not be started`;
+        this.assertSuccess(result, message);
     }
 
-    // private static assertUnknownOption(executable: string) {
-    //     // TODO
-    // }
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that an invalid parameter causes an error
+    //------------------------------------------------------------------------------------------------------------------
 
-    // private static assertZipFile(
-    //     executable: string, password: string, workingDirectory: string, sourceFile: string, zipFile: string
-    // ) {
-    //     // TODO
-    // }
+    private static selfTestCommandLineError(executable: string) {
+        const result = this.run({ executable, parameters: ["--unknown-option"] })
+        const message = `Passing an invalid option to ${executable} did not raise an error`;
+        this.assertFailure(result, message);
+    }
 
-    // private static assertZipString(
-    //     executable: string,
-    //     password: string,
-    //     workingDirectory: string,
-    //     content: string,
-    //     filenameInArchive: string,
-    //     zipFile: string
-    // ) {
-    //     // TODO
-    // }
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that a file can be zipped
+    //------------------------------------------------------------------------------------------------------------------
 
+    private static selfTestZipFile(
+        executable: string, password: string, directory: string, filename: string, content: string, zipFile: string
+    ) {
+        const zipResult = this.zipFile(executable, password, directory, filename, zipFile);
+        const zipMessage = "Failed to zip a file";
+        this.assertSuccess(zipResult, zipMessage);
+        const unzipResult = this.unzipToStdout(executable, password, zipFile, filename);
+        const unzipMessage = "Failed to unzip a file";
+        this.assertSuccess(unzipResult, unzipMessage);
+        if (content !== unzipResult.stdout) {
+            throw new SevenZipSelfTestException(
+                `Zipped a file with content "${content}" but received "${unzipResult.stdout}" when unzipping it again`
+            );
+        }
+    }
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that a string can be zipped
+    //------------------------------------------------------------------------------------------------------------------
 
+    private static selfTestZipString(
+        executable: string, password: string, filename: string, content: string, zipFile: string
+    ) {
+        const zipResult = this.zipString(executable, password, content, filename, zipFile);
+        const zipMessage = "Failed to zip a string";
+        this.assertSuccess(zipResult, zipMessage);
+        const unzipResult = this.unzipToStdout(executable, password, zipFile, filename);
+        const unzipMessage = "Failed to unzip a file";
+        this.assertSuccess(unzipResult, unzipMessage);
+        if (content !== unzipResult.stdout) {
+            throw new SevenZipSelfTestException(
+                `Zipped a file with content "${content}" but received "${unzipResult.stdout}" when unzipping it again`
+            );
+        }
+    }
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that file content can be unzipped
+    //------------------------------------------------------------------------------------------------------------------
 
+    private static selfTestUnzip(
+        executable: string, password: string, filename: string, content: string, zipFile: string
+    ) {
+        const result1 = this.unzipToStdout(executable, password, zipFile, filename);
+        const message1 = "Failed to unzip a file";
+        this.assertSuccess(result1, message1);
+        if (content !== result1.stdout) {
+            throw new SevenZipSelfTestException(
+                `Unzipped file and received "${result1.stdout}" but expected "${content}"`
+            );
+        }
+        const result2 = this.unzipToStdout(executable, "_" + password, zipFile, filename);
+        const message2 = "Unzipping with a wrong password did not raise an error";
+        this.assertFailure(result2, message2);
+    }
 
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that file content can be unzipped
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static selfTestList(executable: string, password: string, zipFile: string) {
+        const result1 = this.listToStdout(executable, password, zipFile);
+        const message1 = "Failed to list files within the archive ";
+        this.assertSuccess(result1, message1);
+        const result2 = this.listToStdout(executable, "_" + password, zipFile);
+        const message2 = "Listing files with an invalid password did not raise an error";
+        this.assertFailure(result2, message2);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Run a test and expect it to succeed
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static assertSuccess(result: { success: boolean, errorMessage: string, stdout: string }, message: string) {
+        if (!result.success) {
+            throw new SevenZipSelfTestException(`${message} - ${result.errorMessage}`, result.stdout);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Run a test and expect it to fail
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static assertFailure(result: { success: boolean, errorMessage: string, stdout: string }, message: string) {
+        if (result.success) {
+            throw new SevenZipSelfTestException(message, result.stdout);
+        }
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Verify if the given file can be accessed with the current password
@@ -291,7 +336,7 @@ class SevenZip {
             executable,
             parameters: [
                 ...this.getUnzipParameters(password),
-                `-soi`, // write to stdout
+                `-so`, // write to stdout
                 zipFile, // the zip archive to read
                 filenameInArchive // the filename within the archive
             ],
@@ -336,7 +381,7 @@ class SevenZip {
 
     private static getUnzipParameters(password: string) {
         return [
-            "x", // extract file
+            "e", // extract file
             ...this.getSharedParameters(password)
         ];
     }
@@ -386,7 +431,7 @@ class SevenZip {
         const success = 0 === result.status && !result.error;
         const errorMessage = result.error
             ? `${firstLineOnly(result.error)} (exit code ${result.status})`
-            : `7-Zip exited with status exit code ${result.status}`
+            : `exit code ${result.status}`
         return { success, errorMessage, stdout: result.stdout };
     }
 }

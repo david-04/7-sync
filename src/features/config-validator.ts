@@ -88,7 +88,7 @@ class ConfigValidator {
 
     public static validateSevenZip(sevenZip: string): string | true {
         try {
-            SevenZip.checkIfSevenZipIsWorking(sevenZip);
+            SevenZip.assertThatSevenZipIsWorking(sevenZip);
             return true;
         } catch (exception) {
             return `Can't execute "${sevenZip}". Please specify an absolute path if 7-Zip is not in the search path.`;
