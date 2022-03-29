@@ -167,9 +167,22 @@ class SetupWizard {
             normalizePath: true,
             defaultAnswer: preset,
             validate: sevenZip => Promise.resolve(
-                this.formatValidationResult(ConfigValidator.validateSevenZip(sevenZip))
+                this.formatValidationResult(this.validateSevenZip(sevenZip))
             )
         });
+    }
+
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Validate that the 7-Zip command can be executed
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static validateSevenZip(sevenZip: string): string | true {
+        try {
+            throw new Error("The 7-Zip quick check is not implemented yet");
+        } catch (exception) {
+            return `Can't execute "${sevenZip}". Please specify an absolute path if 7-Zip is not in the search path.`;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
