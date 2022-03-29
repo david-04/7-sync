@@ -89,23 +89,17 @@ class FileManager {
 
     private compressAndValidate(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
         try {
-            const result = this.context.sevenZip.compressFile(
+            const result = this.context.sevenZip.zipFile(
                 this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath
             );
-            if (0 !== result.status || result.error) {
+            if (!result.success) {
                 this.logger.error(result.stdout);
-                throw new Error(result.error
-                    ? `${result.error} (exit code ${result.status}`
-                    : `7-Zip exited with status code ${result.status}`
-                );
+                this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
+                this.print("===> FAILED");
             }
-            if (!FileUtils.exists(destinationAbsolutePath)) {
-                this.logger.error(result.stdout);
-                throw new Error("No exception was raised");
-            }
-            return true;
+            return result.success;
         } catch (exception) {
-            this.logger.error(`Failed to create ${pathInfo} - ${firstLineOnly(exception)}`);
+            this.logger.error(`Failed to zip ${pathInfo} - ${firstLineOnly(exception)}`);
             this.print("===> FAILED");
             return false;
         }

@@ -83,12 +83,11 @@ class RecoveryArchiveCreator {
     //------------------------------------------------------------------------------------------------------------------
 
     private addToArchive(zipFile: string, filename: string, content: string) {
-        const result = this.context.sevenZip.compressFile(".", filename, zipFile, content);
-        if (0 === result.status) {
-            return true;
-        } else {
-            this.context.logger.error(`Failed to create recovery archive ${zipFile}: ${result.error}`, result.stdout);
-            return result.error || `7-Zip exited with status code ${result.status}`;
+        const result = this.context.sevenZip.zipString(content, filename, zipFile);
+        if (!result.success) {
+            this.context.logger.error(result.stdout)
+            this.context.logger.error(`Failed to create recovery archive ${zipFile}: ${result.errorMessage}`);
         }
+        return result.success;
     }
 }
