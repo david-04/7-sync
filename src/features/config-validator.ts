@@ -12,8 +12,7 @@ class ConfigValidator {
         return [
             this.validateConfigFile(configFile, true),
             this.validateSourceDirectory(configFile, json.source),
-            this.validateDestinationDirectory(configFile, json.source, json.destination),
-            this.validateSevenZip(json.sevenZip)
+            this.validateDestinationDirectory(configFile, json.source, json.destination)
         ].find(result => true !== result && undefined !== result) ?? true;
     }
 
@@ -89,7 +88,7 @@ class ConfigValidator {
 
     public static validateSevenZip(sevenZip: string): string | true {
         try {
-            SevenZip.assertThatSevenZipIsWorking(sevenZip);
+            SevenZip.checkIfSevenZipIsWorking(sevenZip);
             return true;
         } catch (exception) {
             return `Can't execute "${sevenZip}". Please specify an absolute path if 7-Zip is not in the search path.`;

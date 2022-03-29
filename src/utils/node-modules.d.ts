@@ -9,6 +9,9 @@ export const child_process: typeof _child_process;
 import _fs = require("fs");
 export const fs: typeof _fs;
 
+import _os = require("os");
+export const os: typeof _os;
+
 import _path = require("path");
 export const path: typeof _path;
 

@@ -60,7 +60,7 @@ class JsonLoader {
                 throw new FriendlyException(`${file} is not a file`);
             } else {
                 context.logger.info(`Loading database ${file}`);
-                context.print("Loading database");
+                context.print("Loading the database");
                 try {
                     const database = this.loadFile<JsonDatabase>(file);
                     JsonValidator.validateDatabase(database);
