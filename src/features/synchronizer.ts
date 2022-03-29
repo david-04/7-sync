@@ -35,11 +35,9 @@ class Synchronizer {
         if (!statistics.copied.total && !statistics.deleted.total) {
             context.print("The destination is already up to date");
         }
-        const recoveryArchiveIsUpToDate = synchronizer.processRecoveryArchive();
-        const databaseIsUpToDate = DatabaseSerializer.saveDatabase(context, database);
-        const reportGenerator = new ReportGenerator(
-            context, synchronizer.statistics, recoveryArchiveIsUpToDate, databaseIsUpToDate
-        );
+        synchronizer.processRecoveryArchive();
+        DatabaseSerializer.saveDatabase(context, database);
+        const reportGenerator = new StatisticsReporter(context, synchronizer.statistics);
         reportGenerator.logStatistics();
     }
 
@@ -97,7 +95,7 @@ class Synchronizer {
         } else if (isRootFolder && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
             return true;
         } else {
-            const success = this.fileManager.deleteFile({ destination, suppressConsoleOutput: true });
+            const success = this.fileManager.deleteFile({ destination });
             if (success) {
                 this.statistics.orphans.files.success++;
             } else {
@@ -281,6 +279,7 @@ class Synchronizer {
     private processVanishedItem(
         parentDirectory: MappedDirectory, databaseEntry: MappedSubdirectory | MappedFile, sourceDirent: Dirent
     ) {
+
         const prefix = this.isDryRun ? "Would purge" : "Purging";
         const sourcePath = databaseEntry.source.absolutePath;
         const destinationPath = databaseEntry.destination.absolutePath;
@@ -441,10 +440,15 @@ class Synchronizer {
         const recoveryArchives = this.getRecoveryArchives();
         if (destinationHasChanged || 1 !== recoveryArchives.length || this.forceReEncrypt) {
             this.deleteRecoveryArchives(recoveryArchives);
-            return RecoveryArchiveCreator.create(this.context, this.database);
+            const success = RecoveryArchiveCreator.create(this.context, this.database);
+            if (success) {
+                this.statistics.recoveryArchive.isUpToDate = true;
+            }
+            return success;
         } else {
             const archiveName = node.path.basename(recoveryArchives[0].name);
             this.logger.info(`The recovery archive ${archiveName} does not need to be updated`);
+            this.statistics.recoveryArchive.isUpToDate = true;
             return true;
         }
     }
@@ -472,8 +476,6 @@ class Synchronizer {
                 .map(dirent => node.path.join(this.database.destination.absolutePath, dirent.name))
                 .filter(name => this.fileManager.deleteFile({ destination: name, suppressConsoleOutput: true }))
                 .length;
-            this.statistics.deleted.files.success += success ? 1 : 0;
-            this.statistics.deleted.files.failed += success ? 0 : 1;
             this.statistics.orphans.files.success += Math.max(0, success - 1);
             this.statistics.orphans.files.failed += Math.max(0, recoveryArchives.length - success - (success ? 0 : 1));
             this.statistics.recoveryArchive.hasLingeringOrphans = success < recoveryArchives.length;

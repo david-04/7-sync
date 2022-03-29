@@ -47,6 +47,10 @@ class Logger {
         this.formatAndAppend(LogLevel.ERROR, message);
     }
 
+    public log(logLevel: LogLevel, ...message: (string | object)[]) {
+        this.formatAndAppend(logLevel, message);
+    }
+
     public separator() {
         this.outputStream.log(Logger.SEPARATOR);
     }

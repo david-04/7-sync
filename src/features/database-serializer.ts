@@ -11,11 +11,11 @@ class DatabaseSerializer {
     public static saveDatabase(context: Context, database: MappedRootDirectory) {
         const file = context.files.database;
         if (context.options.dryRun) {
-            context.logger.info(`Would save database ${file}`);
+            context.logger.info(`Would save database as ${file}`);
             context.print("Would save updated database");
             return true;
         } else {
-            context.logger.info(`Saving database ${file}`);
+            context.logger.info(`Saving database as ${file}`);
             context.print("Saving the database");
             try {
                 node.fs.writeFileSync(file, this.serialize(database));
