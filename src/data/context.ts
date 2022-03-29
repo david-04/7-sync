@@ -38,7 +38,7 @@ class Context {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
             const config = Context.getConfig(files.config, options, logger);
             const validatedPassword = await this.validateOrPromptForPassword(config.password, password);
-            const sevenZip = new SevenZip(config.sevenZip, validatedPassword, logger);
+            const sevenZip = new SevenZip(config.sevenZip, validatedPassword);
             const filenameEnumerator = new FilenameEnumerator(logger);
             logger.info(`Source .......... ${config.source}`);
             logger.info(`Destination ..... ${config.destination}`);

@@ -64,17 +64,8 @@ class Application {
 
     private sync(context: Context) {
         const database = DatabaseAssembler.loadDatabase(context);
-        const forceReEncrypt = false === context.sevenZip.doesPasswordWorkWithAnyFileFrom(context.config.destination);
-        if (forceReEncrypt) {
-            const message = context.options.dryRun
-                ? "Would delete and re-encrypt all files because the password has changed"
-                : "Deleting and re-encrypting all files because the password has changed";
-            context.logger.info(message);
-            context.print(message);
-        } else {
-            context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
-        }
-        Synchronizer.run(context, database, forceReEncrypt);
+        context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
+        Synchronizer.run(context, database);
     }
 }
 

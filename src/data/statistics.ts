@@ -123,8 +123,20 @@ class SyncStats {
     public readonly deleted = new FileAndDirectoryStats();
     public readonly orphans = new FileAndDirectoryStats();
     public readonly purged = new FileAndDirectoryStats();
+
     public readonly recoveryArchive = {
         hasLingeringOrphans: false,
         isUpToDate: false
     };
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Check if anything has been updated
+    //------------------------------------------------------------------------------------------------------------------
+
+    public get success() {
+        return this.copied.success
+            || this.deleted.success
+            || this.orphans.success
+            || this.purged.success;
+    }
 }

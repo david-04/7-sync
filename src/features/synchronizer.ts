@@ -14,11 +14,7 @@ class Synchronizer {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    private constructor(
-        readonly context: Context,
-        readonly database: MappedRootDirectory,
-        private readonly forceReEncrypt: boolean
-    ) {
+    private constructor(readonly context: Context, readonly database: MappedRootDirectory) {
         this.fileManager = new FileManager(context, database);
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
@@ -28,8 +24,8 @@ class Synchronizer {
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, database: MappedRootDirectory, forceReEncrypt: boolean) {
-        const synchronizer = new Synchronizer(context, database, forceReEncrypt);
+    public static run(context: Context, database: MappedRootDirectory) {
+        const synchronizer = new Synchronizer(context, database);
         synchronizer.syncDirectory(database);
         const statistics = synchronizer.statistics;
         if (!statistics.copied.total && !statistics.deleted.total) {
@@ -393,23 +389,30 @@ class Synchronizer {
 
     private processPreexistingFile(parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent) {
         const properties = databaseEntry.source.getProperties();
-        const isUnchanged = databaseEntry.created === properties.ctimeMs
-            && databaseEntry.modified === properties.mtimeMs
-            && databaseEntry.size === properties.size
-            && !this.forceReEncrypt;
-        return isUnchanged || this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent);
+        const hasChanged = databaseEntry.created !== properties.ctimeMs
+            && databaseEntry.modified !== properties.mtimeMs
+            && databaseEntry.size !== properties.size;
+        if (hasChanged) {
+            return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the source file was modified");
+        } else if (!this.context.sevenZip.isReadableWithCurrentPassword(databaseEntry.destination.absolutePath)) {
+            return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the password has changed");
+        } else {
+            return true;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Process a previously synced file that still exists in the source and in the destination
     //------------------------------------------------------------------------------------------------------------------
 
-    private processModifiedFile(parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent) {
+    private processModifiedFile(
+        parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent, reason: string
+    ) {
         parentDirectory.delete(databaseEntry);
         const deleteSucceeded = this.fileManager.deleteFile({
             destination: databaseEntry.destination.absolutePath,
             source: databaseEntry.source.absolutePath,
-            reason: this.forceReEncrypt ? "because the password has changed" : "because the source file was modified",
+            reason: `because ${reason}`,
             suppressConsoleOutput: true
         });
         if (deleteSucceeded) {
@@ -431,26 +434,17 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processRecoveryArchive() {
-        const destinationHasChanged = new FileAndDirectoryStats(
-            this.statistics.copied,
-            this.statistics.deleted,
-            this.statistics.orphans,
-            this.statistics.purged
-        ).success;
         const recoveryArchives = this.getRecoveryArchives();
-        if (destinationHasChanged || 1 !== recoveryArchives.length || this.forceReEncrypt) {
-            this.deleteRecoveryArchives(recoveryArchives);
-            const success = RecoveryArchiveCreator.create(this.context, this.database);
-            if (success) {
+        if (1 === recoveryArchives.length && !this.statistics.success) {
+            const recoveryArchive = node.path.join(this.database.source.absolutePath, recoveryArchives[0].name);
+            if (this.context.sevenZip.isReadableWithCurrentPassword(recoveryArchive)) {
+                const archiveName = node.path.basename(recoveryArchives[0].name);
+                this.logger.info(`The recovery archive ${archiveName} does not need to be updated`);
                 this.statistics.recoveryArchive.isUpToDate = true;
+                return true;
             }
-            return success;
-        } else {
-            const archiveName = node.path.basename(recoveryArchives[0].name);
-            this.logger.info(`The recovery archive ${archiveName} does not need to be updated`);
-            this.statistics.recoveryArchive.isUpToDate = true;
-            return true;
         }
+        return this.recreateRecoveryArchive(recoveryArchives);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -464,6 +458,19 @@ class Synchronizer {
             && !this.database.files.byDestinationName.has(dirent.name)
             && !this.database.subdirectories.byDestinationName.has(dirent.name)
         );
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Recreate the recovery archive
+    //------------------------------------------------------------------------------------------------------------------
+
+    private recreateRecoveryArchive(recoveryArchives: Dirent[]) {
+        this.deleteRecoveryArchives(recoveryArchives);
+        const success = RecoveryArchiveCreator.create(this.context, this.database);
+        if (success) {
+            this.statistics.recoveryArchive.isUpToDate = true;
+        }
+        return success;
     }
 
     //------------------------------------------------------------------------------------------------------------------
