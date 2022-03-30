@@ -33,8 +33,8 @@ class Synchronizer {
         }
         synchronizer.processRecoveryArchive();
         DatabaseSerializer.saveDatabase(context, database);
-        const reportGenerator = new StatisticsReporter(context, synchronizer.statistics);
-        reportGenerator.logStatistics();
+        StatisticsReporter.run(context, synchronizer.statistics);
+        return WarningsGenerator.run(context, synchronizer.statistics);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ class Synchronizer {
         const sourcePath = databaseEntry.source.absolutePath;
         const destinationPath = databaseEntry.destination.absolutePath;
         const children = databaseEntry instanceof MappedFile
-            ? { files: 0, subdirectories: 0 }
+            ? { files: 1, subdirectories: 0 }
             : databaseEntry.countChildren();
         const suffix = children.files || children.subdirectories
             ? ` (including ${children.files} files and ${children.subdirectories} subdirectories)`
@@ -288,7 +288,10 @@ class Synchronizer {
         this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
         parentDirectory.delete(databaseEntry);
         this.statistics.purged.files.success += children.files;
-        this.statistics.purged.directories.success += children.subdirectories + 1;
+        this.statistics.purged.directories.success += children.subdirectories;
+        if (databaseEntry instanceof MappedDirectoryBase) {
+            this.statistics.purged.directories.success += children.subdirectories;
+        }
         this.processNewItem(parentDirectory, sourceDirent);
         return true;
     }
@@ -465,10 +468,10 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private recreateRecoveryArchive(recoveryArchives: Dirent[]) {
-        this.deleteRecoveryArchives(recoveryArchives);
         const success = RecoveryArchiveCreator.create(this.context, this.database);
         if (success) {
             this.statistics.recoveryArchive.isUpToDate = true;
+            this.deleteRecoveryArchives(recoveryArchives);
         }
         return success;
     }

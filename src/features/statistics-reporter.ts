@@ -18,6 +18,14 @@ class StatisticsReporter {
     // Log relevant statistics
     //------------------------------------------------------------------------------------------------------------------
 
+    public static run(context: Context, statistics: SyncStats) {
+        new StatisticsReporter(context, statistics).logStatistics();
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Log relevant statistics
+    //------------------------------------------------------------------------------------------------------------------
+
     public logStatistics() {
         this.logCopyStatistics();
         this.logDeleteStatistics();

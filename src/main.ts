@@ -17,8 +17,7 @@ class Application {
     public static async main() {
         const application = new Application(new Logger(LogLevel.ERROR, new NullOutputStream()));
         try {
-            await application.run(process.argv.slice(2));
-            process.exit(0);
+            process.exit(await application.run(process.argv.slice(2)));
         } catch (exception) {
             if (exception instanceof FriendlyException) {
                 if (0 === exception.exitCode) {
@@ -48,9 +47,11 @@ class Application {
         this.logger.debug("Extracted command line options:", options);
         switch (options.command) {
             case CommandLineParser.DEFAULT_OPTIONS.init.command:
-                return SetupWizard.initialize(options);
+                SetupWizard.initialize(options);
+                return 0;
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
-                return SetupWizard.reconfigure(options);
+                SetupWizard.reconfigure(options);
+                return 0;
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
                 return this.sync(await Context.of(options));
         }
@@ -67,7 +68,7 @@ class Application {
             context.sevenZip.runSelfTest();
             const database = DatabaseAssembler.loadDatabase(context);
             context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
-            Synchronizer.run(context, database);
+            return Synchronizer.run(context, database);
         } catch (exception) {
             context.logger.error(firstLineOnly(exception));
             throw exception;
