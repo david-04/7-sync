@@ -123,7 +123,7 @@ class Synchronizer {
     private deleteOrphanedChildren(absoluteParentPath: string) {
         return this.mapAndReduce(
             FileUtils.getChildren(absoluteParentPath).array,
-            dirent => this.deleteOrphanedItem(absoluteParentPath, dirent)
+            dirent => this.deleteOrphanedItem(node.path.join(absoluteParentPath, dirent.name), dirent)
         );
     }
 
@@ -370,10 +370,10 @@ class Synchronizer {
         destinationDirent: Dirent
     ) {
         const sourceIsDirectory = FileUtils.isDirectoryOrDirectoryLink(
-            parentDirectory.source.absolutePath, sourceDirent
+            databaseEntry.source.absolutePath, sourceDirent
         );
         const destinationIsDirectory = FileUtils.isDirectoryOrDirectoryLink(
-            parentDirectory.destination.absolutePath, destinationDirent
+            databaseEntry.destination.absolutePath, destinationDirent
         );
         if (sourceIsDirectory !== destinationIsDirectory) {
             const success1 = this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
@@ -382,7 +382,7 @@ class Synchronizer {
         } else if (databaseEntry instanceof MappedFile) {
             return this.processPreexistingFile(parentDirectory, databaseEntry, sourceDirent);
         } else {
-            return true;
+            return this.syncDirectory(databaseEntry);
         }
     }
 

@@ -37,7 +37,7 @@ class WarningsGenerator {
             this.orphansWereFound(),
             this.purgeWasNecessary(),
             this.recoveryArchive()
-        ].flatMap(array => array).sort((a, b) => b.logLevel.index - a.logLevel.index);
+        ].flatMap(array => array).sort((a, b) => a.logLevel.index - b.logLevel.index);
         if (warnings.length) {
             warnings.forEach(warning => this.logger.log(warning.logLevel, warning.message));
             const logLevel = warnings[0].logLevel;
