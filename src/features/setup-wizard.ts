@@ -172,16 +172,22 @@ class SetupWizard {
         });
     }
 
-
     //------------------------------------------------------------------------------------------------------------------
     // Validate that the 7-Zip command can be executed
     //------------------------------------------------------------------------------------------------------------------
 
     private static validateSevenZip(sevenZip: string): string | true {
+        const useAbsolutePath = "Please specify an absolute path if 7-Zip is not in the search path.";
         try {
-            throw new Error("The 7-Zip quick check is not implemented yet");
+            const result1 = SevenZip.runAnyCommand({ executable: sevenZip });
+            if (result1.success) {
+                return true;
+            } else {
+                return `Running ${sevenZip} causes an error\n${result1.errorMessage}\n${useAbsolutePath}`;
+            }
         } catch (exception) {
-            return `Can't execute "${sevenZip}". Please specify an absolute path if 7-Zip is not in the search path.`;
+            console.log(exception);
+            return `Can't execute ${sevenZip}\n${firstLineOnly(exception)}${useAbsolutePath}`;
         }
     }
 

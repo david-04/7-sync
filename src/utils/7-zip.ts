@@ -430,7 +430,7 @@ class SevenZip {
     // Run any arbitrary command
     //------------------------------------------------------------------------------------------------------------------
 
-    private static runAnyCommand(options: {
+    public static runAnyCommand(options: {
         workingDirectory?: string,
         executable: string,
         parameters?: string[],
@@ -443,14 +443,31 @@ class SevenZip {
             encoding: "utf8",
             input: options.stdin
         });
-        const error = firstLineOnly(result.error ?? "").trim();
         return {
             success: 0 === result.status && !result.error,
-            errorMessage: error ? `${error} (exit code ${result.status})` : `exit code ${result.status}`,
-            consoleOutput: [result.stdout.trim(), result.stderr.trim()].join("\n").trim(),
+            errorMessage: this.formatErrorMessage(result.status, result.error),
+            consoleOutput: [result.stdout ?? "", result.stderr ?? ""].map(text => text.trim()).join("\n").trim(),
             getCommand: () => this.formatCommand(options),
             details: { ...result }
         };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Create an error message incorporating the error and the exit code (if set)
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static formatErrorMessage(status: number | null, error?: Error) {
+        const exitCode = "number" === typeof status ? `${status}` : undefined;
+        const errorMessage = (error ? firstLineOnly(error) : "").trim() || undefined;
+        if (errorMessage && exitCode) {
+            return `${errorMessage} (exit code ${exitCode})`;
+        } else if (errorMessage) {
+            return `${errorMessage}`;
+        } else if (exitCode) {
+            return `Exit code ${exitCode}`;
+        } else {
+            return "";
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
