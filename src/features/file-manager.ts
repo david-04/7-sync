@@ -93,7 +93,7 @@ class FileManager {
                 this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath
             );
             if (!result.success) {
-                this.logger.error(result.stdout);
+                this.logger.error(result.consoleOutput);
                 this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
                 this.print("===> FAILED");
             }

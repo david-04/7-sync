@@ -63,9 +63,15 @@ class Application {
     //------------------------------------------------------------------------------------------------------------------
 
     private sync(context: Context) {
-        const database = DatabaseAssembler.loadDatabase(context);
-        context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
-        Synchronizer.run(context, database);
+        try {
+            context.sevenZip.runSelfTest();
+            const database = DatabaseAssembler.loadDatabase(context);
+            context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
+            Synchronizer.run(context, database);
+        } catch (exception) {
+            context.logger.error(firstLineOnly(exception));
+            throw exception;
+        }
     }
 }
 

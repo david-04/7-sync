@@ -2,40 +2,21 @@
 // An exception with a human-readable message that does not require a stack-trace
 //----------------------------------------------------------------------------------------------------------------------
 
-class FriendlyException {
+class FriendlyException extends Error {
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(private _message: string, public readonly exitCode: number = 1) { }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Prepend more text to the message
-    //------------------------------------------------------------------------------------------------------------------
-
-    public prependMessage(message: string) {
-        this._message = `${message} ${this._message}`;
+    public constructor(message: string, public readonly exitCode: number = 1) {
+        super(message);
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Get the message
+    // Throw an instance
     //------------------------------------------------------------------------------------------------------------------
 
-    public get message() {
-        return this._message;
+    public static throw(message: string, exitCode = 1): never {
+        throw new FriendlyException(message, exitCode);
     }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-// An exception that can be raised during the 7-Zip self-test
-//----------------------------------------------------------------------------------------------------------------------
-
-class SevenZipSelfTestException {
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Initialization
-    //------------------------------------------------------------------------------------------------------------------
-
-    public constructor(public readonly message: string, public readonly stdout?: string) { }
 }

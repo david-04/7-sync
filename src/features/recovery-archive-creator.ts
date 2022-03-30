@@ -85,7 +85,7 @@ class RecoveryArchiveCreator {
     private addToArchive(zipFile: string, filename: string, content: string) {
         const result = this.context.sevenZip.zipString(content, filename, zipFile);
         if (!result.success) {
-            this.context.logger.error(result.stdout)
+            this.context.logger.error(result.consoleOutput)
             this.context.logger.error(`Failed to create recovery archive ${zipFile}: ${result.errorMessage}`);
         }
         return result.success;
