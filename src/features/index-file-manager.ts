@@ -129,7 +129,7 @@ class IndexFileManager {
             mustCreateNewIndex,
             orphansToDelete: {
                 includingLatest: archives ? [...archives.orphans, archives.latest] : [],
-                excludingLatest: archives ? [archives.latest] : []
+                excludingLatest: archives?.orphans ?? []
             }
         };
     }
