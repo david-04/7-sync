@@ -1,47 +1,110 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------------------------------------------------
-echo Removing old files
+# Delete data from previous runs and set up diretories
+#-----------------------------------------------------------------------------------------------------------------------
 
 rm -rf ./compare/* ./7-sync.log
 mkdir -p ./compare ./destination ./source
 
 #-----------------------------------------------------------------------------------------------------------------------
-echo Cataloguing source
+# compare/source-1.txt
+#-----------------------------------------------------------------------------------------------------------------------
 
 cd ./source && \
-    find . -type d | sort > ../compare/grep-01.txt; \
-    grep . `find . -type f | sort` >> ../compare/grep-01.txt; \
+    find . -type d | sort > ../compare/source-1.txt; \
+    grep . `find . -type f | sort` >> ../compare/source-1.txt; \
     cd ..
 
 #-----------------------------------------------------------------------------------------------------------------------
-echo Backing up metadata
+# compare/logfile-1
+#-----------------------------------------------------------------------------------------------------------------------
 
-mkdir -p temp
-cd ./temp && \
-    ls -1 ../destination/*INDEX*.7z | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
-    cp 7-sync-database.json ../compare/database-01.json; \
-    cp 7-sync-file-index.txt ../compare/index-01.txt; \
-    cd ..
-rm -rf ./temp
+touch 7-sync.log
+cat 7-sync.log | sed 's/^[^a-z]*//gi' > compare/log-1.log
 
 #-----------------------------------------------------------------------------------------------------------------------
-echo Synchronization
+# compare/stdout-1.txt
+#-----------------------------------------------------------------------------------------------------------------------
 
-echo --------------------------------------------------------------------------------
-node ../dist/7-sync.js sync --password=a "$@"
-echo --------------------------------------------------------------------------------
+touch 7-sync.out
+cat 7-sync.out > compare/stdout-1.txt
 
 #-----------------------------------------------------------------------------------------------------------------------
-echo Catalguing destination
+# compare/database-1.json
+# compare/index.txt
+# compare/destination-1.txt
+#-----------------------------------------------------------------------------------------------------------------------
 
 mkdir -p temp
 cd ./temp && \
     find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
-    cp 7-sync-database.json ../compare/database-02.json; \
-    cp 7-sync-file-index.txt ../compare/index-02.txt; \
-    rm ./7-sync-*.*; \
-    find . -type d | sort > ../compare/grep-02.txt; \
-    grep . `find . -type f | sort` >> ../compare/grep-02.txt; \
+    cp 7-sync-database.json ../compare/database-1.json; \
+    cp 7-sync-file-index.txt ../compare/index-1.txt; \
+    rm 7-sync*.*; \
+    find . -type d | sort > ../compare/destination-1.txt; \
+    echo | grep . `find . -type f | sort` >> ../compare/destination-1.txt; \
     cd ..
 rm -rf ./temp
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Run the synchronization
+#-----------------------------------------------------------------------------------------------------------------------
+
+make -C .. dist/7-sync.js
+rm -f 7-sync.log 7-sync.out
+node ../dist/7-sync.js sync --password=a "$@" | tee 7-sync.out
+
+#-----------------------------------------------------------------------------------------------------------------------
+# compare/source-2
+#-----------------------------------------------------------------------------------------------------------------------
+
+cd ./source && \
+    find . -type d | sort > ../compare/source-2.txt; \
+    grep . `find . -type f | sort` >> ../compare/source-2.txt; \
+    cd ..
+
+#-----------------------------------------------------------------------------------------------------------------------
+# compare/logfile-2
+#-----------------------------------------------------------------------------------------------------------------------
+
+cat 7-sync.log | sed 's/^[^a-z]*//gi' > compare/logfile-2.log
+
+#-----------------------------------------------------------------------------------------------------------------------
+# compare/stdout-2.txt
+#-----------------------------------------------------------------------------------------------------------------------
+
+cat 7-sync.out > compare/stdout-2.txt
+
+#-----------------------------------------------------------------------------------------------------------------------
+# compare/database-1.json
+# compare/index.txt
+# compare/destination-1.txt
+#-----------------------------------------------------------------------------------------------------------------------
+
+mkdir -p temp
+cd ./temp && \
+    find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    cp 7-sync-database.json ../compare/database-2.json; \
+    cp 7-sync-file-index.txt ../compare/index-2.txt; \
+    rm 7-sync*.*; \
+    find . -type d | sort > ../compare/destination-2.txt; \
+    echo | grep . `find . -type f | sort` >> ../compare/destination-2.txt; \
+    cd ..
+rm -rf ./temp
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Checks
+#-----------------------------------------------------------------------------------------------------------------------
+
+diff compare/source-2.txt compare/destination-2.txt > /dev/null
+if [ $? != 0 ]; then
+    echo
+    echo "=====> ERROR: Source and destination differ"
+fi
+
+diff compare/source-1.txt compare/source-2.txt > /dev/null
+if [ $? != 0 ]; then
+    echo
+    echo "=====> ERROR: The source has been modified"
+fi

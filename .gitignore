@@ -5,3 +5,4 @@
 /test/compare
 /test/destination
 /test/*.log
+/test/*.out
