@@ -60,57 +60,6 @@ class FileAndDirectoryStats {
     public get success() {
         return this.files.success + this.directories.success;
     }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Count the total number of successful items
-    //------------------------------------------------------------------------------------------------------------------
-
-    public get failed() {
-        return this.files.failed + this.directories.failed;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Format successful counts as "5 files and 2 directories"
-    //------------------------------------------------------------------------------------------------------------------
-
-    public formatSuccess() {
-        return FileAndDirectoryStats.formatFilesAndDirectories(this.files.success, this.directories.success);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Format failure counts as "5 files and 2 directories"
-    //------------------------------------------------------------------------------------------------------------------
-
-    public formatFailed() {
-        return FileAndDirectoryStats.formatFilesAndDirectories(this.files.failed, this.directories.failed);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Format the given counters as "5 files and 2 directories"
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static formatFilesAndDirectories(files: number, directories: number) {
-        if (0 === files || 0 === directories) {
-            return "0 files and 0 directories";
-        } else if (0 === files) {
-            return FileAndDirectoryStats.formatNumberAndUnit(directories, "directory", "directories");
-        } else if (0 === directories) {
-            return FileAndDirectoryStats.formatNumberAndUnit(files, "file", "files");
-        } else {
-            return [
-                FileAndDirectoryStats.formatNumberAndUnit(files, "file", "files"),
-                FileAndDirectoryStats.formatNumberAndUnit(directories, "directory", "directories")
-            ].join(" and ")
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Format a single counter
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static formatNumberAndUnit(quantity: number, singular: string, plural: string) {
-        return `${quantity} ${1 === quantity ? singular : plural}`;
-    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

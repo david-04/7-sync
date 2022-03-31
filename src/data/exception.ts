@@ -11,14 +11,6 @@ class FriendlyException extends Error {
     public constructor(message: string, public readonly exitCode: number = 1) {
         super(message);
     }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Throw an instance
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static throw(message: string, exitCode = 1): never {
-        throw new FriendlyException(message, exitCode);
-    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

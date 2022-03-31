@@ -8,7 +8,7 @@ class ConfigValidator {
     // Validate the configuration
     //------------------------------------------------------------------------------------------------------------------
 
-    public static validate(configFile: string, json: JsonConfig): string | true {
+    public static validateConfiguration(configFile: string, json: JsonConfig): string | true {
         return [
             this.validateConfigFile(configFile, true),
             this.validateSourceDirectory(configFile, json.source),

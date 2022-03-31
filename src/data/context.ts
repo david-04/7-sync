@@ -83,7 +83,7 @@ class Context {
 
     private static getConfig(configFile: string, options: SyncOptions, logger: Logger) {
         const json = JsonParser.loadAndValidateConfig(options, logger).finalConfig;
-        const validationResult = ConfigValidator.validate(configFile, json);
+        const validationResult = ConfigValidator.validateConfiguration(configFile, json);
         if (true === validationResult) {
             return json;
         } else {

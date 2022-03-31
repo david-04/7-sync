@@ -41,22 +41,22 @@ type Directory = RootDirectory | Subdirectory;
 
 class MappedDirectoryBase<T extends RootDirectory> {
 
-    private readonly _files = asReadonly({
+    private readonly _files = readonly({
         bySourceName: new Map<string, MappedFile>(),
         byDestinationName: new Map<string, MappedFile>()
     });
 
-    public readonly files = asReadonly({
+    public readonly files = readonly({
         bySourceName: new ImmutableMap(this._files.bySourceName),
         byDestinationName: new ImmutableMap(this._files.byDestinationName)
     });
 
-    private readonly _subdirectories = asReadonly({
+    private readonly _subdirectories = readonly({
         bySourceName: new Map<string, MappedSubdirectory>(),
         byDestinationName: new Map<string, MappedSubdirectory>()
     });
 
-    public readonly subdirectories = asReadonly({
+    public readonly subdirectories = readonly({
         bySourceName: new ImmutableMap(this._subdirectories.bySourceName),
         byDestinationName: new ImmutableMap(this._subdirectories.byDestinationName)
     });

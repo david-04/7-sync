@@ -26,7 +26,7 @@ class SetupWizard {
     // Acquire all information and update the file
     //------------------------------------------------------------------------------------------------------------------
 
-    public static async initializeOrReconfigure(presets: Partial<JsonConfig> & { config: string }) {
+    private static async initializeOrReconfigure(presets: Partial<JsonConfig> & { config: string }) {
         console.log("");
         console.log("--------------------------------------------------------------------------------");
         console.log("7-sync configuration wizard");

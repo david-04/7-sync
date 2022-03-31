@@ -2,6 +2,6 @@
 // Convert a JSON object literal into a read-only object
 //----------------------------------------------------------------------------------------------------------------------
 
-function asReadonly<T>(object: T): Readonly<T> {
+function readonly<T>(object: T): Readonly<T> {
     return object;
 }

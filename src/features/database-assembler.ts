@@ -8,7 +8,7 @@ class DatabaseAssembler {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(private readonly context: Context) { }
+    private constructor(private readonly context: Context) { }
 
     //------------------------------------------------------------------------------------------------------------------
     // Load, validate and assemble the database

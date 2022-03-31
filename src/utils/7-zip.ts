@@ -23,7 +23,7 @@ class SevenZip {
     // For the self-test, create a new SevenZip instance that uses a different password
     //------------------------------------------------------------------------------------------------------------------
 
-    public cloneWithDifferentPassword(newPassword: string) {
+    private cloneWithDifferentPassword(newPassword: string) {
         return new SevenZip(this.executable, newPassword, this.logger, this.console);
     }
 
@@ -62,7 +62,7 @@ class SevenZip {
         );
         if (!FileUtils.existsAndIsDirectory(workingDirectory)) {
             this.logger.error(`mkdtempSync failed to create ${workingDirectory} - but did not raise an error either`);
-            FriendlyException.throw(`Failed to create test directory ${tempDirectory}`);
+            throw new FriendlyException(`Failed to create test directory ${tempDirectory}`);
         }
         return workingDirectory;
     }
@@ -78,7 +78,7 @@ class SevenZip {
                 error => `Failed to delete test directory ${directory} - ${error}`
             );
             if (FileUtils.exists(directory)) {
-                FriendlyException.throw(`Failed to delete ${directory} (though rmSync did not raise an error)`);
+                throw new FriendlyException(`Failed to delete ${directory} (though rmSync did not raise an error)`);
             }
         }
     }
@@ -109,10 +109,10 @@ class SevenZip {
     private createTestFile(file: string, content: string) {
         tryCatchRethrowFriendlyException(
             () => node.fs.writeFileSync(file, content),
-            error => FriendlyException.throw(`Failed to create the test file ${file} - ${error}`)
+            error => `Failed to create the test file ${file} - ${error}`
         );
         if (FileUtils.existsAndIsDirectory(file)) {
-            FriendlyException.throw(`Failed to create the test file ${file} (writeFileSync did not raise an error)`);
+            throw new FriendlyException(`Failed to create the test file ${file} (writeFileSync did not raise an error)`);
         }
     }
 
@@ -125,7 +125,7 @@ class SevenZip {
         if (!result.success) {
             this.logExecution(result);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw(`The program can't be started - ${result.errorMessage}`);
+            throw new FriendlyException(`The program can't be started - ${result.errorMessage}`);
         }
     }
 
@@ -138,7 +138,7 @@ class SevenZip {
         if (result.success) {
             this.logExecution(result);
             this.logger.error("Expected an exit code other than 0 or an error");
-            FriendlyException.throw("Passing invalid parameters does not cause an error");
+            throw new FriendlyException("Passing invalid parameters does not cause an error");
         }
     }
 
@@ -151,20 +151,20 @@ class SevenZip {
         if (!zipResult.success) {
             this.logExecution(zipResult);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw("Failed to add a file to a zip archive");
+            throw new FriendlyException("Failed to add a file to a zip archive");
         }
         const unzipResult = this.unzipToStdout(zipFile, filename);
         if (!zipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw("Failed to extract a file from a zip archive");
+            throw new FriendlyException("Failed to extract a file from a zip archive");
         }
         if (content !== unzipResult.consoleOutput) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult, LogLevel.INFO);
             this.logger.error(`Expected unzip ${content} but received ${unzipResult.consoleOutput}`);
-            FriendlyException.throw("Unzipping file content returns invalid data");
+            throw new FriendlyException("Unzipping file content returns invalid data");
         }
     }
 
@@ -177,20 +177,20 @@ class SevenZip {
         if (!zipResult.success) {
             this.logExecution(zipResult);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw("Failed to add string content to a zip archive");
+            throw new FriendlyException("Failed to add string content to a zip archive");
         }
         const unzipResult = this.unzipToStdout(zipFile, filenameInArchive);
         if (!unzipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw("Failed to extract a file from a zip archive");
+            throw new FriendlyException("Failed to extract a file from a zip archive");
         }
         if (content !== unzipResult.consoleOutput) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult, LogLevel.INFO);
             this.logger.error(`Expected "${content}" as unzipped content but received "${unzipResult.consoleOutput}"`);
-            FriendlyException.throw("Unzipping file content returns invalid data");
+            throw new FriendlyException("Unzipping file content returns invalid data");
         }
     }
 
@@ -203,12 +203,12 @@ class SevenZip {
         if (result.success) {
             this.logExecution(result);
             this.logger.error("Expected an exit code other than 0 or an error");
-            FriendlyException.throw("Unzipping with a wrong password does not cause an error");
+            throw new FriendlyException("Unzipping with a wrong password does not cause an error");
         }
         if (result.consoleOutput === content) {
             this.logExecution(result);
             this.logger.error(`Despite the wrong password, the correct file content (${content}) was returned`);
-            FriendlyException.throw("Unzipping with a wrong password returns the correct file content");
+            throw new FriendlyException("Unzipping with a wrong password returns the correct file content");
         }
     }
 
@@ -221,7 +221,7 @@ class SevenZip {
         if (result.success) {
             this.logExecution(result);
             this.logger.error("Expected an exit code other than 0 or an error");
-            FriendlyException.throw("Zipping a non-existent file does not cause an error");
+            throw new FriendlyException("Zipping a non-existent file does not cause an error");
         }
     }
 
@@ -234,7 +234,7 @@ class SevenZip {
         if (!result.success) {
             this.logExecution(result);
             this.logger.error("Expected no error and exit code 0");
-            FriendlyException.throw(`Listing the contents of a zip archive failed`);
+            throw new FriendlyException(`Listing the contents of a zip archive failed`);
         }
     }
 
@@ -247,7 +247,7 @@ class SevenZip {
         if (result.success) {
             this.logExecution(result);
             this.logger.error("Expected an exit code other than 0 or an error");
-            FriendlyException.throw("Listing archive file contents with a wrong password does not cause an error");
+            throw new FriendlyException("Listing archive file contents with a wrong password does not cause an error");
         }
     }
 

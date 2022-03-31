@@ -12,19 +12,6 @@ function rethrowWithPrefix(prefix: string, exception: unknown): never {
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-// Append a suffix to the exception's message and rethrow it
-//----------------------------------------------------------------------------------------------------------------------
-
-function rethrowWithSuffix(exception: unknown, suffix: string): never {
-    if (exception instanceof Error) {
-        exception.message = `${exception.message} ${suffix}`;
-        throw exception;
-    } else {
-        throw new Error(`${exception} ${suffix}`);
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
 // Prepend a prefix and append a suffix to the exception's message and rethrow it
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -44,7 +31,9 @@ function rethrowWithPrefixAndSuffix(prefix: string, exception: unknown, suffix: 
 function tryCatchIgnore(action: () => void) {
     try {
         return action();
-    } catch (ignored) { }
+    } catch (ignored) {
+        // do nothing
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

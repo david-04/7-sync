@@ -7,7 +7,8 @@ abstract class Validator {
     public abstract validate(path: string, value: any): void;
 
     protected throw(path: string, message: string) {
-        throw new FriendlyException(`${message} at ${path || "/"}`);
+        const location = path ? ` at ${path}` : "";
+        throw new FriendlyException(`${message}${location}`);
     }
 }
 
@@ -16,7 +17,7 @@ abstract class Validator {
 //----------------------------------------------------------------------------------------------------------------------
 
 class NonEmptyStringValidator extends Validator {
-    validate(path: string, value: string) {
+    public validate(path: string, value: string) {
         if ("string" !== typeof value) {
             this.throw(path, `Expected a string but found ${typeof value}`);
         } else if (!value) {
@@ -26,7 +27,7 @@ class NonEmptyStringValidator extends Validator {
 }
 
 class StringValidator extends Validator {
-    validate(path: string, value: string) {
+    public validate(path: string, value: string) {
         if ("string" !== typeof value) {
             this.throw(path, `Expected a string but found ${typeof value}`);
         }
@@ -64,7 +65,7 @@ class ObjectValidator<T extends object> extends Validator {
         this.propertyValidators[key] = validator;
     }
 
-    validate(path: string, value: T) {
+    public validate(path: string, value: T) {
         if ("object" !== typeof value) {
             this.throw(path, `Expected an object but found ${typeof value}`);
         } else if (null === value) {
@@ -98,7 +99,7 @@ class ArrayValidator<T> extends Validator {
         super();
     }
 
-    validate(path: string, value: T[]) {
+    public validate(path: string, value: T[]) {
         if ("object" !== typeof value) {
             this.throw(path, `Expected an array but found ${typeof path}`);
         } else if (!value) {

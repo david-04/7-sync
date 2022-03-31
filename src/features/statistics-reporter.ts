@@ -10,7 +10,7 @@ class StatisticsReporter {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(private readonly context: Context, private readonly statistics: SyncStats) {
+    private constructor(private readonly context: Context, private readonly statistics: SyncStats) {
         this.logger = context.logger;
     }
 
@@ -26,7 +26,7 @@ class StatisticsReporter {
     // Log relevant statistics
     //------------------------------------------------------------------------------------------------------------------
 
-    public logStatistics() {
+    private logStatistics() {
         this.logCopyStatistics();
         this.logDeleteStatistics();
         this.logOrphanStatistics();
@@ -133,7 +133,7 @@ class StatisticsReporter {
     // Log a single set of statistics
     //------------------------------------------------------------------------------------------------------------------
 
-    public logOperationStatistics(
+    private logOperationStatistics(
         statistics: FileAndDirectoryStats,
         messages: {
             dryRun: {

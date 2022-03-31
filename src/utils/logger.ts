@@ -144,12 +144,12 @@ class Logger {
     private static async removeSections(file: string, numberOfSectionsToRemove: number) {
         const tmpFile = `${file}~`;
         const outputStream = new FileOutputStream(tmpFile, false);
-        const io = node.readline.createInterface({
+        const readline = node.readline.createInterface({
             input: node.fs.createReadStream(file),
             output: node.process.stdout,
             terminal: false
         });
-        io.on("line", line => {
+        readline.on("line", line => {
             if (this.isSeparator(line)) {
                 numberOfSectionsToRemove--;
             }
@@ -158,7 +158,7 @@ class Logger {
             }
         });
         return new Promise<void>(resolve => {
-            io.on('close', () => {
+            readline.on('close', () => {
                 resolve();
             });
         }).then(() => {

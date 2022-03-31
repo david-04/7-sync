@@ -9,16 +9,16 @@ class FileListingCreator {
     //------------------------------------------------------------------------------------------------------------------
 
     public static create(database: MappedRootDirectory) {
-        return this.createFileIndex(database, []).join("\n") + "\n"
+        return this.recurseInto(database, []).join("\n") + "\n"
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Add listings for all files and subdirectories
     //------------------------------------------------------------------------------------------------------------------
 
-    private static createFileIndex(directory: MappedDirectory, lines: string[]) {
+    private static recurseInto(directory: MappedDirectory, lines: string[]) {
         this.addToIndex(directory, lines);
-        directory.subdirectories.bySourceName.sorted().forEach(subdirectory => this.createFileIndex(subdirectory, lines));
+        directory.subdirectories.bySourceName.sorted().forEach(subdirectory => this.recurseInto(subdirectory, lines));
         directory.files.bySourceName.sorted().forEach(file => this.addToIndex(file, lines));
         return lines;
     }

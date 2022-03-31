@@ -108,14 +108,6 @@ class FileUtils {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Determine if a given directory entry is a file or a symbolic link to a file
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static isFileOrFileLink(path: string, item: Dirent) {
-        return item.isFile() || (item.isSymbolicLink() && !this.allowsListingChildren(path, item));
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Determine if a given directory entry is a directory or a symbolic link to a directory
     //------------------------------------------------------------------------------------------------------------------
 

@@ -15,28 +15,6 @@ class File {
         this.absolutePath = node.path.join(parent.absolutePath, name);
         this.relativePath = parent instanceof Subdirectory ? node.path.join(parent.relativePath, name) : name;
     }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Get file properties
-    //------------------------------------------------------------------------------------------------------------------
-
-    public getProperties() {
-        return this.assertFileExists(() => FileUtils.getProperties(this.absolutePath));
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Assert that the file exists (and is a file) and execute the given action
-    //------------------------------------------------------------------------------------------------------------------
-
-    private assertFileExists<T>(action: () => T): T {
-        if (!FileUtils.exists(this.absolutePath)) {
-            throw new Error(`Internal error: ${this.absolutePath} does not exist`);
-        } else if (!FileUtils.existsAndIsFile(this.absolutePath)) {
-            throw new Error(`Internal error: ${this.absolutePath} is not a file`);
-        } else {
-            return action();
-        }
-    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -12,7 +12,7 @@ class FileManager {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(private readonly context: Context, private readonly database: MappedRootDirectory) {
+    public constructor(private readonly context: Context, private readonly database: MappedRootDirectory) {
         this.print = context.print;
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
@@ -66,7 +66,7 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public compressFile(parentDirectory: MappedDirectory, source: Dirent, reason?: string) {
+    public zipFile(parentDirectory: MappedDirectory, source: Dirent, reason?: string) {
         const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
@@ -76,7 +76,7 @@ class FileManager {
             this.logger.info(`Would zip ${pathInfo}${suffix}`);
         } else {
             this.logger.info(`Zipping ${pathInfo}${suffix}`);
-            success = this.compressAndValidate(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
+            success = this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
         }
         return success
             ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next)
@@ -87,7 +87,7 @@ class FileManager {
     // Compress the given file, check if it was successful and log errors if applicable
     //------------------------------------------------------------------------------------------------------------------
 
-    private compressAndValidate(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
+    private zipFileAndLogErrors(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
         try {
             const result = this.context.sevenZip.zipFile(
                 this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath

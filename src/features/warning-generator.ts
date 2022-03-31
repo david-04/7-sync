@@ -12,7 +12,7 @@ class WarningsGenerator {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(context: Context, private readonly statistics: SyncStats) {
+    private constructor(context: Context, private readonly statistics: SyncStats) {
         this.logger = context.logger;
         this.print = context.print;
         this.isDryRun = context.options.dryRun;
@@ -30,7 +30,7 @@ class WarningsGenerator {
     // Generate warnings
     //------------------------------------------------------------------------------------------------------------------
 
-    public generateWarningsAndGetExitCode() {
+    private generateWarningsAndGetExitCode() {
         const warnings = [
             this.someFilesCouldNotBeCopied(),
             this.someFilesCouldNotBeDeleted(),
@@ -59,7 +59,7 @@ class WarningsGenerator {
     private someFilesCouldNotBeCopied() {
         const failedFiles = this.format(this.statistics.copied.files.failed);
         return failedFiles.quantity
-            ? this.asError(
+            ? this.error(
                 `${failedFiles.asText} could not be copied.`,
                 `${failedFiles.theyOrIt.upperCase} will be retried in the next synchronization run.`,
                 "Until then, the backup is incomplete."
@@ -74,7 +74,7 @@ class WarningsGenerator {
     private someFilesCouldNotBeDeleted() {
         const failedFiles = this.format(this.statistics.deleted.files.failed + this.statistics.orphans.files.failed);
         return failedFiles.quantity
-            ? this.asWarning(
+            ? this.warning(
                 `${failedFiles.asText} could not be deleted.`,
                 `${failedFiles.theyOrIt.upperCase} will be retried in the next synchronization run.`,
                 "Until then, the backup contains outdated file versions."
@@ -91,14 +91,14 @@ class WarningsGenerator {
         if (orphans.quantity) {
             const thereAreOrphans = `The previous synchronization left ${orphans.asText} behind.`;
             if (orphans.quantity === this.statistics.orphans.files.failed) {
-                return this.asWarning(thereAreOrphans, `Attempts to delete ${orphans.theyOrIt.lowerCase} have failed.`);
+                return this.warning(thereAreOrphans, `Attempts to delete ${orphans.theyOrIt.lowerCase} have failed.`);
             } else if (orphans.quantity === this.statistics.orphans.files.success) {
                 const theyWereDeleted = 1 === orphans.quantity
                     ? "It was deleted successfully."
                     : "They were deleted deleted successfully.";
-                return this.asInfo(thereAreOrphans, theyWereDeleted);
+                return this.info(thereAreOrphans, theyWereDeleted);
             } else {
-                return this.asWarning(thereAreOrphans, "Some of them could be deleted but others are still there.");
+                return this.warning(thereAreOrphans, "Some of them could be deleted but others are still there.");
             }
         } else {
             return [];
@@ -112,7 +112,7 @@ class WarningsGenerator {
     private purgeWasNecessary() {
         const purged = this.format(this.statistics.purged.files.total);
         return purged.quantity
-            ? this.asWarning(
+            ? this.warning(
                 `There ${purged.wereOrWas} ${purged.asText} that ${purged.haveOrHas} vanished from the destination.`,
                 `${purged.theyOrIt.upperCase} ${purged.haveOrHas} been removed from the database.`
             )
@@ -128,19 +128,19 @@ class WarningsGenerator {
         const hasOrphans = this.statistics.index.hasLingeringOrphans;
         if (!isUpToDate) {
             if (hasOrphans) {
-                return this.asError(
+                return this.error(
                     "Failed to update the database.",
                     "The previous one was preserved but is outdated.",
                     "The next synchronization run will delete and re-encrypted all files processed in this run."
                 );
             } else {
-                return this.asError(
+                return this.error(
                     "Failed to save the database.",
                     `The next synchronization run will delete and re-encrypt all files`
                 );
             }
         } else if (hasOrphans) {
-            return this.asWarning(
+            return this.warning(
                 "The database was saved but the old one could not be deleted.",
                 "It will be retried in the next synchronization run"
             );
@@ -155,7 +155,7 @@ class WarningsGenerator {
 
     private enumeratedFilenameCollisions() {
         return FilenameEnumerator.hasDetectedFilenameCollisions()
-            ? this.asError(
+            ? this.error(
                 "The database is out of sync with the destination.",
                 "Generated filename might be re-used.",
                 "When synchronizing the encrypted destination to another location without checking the modified date,",
@@ -168,7 +168,7 @@ class WarningsGenerator {
     // Package a message as an error
     //------------------------------------------------------------------------------------------------------------------
 
-    private asError(...message: string[]) {
+    private error(...message: string[]) {
         return this.as(LogLevel.ERROR, message);
     }
 
@@ -176,7 +176,7 @@ class WarningsGenerator {
     // Package a message as a warning
     //------------------------------------------------------------------------------------------------------------------
 
-    private asWarning(...message: string[]) {
+    private warning(...message: string[]) {
         return this.as(LogLevel.WARN, message);
     }
 
@@ -184,7 +184,7 @@ class WarningsGenerator {
     // Package a message as an info
     //------------------------------------------------------------------------------------------------------------------
 
-    private asInfo(...message: string[]) {
+    private info(...message: string[]) {
         return this.as(LogLevel.INFO, message);
     }
 

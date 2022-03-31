@@ -9,7 +9,7 @@ abstract class OutputStream {
     //------------------------------------------------------------------------------------------------------------------
 
     public log(...data: (string | object)[]) {
-        this.doLog(
+        this.write(
             data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`).join(" ")
         );
     }
@@ -19,39 +19,19 @@ abstract class OutputStream {
     //------------------------------------------------------------------------------------------------------------------
 
     public logAligned(padding: string, ...data: (string | object)[]) {
-        this.doLog(
-            data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`)
-                .join(" ")
-                .split(/\r?\n/)
-                .join(padding)
-        );
+        const text = data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`)
+            .join(" ")
+            .split(/\r?\n/)
+            .join(padding);
+        this.write(text);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Write stringified data
     //------------------------------------------------------------------------------------------------------------------
 
-    protected abstract doLog(data: string): void;
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Close the stream
-    //------------------------------------------------------------------------------------------------------------------
-
-    public abstract close(): void;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-// A muted output stream
-//----------------------------------------------------------------------------------------------------------------------
-
-class NullOutputStream extends OutputStream {
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Write stringified data
-    //------------------------------------------------------------------------------------------------------------------
-
-    protected doLog(_data: string) {
-        // suppress all output
+    protected write(_data: string) {
+        // to override
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -59,9 +39,15 @@ class NullOutputStream extends OutputStream {
     //------------------------------------------------------------------------------------------------------------------
 
     public close() {
-        // nothing to close
+        // to override
     }
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// A muted output stream
+//----------------------------------------------------------------------------------------------------------------------
+
+class NullOutputStream extends OutputStream { }
 
 //----------------------------------------------------------------------------------------------------------------------
 // A console output stream (stdout)
@@ -73,16 +59,8 @@ class ConsoleOutputStream extends OutputStream {
     // Write stringified data
     //------------------------------------------------------------------------------------------------------------------
 
-    protected doLog(line: string) {
+    protected write(line: string) {
         console.log(line);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Close the stream
-    //------------------------------------------------------------------------------------------------------------------
-
-    public close() {
-        // nothing to close
     }
 }
 
@@ -111,7 +89,7 @@ class FileOutputStream extends OutputStream {
     // Append a message to the log file
     //------------------------------------------------------------------------------------------------------------------
 
-    protected doLog(line: string) {
+    protected write(line: string) {
         try {
             node.fs.writeSync(this.fileDescriptor, `${line}\n`);
         } catch (exception) {

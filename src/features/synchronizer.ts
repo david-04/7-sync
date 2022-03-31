@@ -134,7 +134,7 @@ class Synchronizer {
     // Compare the database with the current destination directory
     //------------------------------------------------------------------------------------------------------------------
 
-    public analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
+    private analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
         const sourceChildren = FileUtils.getChildrenIfDirectoryExists(directory.source.absolutePath).map;
         const databaseFiles = Array.from(directory.files.bySourceName.values());
         const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
@@ -262,7 +262,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
-        if (this.fileManager.compressFile(parentDirectory, sourceDirent)) {
+        if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
             this.statistics.copied.files.success++;
             return true;
         } else {
@@ -394,7 +394,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processPreexistingFile(parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent) {
-        const properties = databaseEntry.source.getProperties();
+        const properties = FileUtils.getProperties(databaseEntry.source.absolutePath);
         const hasChanged = databaseEntry.created !== properties.ctimeMs
             && databaseEntry.modified !== properties.mtimeMs
             && databaseEntry.size !== properties.size;
@@ -424,7 +424,7 @@ class Synchronizer {
         } else {
             this.statistics.deleted.files.failed++;
         }
-        const copySucceeded = !!this.fileManager.compressFile(parentDirectory, sourceDirent);
+        const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
         if (copySucceeded) {
             this.statistics.copied.files.success++;
         } else {
