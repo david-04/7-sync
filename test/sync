@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------------------------------------------------
+echo Removing old files
+
+rm -rf ./compare/* ./7-sync.log
+mkdir -p ./compare ./destination ./source
+
+#-----------------------------------------------------------------------------------------------------------------------
+echo Cataloguing source
+
+cd ./source && \
+    find . -type d | sort > ../compare/grep-01.txt; \
+    grep . `find . -type f | sort` >> ../compare/grep-01.txt; \
+    cd ..
+
+#-----------------------------------------------------------------------------------------------------------------------
+echo Backing up metadata
+
+mkdir -p temp
+cd ./temp && \
+    ls -1 ../destination/*INDEX*.7z | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    cp 7-sync-database.json ../compare/database-01.json; \
+    cp 7-sync-file-index.txt ../compare/index-01.txt; \
+    cd ..
+rm -rf ./temp
+
+#-----------------------------------------------------------------------------------------------------------------------
+echo Synchronization
+
+echo --------------------------------------------------------------------------------
+node ../dist/7-sync.js sync --password=a "$@"
+echo --------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+echo Catalguing destination
+
+mkdir -p temp
+cd ./temp && \
+    find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    cp 7-sync-database.json ../compare/database-02.json; \
+    cp 7-sync-file-index.txt ../compare/index-02.txt; \
+    rm ./7-sync-*.*; \
+    find . -type d | sort > ../compare/grep-02.txt; \
+    grep . `find . -type f | sort` >> ../compare/grep-02.txt; \
+    cd ..
+rm -rf ./temp

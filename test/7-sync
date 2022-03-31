@@ -1,1 +1,0 @@
-node dist/7-sync.js "$@"

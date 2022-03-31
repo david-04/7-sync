@@ -2,7 +2,6 @@
 /node_modules
 /package-lock.json
 /yarn.lock
-/test/out
-/test/*.db
+/test/compare
+/test/destination
 /test/*.log
-/test/*.7z
