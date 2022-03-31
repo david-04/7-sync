@@ -124,7 +124,7 @@ class SyncStats {
     public readonly orphans = new FileAndDirectoryStats();
     public readonly purged = new FileAndDirectoryStats();
 
-    public readonly recoveryArchive = {
+    public readonly index = {
         hasLingeringOrphans: false,
         isUpToDate: false
     };

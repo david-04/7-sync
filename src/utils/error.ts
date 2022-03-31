@@ -51,18 +51,6 @@ function tryCatchIgnore(action: () => void) {
 // Run code in a try-catch exception handler and return it's result
 //----------------------------------------------------------------------------------------------------------------------
 
-function tryCatch<T>(action: () => T, onError: (exception: unknown) => T | never) {
-    try {
-        return action();
-    } catch (exception) {
-        return onError(exception);
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-// Run code in a try-catch exception handler and return it's result
-//----------------------------------------------------------------------------------------------------------------------
-
 function tryCatchRethrowFriendlyException<T>(action: () => T, getErrorMessage: (error: string) => string | never) {
     try {
         return action();

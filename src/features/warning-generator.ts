@@ -123,8 +123,8 @@ class WarningsGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private recoveryArchive() {
-        const isUpToDate = this.statistics.recoveryArchive.isUpToDate;
-        const hasOrphans = this.statistics.recoveryArchive.hasLingeringOrphans;
+        const isUpToDate = this.statistics.index.isUpToDate;
+        const hasOrphans = this.statistics.index.hasLingeringOrphans;
         if (!isUpToDate) {
             if (hasOrphans) {
                 return this.asError(

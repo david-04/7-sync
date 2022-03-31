@@ -14,9 +14,8 @@ class DatabaseAssembler {
     // Load, validate and assemble the database
     //------------------------------------------------------------------------------------------------------------------
 
-    public static loadDatabase(context: Context) {
-        const json = JsonLoader.loadAndValidateDatabase(context);
-        return new DatabaseAssembler(context).assembleDatabase(json);
+    public static assemble(context: Context, database: JsonDatabase) {
+        return new DatabaseAssembler(context).assembleDatabase(database);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -32,7 +31,7 @@ class DatabaseAssembler {
             this.assembleFilesAndSubdirectories(database, json);
             return database;
         } catch (exception) {
-            rethrowWithPrefix(`Failed to assemble database ${this.context.files.database}`, exception);
+            rethrowWithPrefix(`Failed to assemble database`, exception);
         }
     }
 

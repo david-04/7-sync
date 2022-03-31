@@ -18,7 +18,7 @@ class SetupWizard {
 
     public static async reconfigure(options: ReconfigureOptions) {
         const logger = new Logger(LogLevel.ERROR, new NullOutputStream());
-        const config = JsonLoader.loadAndValidateConfig(options, logger);
+        const config = JsonParser.loadAndValidateConfig(options, logger);
         return this.initializeOrReconfigure({ config: options.config, ...config.originalConfig });
     }
 

@@ -270,14 +270,6 @@ class SevenZip {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Verify if the given file can be accessed with the current password
-    //------------------------------------------------------------------------------------------------------------------
-
-    public isReadableWithCurrentPassword(zipFile: string) {
-        return this.listToStdout(zipFile).success;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Zip a file
     //------------------------------------------------------------------------------------------------------------------
 
@@ -360,7 +352,7 @@ class SevenZip {
     // List file contents to stdout
     //------------------------------------------------------------------------------------------------------------------
 
-    private listToStdout(zipFile: string) {
+    public listToStdout(zipFile: string) {
         return this.runSevenZip({
             parameters: [
                 ...this.getListParameters(),

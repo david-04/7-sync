@@ -14,7 +14,11 @@ class Synchronizer {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    private constructor(readonly context: Context, readonly database: MappedRootDirectory) {
+    private constructor(
+        context: Context,
+        private readonly indexFileManager: IndexFileManager,
+        private readonly database: MappedRootDirectory
+    ) {
         this.fileManager = new FileManager(context, database);
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
@@ -24,15 +28,14 @@ class Synchronizer {
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, database: MappedRootDirectory) {
-        const synchronizer = new Synchronizer(context, database);
+    public static run(context: Context, indexFileManager: IndexFileManager, database: MappedRootDirectory) {
+        const synchronizer = new Synchronizer(context, indexFileManager, database);
         synchronizer.syncDirectory(database);
         const statistics = synchronizer.statistics;
         if (!statistics.copied.total && !statistics.deleted.total) {
             context.print("The destination is already up to date");
         }
-        synchronizer.processRecoveryArchive();
-        DatabaseSerializer.saveDatabase(context, database);
+        synchronizer.updateIndex();
         StatisticsReporter.run(context, synchronizer.statistics);
         return WarningsGenerator.run(context, synchronizer.statistics);
     }
@@ -88,7 +91,7 @@ class Synchronizer {
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (dirent.isDirectory()) {
             return this.deleteOrphanedDirectory(destination);
-        } else if (isRootFolder && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
+        } else if (isRootFolder && IndexFileManager.isArchiveName(dirent.name)) {
             return true;
         } else {
             const success = this.fileManager.deleteFile({ destination });
@@ -397,8 +400,6 @@ class Synchronizer {
             && databaseEntry.size !== properties.size;
         if (hasChanged) {
             return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the source file was modified");
-        } else if (!this.context.sevenZip.isReadableWithCurrentPassword(databaseEntry.destination.absolutePath)) {
-            return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the password has changed");
         } else {
             return true;
         }
@@ -436,59 +437,11 @@ class Synchronizer {
     // Recreate the recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private processRecoveryArchive() {
-        const recoveryArchives = this.getRecoveryArchives();
-        if (1 === recoveryArchives.length && !this.statistics.success) {
-            const recoveryArchive = node.path.join(this.database.source.absolutePath, recoveryArchives[0].name);
-            if (this.context.sevenZip.isReadableWithCurrentPassword(recoveryArchive)) {
-                const archiveName = node.path.basename(recoveryArchives[0].name);
-                this.logger.info(`The recovery archive ${archiveName} does not need to be updated`);
-                this.statistics.recoveryArchive.isUpToDate = true;
-                return true;
-            }
-        }
-        return this.recreateRecoveryArchive(recoveryArchives);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Get a list of all recovery archives
-    //------------------------------------------------------------------------------------------------------------------
-
-    private getRecoveryArchives() {
-        return FileUtils.getChildrenIfDirectoryExists(this.database.destination.absolutePath).array.filter(dirent =>
-            !dirent.isDirectory()
-            && dirent.name.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)
-            && !this.database.files.byDestinationName.has(dirent.name)
-            && !this.database.subdirectories.byDestinationName.has(dirent.name)
-        );
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Recreate the recovery archive
-    //------------------------------------------------------------------------------------------------------------------
-
-    private recreateRecoveryArchive(recoveryArchives: Dirent[]) {
-        const success = RecoveryArchiveCreator.create(this.context, this.database);
-        if (success) {
-            this.statistics.recoveryArchive.isUpToDate = true;
-            this.deleteRecoveryArchives(recoveryArchives);
-        }
-        return success;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Delete recovery archives from the root folder
-    //------------------------------------------------------------------------------------------------------------------
-
-    private deleteRecoveryArchives(recoveryArchives: Dirent[]) {
-        if (recoveryArchives.length) {
-            const success = recoveryArchives
-                .map(dirent => node.path.join(this.database.destination.absolutePath, dirent.name))
-                .filter(name => this.fileManager.deleteFile({ destination: name, suppressConsoleOutput: true }))
-                .length;
-            this.statistics.orphans.files.success += Math.max(0, success - 1);
-            this.statistics.orphans.files.failed += Math.max(0, recoveryArchives.length - success - (success ? 0 : 1));
-            this.statistics.recoveryArchive.hasLingeringOrphans = success < recoveryArchives.length;
-        }
+    private updateIndex() {
+        const result = this.indexFileManager.updateIndex(this.database, !!this.statistics.success);
+        this.statistics.index.isUpToDate = result.isUpToDate;
+        this.statistics.index.hasLingeringOrphans = 0 < result.orphans.failed + result.latest.failed;
+        this.statistics.orphans.files.success += result.orphans.success;
+        this.statistics.orphans.files.failed += result.orphans.failed;
     }
 }

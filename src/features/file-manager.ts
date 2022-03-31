@@ -131,14 +131,14 @@ class FileManager {
     public deleteFile(
         options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
     ) {
-        const isRecoveryArchive = !options.source
+        const isIndexFile = !options.source
             && this.database.destination.absolutePath === node.path.dirname(options.destination)
-            && node.path.basename(options.destination).startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX);
+            && IndexFileManager.isArchiveName(node.path.basename(options.destination));
         return this.deleteFileOrDirectory({
             ...options,
             type: "file",
-            isRecoveryArchive,
-            suppressConsoleOutput: options.suppressConsoleOutput || isRecoveryArchive
+            isIndexFile: isIndexFile,
+            suppressConsoleOutput: options.suppressConsoleOutput || isIndexFile
         });
     }
 
@@ -162,7 +162,7 @@ class FileManager {
         suppressConsoleOutput?: boolean,
         reason?: string,
         type: "file" | "directory",
-        isRecoveryArchive?: boolean
+        isIndexFile?: boolean
 
     }) {
         const isOrphan = !options.source;
@@ -171,7 +171,7 @@ class FileManager {
         }
         const pathInfo = this.getLogFilePathInfo("rm", options.destination, options.source);
         const reason = options.reason ? ` ${options.reason}` : "";
-        if (isOrphan && !options.isRecoveryArchive) {
+        if (isOrphan && !options.isIndexFile) {
             this.logger.warn(this.isDryRun
                 ? `Would delete orphaned ${options.type} ${pathInfo}${reason}`
                 : `Deleting orphaned ${options.type} ${pathInfo}${reason}`

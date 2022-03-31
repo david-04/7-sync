@@ -13,7 +13,7 @@ class Context {
     private constructor(
         public readonly options: SyncOptions,
         public readonly config: JsonConfig,
-        public readonly files: { config: string, database: string, log: string },
+        public readonly files: { config: string, log: string },
         public readonly logger: Logger,
         public readonly console: OutputStream,
         public readonly filenameEnumerator: FilenameEnumerator,
@@ -44,7 +44,6 @@ class Context {
             logger.info(`Destination ..... ${config.destination}`);
             logger.info(`Configuration ... ${FileUtils.getAbsolutePath(files.config)}`);
             logger.info(`Log file ........ ${FileUtils.getAbsolutePath(files.log)}`);
-            logger.info(`Database ........ ${FileUtils.getAbsolutePath(files.database)}`);
             logger.info(`7-Zip command ... ${config.sevenZip}`);
             logger.info(`Dry-run ......... ${options.dryRun}`);
             return new Context(options, config, files, logger, console, filenameEnumerator, sevenZip);
@@ -63,7 +62,6 @@ class Context {
         if (true === result) {
             return {
                 config: FileUtils.getAbsolutePath(configFile),
-                database: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".db"))),
                 log: FileUtils.getAbsolutePath(FileUtils.resolve(configFile, configFile.replace(/(\.cfg)?$/, ".log")))
             };
         } else {
@@ -84,7 +82,7 @@ class Context {
     //------------------------------------------------------------------------------------------------------------------
 
     private static getConfig(configFile: string, options: SyncOptions, logger: Logger) {
-        const json = JsonLoader.loadAndValidateConfig(options, logger).finalConfig;
+        const json = JsonParser.loadAndValidateConfig(options, logger).finalConfig;
         const validationResult = ConfigValidator.validate(configFile, json);
         if (true === validationResult) {
             return json;

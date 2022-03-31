@@ -94,9 +94,9 @@ class Logger {
     // Pad a number with leading zeros
     //------------------------------------------------------------------------------------------------------------------
 
-    private static formatNumber(number: number, length: number) {
+    public static formatNumber(number: number, length: number) {
         const result = number.toFixed(0);
-        return "0000".substring(0, Math.max(0, length - result.length)) + result;
+        return "00000000000000000000".substring(0, Math.max(0, length - result.length)) + result;
     }
 
     //------------------------------------------------------------------------------------------------------------------

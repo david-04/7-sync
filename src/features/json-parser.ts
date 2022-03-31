@@ -1,4 +1,4 @@
-class JsonLoader {
+class JsonParser {
 
     //------------------------------------------------------------------------------------------------------------------
     // Load and validate a JSON configuration
@@ -53,27 +53,15 @@ class JsonLoader {
     // Load and validate a JSON database
     //------------------------------------------------------------------------------------------------------------------
 
-    public static loadAndValidateDatabase(context: Context) {
-        const file = context.files.database;
-        if (FileUtils.exists(file)) {
-            if (!FileUtils.existsAndIsFile(file)) {
-                throw new FriendlyException(`${file} is not a file`);
-            } else {
-                context.logger.info(`Loading database ${file}`);
-                context.print("Loading the database");
-                try {
-                    const database = this.loadFile<JsonDatabase>(file);
-                    JsonValidator.validateDatabase(database);
-                    return database;
-                } catch (exception) {
-                    rethrowWithPrefix(`Failed to load database ${file}:`, exception);
-                }
-            }
-        } else {
-            context.logger.info(`${file} does not exist - starting with an empty database`);
-            const emptyDatabase: JsonDatabase = { directories: [], files: [], last: "" };
-            return emptyDatabase;
-        }
+    public static parseAndValidateDatabase(json: string) {
+        return tryCatchRethrowFriendlyException(
+            () => {
+                const database = this.parseJson<JsonDatabase>(json);
+                JsonValidator.validateDatabase(database);
+                return database;
+            },
+            error => `Failed to parse database: ${error}`
+        )
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -81,10 +69,21 @@ class JsonLoader {
     //------------------------------------------------------------------------------------------------------------------
 
     private static loadFile<T>(file: string): T {
-        try {
-            return JSON.parse(node.fs.readFileSync(file).toString()) as T;
-        } catch (exception) {
-            throw new FriendlyException(firstLineOnly(exception));
-        }
+        const json = tryCatchRethrowFriendlyException(
+            () => node.fs.readFileSync(file).toString(),
+            error => `Failed to load ${file}: ${error}`
+        );
+        return this.parseJson<T>(json);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Parse JSON content
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static parseJson<T>(json: string): T {
+        return tryCatchRethrowFriendlyException(
+            () => JSON.parse(json) as T,
+            error => `Failed to parse JSON: ${error}`
+        );
     }
 }

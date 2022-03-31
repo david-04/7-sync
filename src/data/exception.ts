@@ -20,3 +20,18 @@ class FriendlyException extends Error {
         throw new FriendlyException(message, exitCode);
     }
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// A class for internal errors (that are never supposed to be thrown in production code)
+//----------------------------------------------------------------------------------------------------------------------
+
+class InternalError extends Error {
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Initialization
+    //------------------------------------------------------------------------------------------------------------------
+
+    constructor(message: string) {
+        super(`Internal error: ${message}`);
+    }
+}

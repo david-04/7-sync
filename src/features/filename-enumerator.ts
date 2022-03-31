@@ -5,7 +5,8 @@
 class FilenameEnumerator {
 
     private static readonly LETTERS = "abcdefghijkmnpqrstuvwxyz123456789"; // cspell: disable-line
-    public static readonly RECOVERY_FILE_NAME_PREFIX = "_____RECOVERY_____";
+
+    private static hasDetectedCollisions = false;
 
     private readonly firstLetter;
     private readonly nextLetter;
@@ -55,22 +56,6 @@ class FilenameEnumerator {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Get the first or next filename
-    //------------------------------------------------------------------------------------------------------------------
-
-    public getNextFilename(currentFilename?: string) {
-        if (currentFilename) {
-            let nextFilename = currentFilename;
-            do {
-                nextFilename = this.calculateNext(currentFilename);
-            } while (nextFilename.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX));
-            return nextFilename;
-        } else {
-            return this.firstLetter;
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
     // Calculate the next filename after the current one
     //------------------------------------------------------------------------------------------------------------------
 
@@ -95,15 +80,34 @@ class FilenameEnumerator {
     public getNextAvailableFilename(path: string, last: string, prefix: string, suffix: string) {
         let next = last;
         while (true) {
-            next = this.getNextFilename(next);
+            next = next ? this.calculateNext(next) : this.firstLetter;
             const filename = prefix + next + suffix;
             const filenameWithPath = node.path.join(path, filename);
-            if (!FileUtils.exists(filenameWithPath) && !next.startsWith(FilenameEnumerator.RECOVERY_FILE_NAME_PREFIX)) {
+            if (FileUtils.exists(filenameWithPath)) {
+                this.warnAboutOutOfSyncDatabase(path, filename);
+            } else if (!IndexFileManager.isArchiveName(next)) {
                 return { enumeratedName: next, filename, filenameWithPath };
-            } else {
-                this.logger.debug(`The next filename is already occupied: ${filename}`);
-                this.logger.warn(`The database seems to be lagging behind the destination directory`);
             }
         }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // On the first occasion only, warn about an out-of-sync database
+    //------------------------------------------------------------------------------------------------------------------
+
+    private warnAboutOutOfSyncDatabase(path: string, name: string) {
+        if (!FilenameEnumerator.hasDetectedCollisions) {
+            this.logger.warn(`The next filename is already occupied: ${path} => ${name}`);
+            this.logger.warn(`The database seems to be out of sync with the destination directory`);
+            FilenameEnumerator.hasDetectedCollisions = true;
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Determine if at least one generated filename was already in use
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static hasDetectedFilenameCollisions() {
+        return this.hasDetectedCollisions;
     }
 }
