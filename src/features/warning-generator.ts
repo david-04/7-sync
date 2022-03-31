@@ -1,5 +1,5 @@
 //----------------------------------------------------------------------------------------------------------------------
-// Analyse the sync run statistics and generate warnings
+// Analyze the sync run statistics and generate warnings
 //----------------------------------------------------------------------------------------------------------------------
 
 class WarningsGenerator {
@@ -36,7 +36,8 @@ class WarningsGenerator {
             this.someFilesCouldNotBeDeleted(),
             this.orphansWereFound(),
             this.purgeWasNecessary(),
-            this.recoveryArchive()
+            this.indexArchive(),
+            this.enumeratedFilenameCollisions()
         ].flatMap(array => array).sort((a, b) => a.logLevel.index - b.logLevel.index);
         if (warnings.length) {
             warnings.forEach(warning => this.logger.log(warning.logLevel, warning.message));
@@ -122,31 +123,45 @@ class WarningsGenerator {
     // Recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private recoveryArchive() {
+    private indexArchive() {
         const isUpToDate = this.statistics.index.isUpToDate;
         const hasOrphans = this.statistics.index.hasLingeringOrphans;
         if (!isUpToDate) {
             if (hasOrphans) {
                 return this.asError(
-                    "Failed to create a new recovery archive.",
-                    "The previous one was preserved (and not deleted).",
-                    "But it's file index is outdated"
+                    "Failed to update the database.",
+                    "The previous one was preserved but is outdated.",
+                    "The next synchronization run will delete and re-encrypted all files processed in this run."
                 );
             } else {
                 return this.asError(
-                    "Failed to create the recovery archive.",
-                    `There's no index file to look up encrypted file names.`,
-                    "The backup can still be restored as a whole."
+                    "Failed to save the database.",
+                    `The next synchronization run will delete and re-encrypt all files`
                 );
             }
         } else if (hasOrphans) {
             return this.asWarning(
-                "The old recovery archive(s) could not be deleted.",
-                "It will be retried in the next synchronzation run"
+                "The database was saved but the old one could not be deleted.",
+                "It will be retried in the next synchronization run"
             );
         } else {
             return [];
         }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // The database is out of sync with the file system
+    //------------------------------------------------------------------------------------------------------------------
+
+    private enumeratedFilenameCollisions() {
+        return FilenameEnumerator.hasDetectedFilenameCollisions()
+            ? this.asError(
+                "The database is out of sync with the destination.",
+                "Generated filename might be re-used.",
+                "When synchronizing the encrypted destination to another location without checking the modified date,",
+                "updated files might be copied"
+            )
+            : [];
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -232,10 +247,10 @@ class WarningsGenerator {
         while (message) {
             const originalMessageLength = message.length;
             if (80 < originalMessageLength) {
-                for (let index = Math.min(80, originalMessageLength - 2); 0 <= index; index--) {
-                    if (" " === message.charAt(index)) {
-                        this.print(message.substring(0, index).trim());
-                        message = indent + message.substring(index + 1).trim()
+                for (let position = Math.min(80, originalMessageLength - 2); 0 <= position; position--) {
+                    if (" " === message.charAt(position)) {
+                        this.print(message.substring(0, position).trim());
+                        message = indent + message.substring(position + 1).trim()
                         break;
                     }
                 }

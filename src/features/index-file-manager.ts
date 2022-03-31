@@ -85,7 +85,7 @@ class IndexFileManager {
         const unzip = this.context.sevenZip.unzipToStdout(absolutePath, databaseFilename);
         if (unzip.success && unzip.consoleOutput) {
             this.logger.info(`Loaded database ${databaseFilename} from ${absolutePath}`);
-            this.print(`Loading database`);
+            this.print(`Loading the database`);
             return unzip.consoleOutput;
         } else {
             if (unzip.consoleOutput) {
