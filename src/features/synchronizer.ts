@@ -16,7 +16,7 @@ class Synchronizer {
 
     private constructor(
         context: Context,
-        private readonly indexFileManager: IndexFileManager,
+        private readonly metaArchiveManager: MetaArchiveManager,
         private readonly database: MappedRootDirectory
     ) {
         this.fileManager = new FileManager(context, database);
@@ -28,8 +28,8 @@ class Synchronizer {
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, indexFileManager: IndexFileManager, database: MappedRootDirectory) {
-        const synchronizer = new Synchronizer(context, indexFileManager, database);
+    public static run(context: Context, metaArchiveManager: MetaArchiveManager, database: MappedRootDirectory) {
+        const synchronizer = new Synchronizer(context, metaArchiveManager, database);
         synchronizer.syncDirectory(database);
         const statistics = synchronizer.statistics;
         if (!statistics.copied.total && !statistics.deleted.total) {
@@ -91,7 +91,7 @@ class Synchronizer {
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (dirent.isDirectory()) {
             return this.deleteOrphanedDirectory(destination);
-        } else if (isRootFolder && IndexFileManager.isArchiveName(dirent.name)) {
+        } else if (isRootFolder && MetaArchiveManager.isArchiveName(dirent.name)) {
             return true;
         } else {
             const success = this.fileManager.deleteFile({ destination });
@@ -438,7 +438,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private updateIndex() {
-        const result = this.indexFileManager.updateIndex(this.database, !!this.statistics.success);
+        const result = this.metaArchiveManager.updateIndex(this.database, !!this.statistics.success);
         this.statistics.index.isUpToDate = result.isUpToDate;
         this.statistics.index.hasLingeringOrphans = 0 < result.orphans.failed + result.latest.failed;
         this.statistics.orphans.files.success += result.orphans.success;

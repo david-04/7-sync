@@ -2,7 +2,7 @@
 // Manage the index archive with the database and file listings
 //----------------------------------------------------------------------------------------------------------------------
 
-class IndexFileManager {
+class MetaArchiveManager {
 
     public static readonly ARCHIVE_FILE_PREFIX = "___INDEX___";
 
@@ -32,10 +32,10 @@ class IndexFileManager {
     // Load the database from the latest archive
     //------------------------------------------------------------------------------------------------------------------
 
-    public loadDatabase(): JsonDatabase {
+    public loadDatabaseOrGetEmptyOne(): JsonDatabase {
         const files = this.listIndexArchives();
         if (files) {
-            const json = this.testArchiveAndUnzipDatabase(files.latest.name, files.latest.absolutePath);
+            const json = this.loadDatabaseFromFile(files.latest.absolutePath, files.latest.name);
             if (json) {
                 const database = JsonParser.parseAndValidateDatabase(json);
                 this.successfullyReadArchive = files.latest.absolutePath;
@@ -55,10 +55,10 @@ class IndexFileManager {
     // Verify that the archive can be read - and unzip the database from it
     //------------------------------------------------------------------------------------------------------------------
 
-    private testArchiveAndUnzipDatabase(name: string, absolutePath: string) {
+    private loadDatabaseFromFile(absolutePath: string, name: string) {
         const list = this.context.sevenZip.listToStdout(absolutePath);
         if (list.success) {
-            return this.unzipDatabase(name, absolutePath, IndexFileManager.DATABASE_FILENAME);
+            return this.unzipDatabase(absolutePath, name, MetaArchiveManager.DATABASE_FILENAME);
         } else {
             if (list.consoleOutput) {
                 this.logger.error(list.consoleOutput);
@@ -81,7 +81,7 @@ class IndexFileManager {
     // Unzip the database from the given archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private unzipDatabase(name: string, absolutePath: string, databaseFilename: string) {
+    private unzipDatabase(absolutePath: string, name: string, databaseFilename: string) {
         const unzip = this.context.sevenZip.unzipToStdout(absolutePath, databaseFilename);
         if (unzip.success && unzip.consoleOutput) {
             this.logger.info(`Loaded database ${databaseFilename} from ${absolutePath}`);
@@ -147,11 +147,11 @@ class IndexFileManager {
         } else {
             try {
                 this.print("Saving the database");
-                return this.zipNewIndex(archive.temp, archive.final, database);
+                return this.populateIndex(archive.temp, archive.final, database);
             } catch (exception) {
                 this.logger.error("Failed to save the database");
                 this.print("===> FAILED");
-                this.deleteFile(archive.temp);
+                this.deleteFileIfExists(archive.temp);
                 return false;
             }
         }
@@ -161,13 +161,13 @@ class IndexFileManager {
     // Create a new index archive and add all files
     //------------------------------------------------------------------------------------------------------------------
 
-    private zipNewIndex(tempFile: string, finalFile: string, database: MappedRootDirectory) {
+    private populateIndex(tempFile: string, finalFile: string, database: MappedRootDirectory) {
         const success = this.zipDatabase(tempFile, database)
             && this.zipReadme(tempFile)
-            && this.zipIndex(tempFile, database)
+            && this.zipFileListing(tempFile, database)
             && this.renameArchive(tempFile, finalFile);
         if (!success) {
-            this.deleteFile(tempFile);
+            this.deleteFileIfExists(tempFile);
         }
         return success;
     }
@@ -179,8 +179,8 @@ class IndexFileManager {
     private zipDatabase(zipFile: string, database: MappedRootDirectory) {
         this.logger.info("Serializing database");
         const json = DatabaseSerializer.serializeDatabase(database);
-        this.logger.info(`Storing the database as ${IndexFileManager.DATABASE_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, IndexFileManager.DATABASE_FILENAME, json);
+        this.logger.info(`Storing the database as ${MetaArchiveManager.DATABASE_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetaArchiveManager.DATABASE_FILENAME, json);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -188,19 +188,19 @@ class IndexFileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private zipReadme(zipFile: string) {
-        this.logger.info(`Storing the README as ${IndexFileManager.README_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, IndexFileManager.README_FILENAME, README);
+        this.logger.info(`Storing the README as ${MetaArchiveManager.README_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetaArchiveManager.README_FILENAME, README);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Add the file mapping
     //------------------------------------------------------------------------------------------------------------------
 
-    private zipIndex(zipFile: string, database: MappedRootDirectory) {
+    private zipFileListing(zipFile: string, database: MappedRootDirectory) {
         this.logger.info("Creating the file listing");
         const listing = FileListingCreator.create(database);
-        this.logger.info(`Storing the file listing as ${IndexFileManager.LISTING_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, IndexFileManager.LISTING_FILENAME, listing);
+        this.logger.info(`Storing the file listing as ${MetaArchiveManager.LISTING_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetaArchiveManager.LISTING_FILENAME, listing);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -222,7 +222,7 @@ class IndexFileManager {
     // Try to delete the temporary file (if it exists)
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteFile(file: string) {
+    private deleteFileIfExists(file: string) {
         if (FileUtils.exists(file)) {
             try {
                 this.logger.info(`Deleting ${file}`);
@@ -244,7 +244,7 @@ class IndexFileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private deleteOrphans(orphans: string[]) {
-        const deleted = orphans.filter(file => this.deleteFile(file)).length;
+        const deleted = orphans.filter(file => this.deleteFileIfExists(file)).length;
         const failed = orphans.length - deleted;
         const lastDeleted = 0 < deleted ? 1 : 0;
         const lastFailed = !lastDeleted && failed ? 1 : 0;
@@ -265,7 +265,7 @@ class IndexFileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     public static isArchiveName(name: string) {
-        const prefix = IndexFileManager.ARCHIVE_FILE_PREFIX;
+        const prefix = MetaArchiveManager.ARCHIVE_FILE_PREFIX;
         const suffix = ".7z";
         if (name.startsWith(prefix) && name.endsWith(suffix)) {
             const timestamp = name.substring(prefix.length, name.length - suffix.length);
@@ -280,14 +280,14 @@ class IndexFileManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private generateArchiveName() {
-        const timestamp = IndexFileManager.generateTimestamp();
+        const timestamp = MetaArchiveManager.generateTimestamp();
         for (let index = 0; index < 1000000; index++) {
             const suffix = index ? `_${Logger.formatNumber(index, 6)}` : "";
-            const name = `${IndexFileManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
-            const tempName = `${IndexFileManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`
+            const name = `${MetaArchiveManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
+            const tempName = `${MetaArchiveManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`
             const nameWithPath = node.path.join(this.context.config.destination, name);
             const tempNameWithPath = node.path.join(this.context.config.destination, tempName);
-            if (!IndexFileManager.isArchiveName(name)) {
+            if (!MetaArchiveManager.isArchiveName(name)) {
                 throw new InternalError(`Generated an invalid archive name: ${timestamp}`);
             }
             if (!FileUtils.exists(nameWithPath) && !FileUtils.exists(tempNameWithPath)) {
@@ -323,7 +323,7 @@ class IndexFileManager {
             .array
             .filter(dirent => !dirent.isDirectory())
             .map(dirent => dirent.name)
-            .filter(filename => IndexFileManager.isArchiveName(filename))
+            .filter(filename => MetaArchiveManager.isArchiveName(filename))
             .sort()
             .map(filename => ({ name: filename, absolutePath: node.path.join(this.destination, filename) }));
         const total = files.length;

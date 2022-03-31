@@ -1,11 +1,11 @@
 //----------------------------------------------------------------------------------------------------------------------
-// Compile a file listing that maps source names to enumerated destination names
+// Create a list that shows how plain-text source paths map to enumerated paths in the destination
 //----------------------------------------------------------------------------------------------------------------------
 
 class FileListingCreator {
 
     //------------------------------------------------------------------------------------------------------------------
-    // Create a file listing for the given database
+    // Create a file listing
     //------------------------------------------------------------------------------------------------------------------
 
     public static create(database: MappedRootDirectory) {
@@ -13,7 +13,7 @@ class FileListingCreator {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Create the the file index
+    // Add listings for all files and subdirectories
     //------------------------------------------------------------------------------------------------------------------
 
     private static createFileIndex(directory: MappedDirectory, lines: string[]) {
@@ -24,7 +24,7 @@ class FileListingCreator {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Add a single file or directory to the index
+    // Add the listing for the given file or subdirectory
     //------------------------------------------------------------------------------------------------------------------
 
     private static addToIndex(fileOrDirectory: MappedFile | MappedDirectory, lines: string[]) {

@@ -66,10 +66,10 @@ class Application {
     private sync(context: Context) {
         try {
             context.sevenZip.runSelfTest();
-            const indexFileManager = new IndexFileManager(context);
-            const database = DatabaseAssembler.assemble(context, indexFileManager.loadDatabase());
+            const metaArchiveManager = new MetaArchiveManager(context);
+            const database = DatabaseAssembler.assemble(context, metaArchiveManager.loadDatabaseOrGetEmptyOne());
             context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
-            return Synchronizer.run(context, indexFileManager, database);
+            return Synchronizer.run(context, metaArchiveManager, database);
         } catch (exception) {
             context.logger.error(firstLineOnly(exception));
             throw exception;

@@ -85,7 +85,7 @@ class FilenameEnumerator {
             const filenameWithPath = node.path.join(path, filename);
             if (FileUtils.exists(filenameWithPath)) {
                 this.warnAboutOutOfSyncDatabase(path, filename);
-            } else if (!IndexFileManager.isArchiveName(next)) {
+            } else if (!MetaArchiveManager.isArchiveName(next)) {
                 return { enumeratedName: next, filename, filenameWithPath };
             }
         }
