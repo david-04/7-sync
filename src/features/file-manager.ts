@@ -178,8 +178,8 @@ class FileManager {
             );
         } else {
             this.logger.info(this.isDryRun
-                ? `Would delete ${pathInfo}${reason}`
-                : `Deleting ${pathInfo}${reason}`
+                ? `Would delete ${options.type} ${pathInfo}${reason}`
+                : `Deleting ${options.type} ${pathInfo}${reason}`
             );
         }
         const success = this.doDeleteFileOrDirectory(options.destination, "directory" === options.type);

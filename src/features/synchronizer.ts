@@ -32,7 +32,7 @@ class Synchronizer {
         const synchronizer = new Synchronizer(context, metaArchiveManager, database);
         synchronizer.syncDirectory(database);
         const statistics = synchronizer.statistics;
-        if (!statistics.copied.total && !statistics.deleted.total) {
+        if (!statistics.copied.total && !statistics.deleted.total && !statistics.orphans.total) {
             context.print("The destination is already up to date");
             context.logger.info("The destination is already up to date - no changes required");
         }

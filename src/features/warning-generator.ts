@@ -98,7 +98,10 @@ class WarningsGenerator {
                 const theyWereDeleted = 1 === orphans.quantity
                     ? "It was deleted successfully."
                     : "They were deleted deleted successfully.";
-                return this.info(thereAreOrphans, theyWereDeleted);
+                const theyWouldBeDeleted = 1 === orphans.quantity
+                    ? "It would be deleted."
+                    : "They would be deleted.";
+                return this.info(thereAreOrphans, this.isDryRun ? theyWouldBeDeleted : theyWereDeleted);
             } else {
                 return this.warning(thereAreOrphans, "Some of them could be deleted but others are still there.");
             }
@@ -113,10 +116,13 @@ class WarningsGenerator {
 
     private purgeWasNecessary() {
         const purged = this.format(this.statistics.purged.files.total);
+        const theyWereOrWouldBeRemoved = this.isDryRun
+            ? `${purged.theyOrIt.upperCase} would be removed from the database.`
+            : `${purged.theyOrIt.upperCase} ${purged.haveOrHas} been removed from the database.`
         return purged.quantity
             ? this.warning(
                 `There ${purged.wereOrWas} ${purged.asText} that ${purged.haveOrHas} vanished from the destination.`,
-                `${purged.theyOrIt.upperCase} ${purged.haveOrHas} been removed from the database.`
+                theyWereOrWouldBeRemoved
             )
             : [];
     }
@@ -160,8 +166,9 @@ class WarningsGenerator {
             ? this.error(
                 "The database is out of sync with the destination.",
                 "Generated filename might be re-used.",
-                "When synchronizing the encrypted destination to another location without checking the modified date,",
-                "updated files might be copied"
+                "When synchronizing the encrypted destination to another location",
+                "without checking the modification date,",
+                "updated files might NOT be copied."
             )
             : [];
     }
@@ -235,7 +242,6 @@ class WarningsGenerator {
         this.print("--------------------------------------------------------------------------------");
         this.print(logLevel === LogLevel.ERROR ? "ERROR" : "Warning");
         this.print("--------------------------------------------------------------------------------");
-        this.print("");
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -243,6 +249,7 @@ class WarningsGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private displayMessage(message: string, index: number, total: number) {
+        this.print("");
         const useNumbering = 1 < total;
         message = (useNumbering ? `${index + 1}. ${message}` : message).trim();
         const indent = useNumbering ? "   " : "";
@@ -262,6 +269,5 @@ class WarningsGenerator {
                 message = "";
             }
         }
-        this.print("");
     }
 }
