@@ -48,7 +48,7 @@ class ConfigValidator {
     public static validateSourceDirectory(config: string, source: string): string | true {
         const resolvedSource = FileUtils.resolve(config, source ?? "");
         if (!FileUtils.exists(resolvedSource)) {
-            return `Directory ${resolvedSource} does not exist`;
+            return `Source directory ${resolvedSource} does not exist`;
         } else if (!FileUtils.existsAndIsDirectory(resolvedSource)) {
             return `${resolvedSource} is not a directory`;
         } else if (FileUtils.isParentChild(resolvedSource, config)) {
@@ -66,7 +66,7 @@ class ConfigValidator {
         const resolvedSource = FileUtils.resolve(config, source ?? "");
         const resolvedDestination = FileUtils.resolve(config, destination ?? "");
         if (!FileUtils.exists(resolvedDestination)) {
-            return `Directory ${resolvedDestination} does not exist`;
+            return `Destination directory ${resolvedDestination} does not exist`;
         } else if (!FileUtils.existsAndIsDirectory(resolvedDestination)) {
             return `${resolvedDestination} is not a directory`;
         } else if (FileUtils.equals(resolvedSource, resolvedDestination)) {

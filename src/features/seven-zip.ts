@@ -32,7 +32,7 @@ class SevenZip {
     //------------------------------------------------------------------------------------------------------------------
 
     public runSelfTest() {
-        this.logger.info(`Verifying that 7-Zip (${this.executable}) is working correctly`);
+        this.logger.info(`Verifying that 7-Zip is working correctly`);
         this.print("Verifying that 7-Zip is working correctly");
         const directory = this.createTemporaryDirectory();
         try {
@@ -124,7 +124,6 @@ class SevenZip {
         const result = this.runSevenZip({});
         if (!result.success) {
             this.logExecution(result);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException(`The program can't be started - ${result.errorMessage}`);
         }
     }
@@ -137,7 +136,6 @@ class SevenZip {
         const result = this.runSevenZip({ parameters: ["--invalid-option", "non-existent-file"] });
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
             throw new FriendlyException("Passing invalid parameters does not cause an error");
         }
     }
@@ -150,14 +148,12 @@ class SevenZip {
         const zipResult = this.zipFile(directory, filename, zipFile);
         if (!zipResult.success) {
             this.logExecution(zipResult);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException("Failed to add a file to a zip archive");
         }
         const unzipResult = this.unzipToStdout(zipFile, filename);
         if (!zipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException("Failed to extract a file from a zip archive");
         }
         if (content !== unzipResult.consoleOutput) {
@@ -176,14 +172,12 @@ class SevenZip {
         const zipResult = this.zipString(content, filenameInArchive, zipFile);
         if (!zipResult.success) {
             this.logExecution(zipResult);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException("Failed to add string content to a zip archive");
         }
         const unzipResult = this.unzipToStdout(zipFile, filenameInArchive);
         if (!unzipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException("Failed to extract a file from a zip archive");
         }
         if (content !== unzipResult.consoleOutput) {
@@ -233,7 +227,6 @@ class SevenZip {
         const result = this.listToStdout(zipFile);
         if (!result.success) {
             this.logExecution(result);
-            this.logger.error("Expected no error and exit code 0");
             throw new FriendlyException(`Listing the contents of a zip archive failed`);
         }
     }
@@ -256,13 +249,18 @@ class SevenZip {
     //------------------------------------------------------------------------------------------------------------------
 
     private logExecution(
-        options: { getCommand: () => string, consoleOutput: string, details: { status: number | null, error?: Error } },
+        options: {
+            getCommand: () => string,
+            consoleOutput: string,
+            errorMessage?: string,
+            details: { status: number | null, error?: Error }
+        },
         logLevel = LogLevel.ERROR
     ) {
         [
             `Running command: ${options.getCommand()}`,
             options.consoleOutput || "The command did not produce any console output",
-            options.details.error ? firstLineOnly(options.details.error) : "",
+            options.errorMessage ?? "",
             null !== options.details.status ? `The command exited with code ${options.details.status}` : ""
         ]
             .filter(line => line)
