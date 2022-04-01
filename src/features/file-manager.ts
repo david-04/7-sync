@@ -66,16 +66,15 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public zipFile(parentDirectory: MappedDirectory, source: Dirent, reason?: string) {
+    public zipFile(parentDirectory: MappedDirectory, source: Dirent) {
         const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
         let success = true;
-        const suffix = reason ? ` ${reason}` : "";
         if (this.isDryRun) {
-            this.logger.info(`Would zip ${pathInfo}${suffix}`);
+            this.logger.info(`Would zip ${pathInfo}`);
         } else {
-            this.logger.info(`Zipping ${pathInfo}${suffix}`);
+            this.logger.info(`Zipping ${pathInfo}`);
             success = this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
         }
         return success

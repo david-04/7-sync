@@ -237,7 +237,7 @@ class Synchronizer {
         } else if (destinationDirent) {
             return this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
         } else {
-            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent)
+            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent);
         }
     }
 
