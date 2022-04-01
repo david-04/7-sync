@@ -46,11 +46,13 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private syncDirectory(directory: MappedDirectory): boolean {
-        const destinationChildren = FileUtils.getChildrenIfDirectoryExists(directory.destination.absolutePath).map;
-        const success1 = this.deleteOrphans(directory, destinationChildren);
-        const items = this.analyzeDirectory(directory, destinationChildren);
+        const destinationChildren = FileUtils.getChildrenIfDirectoryExists(directory.destination.absolutePath);
+        const unavailableFilenames = new Set<string>();
+        destinationChildren.array.forEach(dirent => unavailableFilenames.add(dirent.name));
+        const success1 = this.deleteOrphans(directory, destinationChildren.map);
+        const items = this.analyzeDirectory(directory, destinationChildren.map);
         const success2 = this.mapAndReduce(
-            items, item => this.processItem(directory, item.source, item.database, item.destination)
+            items, item => this.processItem(directory, item.source, item.database, item.destination, unavailableFilenames)
         );
         return success1 && success2;
     }
@@ -189,14 +191,17 @@ class Synchronizer {
 
     private processItem(
         parentDirectory: MappedDirectory,
-        sourceDirent?: Dirent,
-        databaseEntry?: MappedSubdirectory | MappedFile,
-        destinationDirent?: Dirent
+        sourceDirent: Dirent | undefined,
+        databaseEntry: MappedSubdirectory | MappedFile | undefined,
+        destinationDirent: Dirent | undefined,
+        unavailableFilenames: Set<string>
     ) {
         if (databaseEntry) {
-            return this.processKnownItem(parentDirectory, databaseEntry, sourceDirent, destinationDirent);
+            return this.processKnownItem(
+                parentDirectory, databaseEntry, sourceDirent, destinationDirent, unavailableFilenames
+            );
         } else if (sourceDirent) {
-            return this.processNewItem(parentDirectory, sourceDirent);
+            return this.processNewItem(parentDirectory, sourceDirent, unavailableFilenames);
         } else {
             return true;
         }
@@ -209,15 +214,18 @@ class Synchronizer {
     private processKnownItem(
         parentDirectory: MappedDirectory,
         databaseEntry: MappedSubdirectory | MappedFile,
-        sourceDirent?: Dirent,
-        destinationDirent?: Dirent
+        sourceDirent: Dirent | undefined,
+        destinationDirent: Dirent | undefined,
+        unavailableFilenames: Set<string>
     ) {
         if (sourceDirent && destinationDirent) {
-            return this.processPreexistingItem(parentDirectory, databaseEntry, sourceDirent, destinationDirent);
+            return this.processPreexistingItem(
+                parentDirectory, databaseEntry, sourceDirent, destinationDirent, unavailableFilenames
+            );
         } else if (destinationDirent) {
             return this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
         } else {
-            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent)
+            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent, unavailableFilenames);
         }
     }
 
@@ -225,10 +233,10 @@ class Synchronizer {
     // Process a new item that's not in the database yet
     //------------------------------------------------------------------------------------------------------------------
 
-    private processNewItem(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
+    private processNewItem(parentDirectory: MappedDirectory, sourceDirent: Dirent, unavailableFilenames: Set<string>) {
         return FileUtils.isDirectoryOrDirectoryLink(parentDirectory.source.absolutePath, sourceDirent)
-            ? this.processNewDirectory(parentDirectory, sourceDirent)
-            : this.processNewFile(parentDirectory, sourceDirent);
+            ? this.processNewDirectory(parentDirectory, sourceDirent, unavailableFilenames)
+            : this.processNewFile(parentDirectory, sourceDirent, unavailableFilenames);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -247,8 +255,10 @@ class Synchronizer {
     // Process a new directory that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
 
-    private processNewDirectory(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
-        const subdirectory = this.fileManager.createDirectory(parentDirectory, sourceDirent);
+    private processNewDirectory(
+        parentDirectory: MappedDirectory, sourceDirent: Dirent, unavailableFilenames: Set<string>
+    ) {
+        const subdirectory = this.fileManager.createDirectory(parentDirectory, sourceDirent, unavailableFilenames);
         if (subdirectory) {
             this.statistics.copied.directories.success++;
             return this.syncDirectory(subdirectory);
@@ -262,8 +272,8 @@ class Synchronizer {
     // Process a new file that was created after the last sync
     //------------------------------------------------------------------------------------------------------------------
 
-    private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
-        if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
+    private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent, unavailableFilenames: Set<string>) {
+        if (this.fileManager.zipFile(parentDirectory, sourceDirent, unavailableFilenames)) {
             this.statistics.copied.files.success++;
             return true;
         } else {
@@ -277,7 +287,10 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processVanishedItem(
-        parentDirectory: MappedDirectory, databaseEntry: MappedSubdirectory | MappedFile, sourceDirent?: Dirent
+        parentDirectory: MappedDirectory,
+        databaseEntry: MappedSubdirectory | MappedFile,
+        sourceDirent: Dirent | undefined,
+        unavailableFilenames: Set<string>
     ) {
         const prefix = this.isDryRun ? "Would purge" : "Purging";
         const sourcePath = databaseEntry.source.absolutePath;
@@ -300,7 +313,7 @@ class Synchronizer {
             this.statistics.purged.directories.success += children.subdirectories;
         }
         if (sourceDirent) {
-            this.processNewItem(parentDirectory, sourceDirent);
+            this.processNewItem(parentDirectory, sourceDirent, unavailableFilenames);
         }
         return true;
     }
@@ -376,7 +389,8 @@ class Synchronizer {
         parentDirectory: MappedDirectory,
         databaseEntry: MappedSubdirectory | MappedFile,
         sourceDirent: Dirent,
-        destinationDirent: Dirent
+        destinationDirent: Dirent,
+        unavailableFilenames: Set<string>
     ) {
         const sourceIsDirectory = FileUtils.isDirectoryOrDirectoryLink(
             databaseEntry.source.absolutePath, sourceDirent
@@ -386,10 +400,10 @@ class Synchronizer {
         );
         if (sourceIsDirectory !== destinationIsDirectory) {
             const success1 = this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
-            const success2 = this.processNewItem(parentDirectory, sourceDirent);
+            const success2 = this.processNewItem(parentDirectory, sourceDirent, unavailableFilenames);
             return success1 && success2;
         } else if (databaseEntry instanceof MappedFile) {
-            return this.processPreexistingFile(parentDirectory, databaseEntry, sourceDirent);
+            return this.processPreexistingFile(parentDirectory, databaseEntry, sourceDirent, unavailableFilenames);
         } else {
             return this.syncDirectory(databaseEntry);
         }
@@ -399,13 +413,20 @@ class Synchronizer {
     // Process a previously synced file that still exists in the source and in the destination
     //------------------------------------------------------------------------------------------------------------------
 
-    private processPreexistingFile(parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent) {
+    private processPreexistingFile(
+        parentDirectory: MappedDirectory,
+        databaseEntry: MappedFile,
+        sourceDirent: Dirent,
+        unavailableFilenames: Set<string>
+    ) {
         const properties = FileUtils.getProperties(databaseEntry.source.absolutePath);
         const hasChanged = databaseEntry.created !== properties.birthtimeMs
             || databaseEntry.modified !== properties.ctimeMs
             || databaseEntry.size !== properties.size;
         if (hasChanged) {
-            return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the source file was modified");
+            return this.processModifiedFile(
+                parentDirectory, databaseEntry, sourceDirent, "the source file was modified", unavailableFilenames
+            );
         } else {
             return true;
         }
@@ -416,7 +437,11 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processModifiedFile(
-        parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent, reason: string
+        parentDirectory: MappedDirectory,
+        databaseEntry: MappedFile,
+        sourceDirent: Dirent,
+        reason: string,
+        unavailableFilenames: Set<string>
     ) {
         parentDirectory.delete(databaseEntry);
         const deleteSucceeded = this.fileManager.deleteFile({
@@ -430,7 +455,7 @@ class Synchronizer {
         } else {
             this.statistics.deleted.files.failed++;
         }
-        const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
+        const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent, unavailableFilenames);
         if (copySucceeded) {
             this.statistics.copied.files.success++;
         } else {

@@ -22,8 +22,8 @@ class FileManager {
     // Create a new directory
     //------------------------------------------------------------------------------------------------------------------
 
-    public createDirectory(directory: MappedDirectory, source: Dirent) {
-        const paths = this.getSourceAndDestinationPaths(directory, source, "");
+    public createDirectory(directory: MappedDirectory, source: Dirent, unavailableFilenames: Set<string>) {
+        const paths = this.getSourceAndDestinationPaths(directory, source, "", unavailableFilenames);
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = this.getLogFilePathInfo("mkdir", paths.destination.absolutePath, paths.source.absolutePath);
         let newDestinationDirectory: Subdirectory | undefined;
@@ -66,16 +66,15 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public zipFile(parentDirectory: MappedDirectory, source: Dirent, reason?: string) {
-        const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
+    public zipFile(parentDirectory: MappedDirectory, source: Dirent, unavailableFilenames: Set<string>) {
+        const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z", unavailableFilenames);
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
         let success = true;
-        const suffix = reason ? ` ${reason}` : "";
         if (this.isDryRun) {
-            this.logger.info(`Would zip ${pathInfo}${suffix}`);
+            this.logger.info(`Would zip ${pathInfo}`);
         } else {
-            this.logger.info(`Zipping ${pathInfo}${suffix}`);
+            this.logger.info(`Zipping ${pathInfo}`);
             success = this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
         }
         return success
@@ -212,10 +211,12 @@ class FileManager {
     // Retrieve source and destination information
     //------------------------------------------------------------------------------------------------------------------
 
-    private getSourceAndDestinationPaths(directory: MappedDirectory, source: Dirent, suffix: string) {
+    private getSourceAndDestinationPaths(
+        directory: MappedDirectory, source: Dirent, suffix: string, unavailableFilenames: Set<string>
+    ) {
         const sourceAbsolute = node.path.join(directory.source.absolutePath, source.name);
         const sourceRelative = node.path.relative(this.database.source.absolutePath, sourceAbsolute);
-        const next = this.getNextAvailableFilename(directory, "", suffix);
+        const next = this.getNextAvailableFilename(directory, "", suffix, unavailableFilenames);
         const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
         const destinationRelative = node.path.relative(this.database.destination.absolutePath, destinationAbsolute);
         return {
@@ -262,9 +263,11 @@ class FileManager {
     // Get the next available enumerated file name
     //------------------------------------------------------------------------------------------------------------------
 
-    private getNextAvailableFilename(directory: MappedDirectory, prefix: string, suffix: string) {
+    private getNextAvailableFilename(
+        directory: MappedDirectory, prefix: string, suffix: string, unavailableFilenames: Set<string>
+    ) {
         return this.context.filenameEnumerator.getNextAvailableFilename(
-            directory.destination.absolutePath, directory.last, prefix, suffix
+            directory.destination.absolutePath, directory.last, prefix, suffix, unavailableFilenames
         );
     }
 }

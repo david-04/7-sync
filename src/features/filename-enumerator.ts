@@ -77,13 +77,15 @@ class FilenameEnumerator {
     // Determine the next file name
     //------------------------------------------------------------------------------------------------------------------
 
-    public getNextAvailableFilename(path: string, last: string, prefix: string, suffix: string) {
+    public getNextAvailableFilename(
+        path: string, last: string, prefix: string, suffix: string, unavailableFilenames: Set<string>
+    ) {
         let next = last;
         while (true) {
             next = next ? this.calculateNext(next) : this.firstLetter;
             const filename = prefix + next + suffix;
             const filenameWithPath = node.path.join(path, filename);
-            if (FileUtils.exists(filenameWithPath)) {
+            if (FileUtils.exists(filenameWithPath) || unavailableFilenames.has(filename)) {
                 this.warnAboutOutOfSyncDatabase(path, filename);
             } else if (!MetaArchiveManager.isArchiveName(next)) {
                 return { enumeratedName: next, filename, filenameWithPath };
