@@ -45,9 +45,11 @@ class WarningsGenerator {
             this.displayReport(logLevel, warnings.map(warning => warning.message));
             return logLevel === LogLevel.ERROR || LogLevel.WARN ? 1 : 0;
         } else {
-            const message = `The ${this.isDryRun ? "dry run" : "synchronization"} has completed successfully`;
-            this.print(message);
-            this.logger.info(message);
+            if (!this.isDryRun) {
+                const message = `The synchronization has completed successfully`;
+                this.print(message);
+                this.logger.info(message);
+            }
             return 0;
         }
     }

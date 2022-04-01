@@ -68,7 +68,9 @@ class Application {
             context.sevenZip.runSelfTest();
             const metaArchiveManager = new MetaArchiveManager(context);
             const database = DatabaseAssembler.assemble(context, metaArchiveManager.loadDatabaseOrGetEmptyOne());
-            context.logger.info(context.options.dryRun ? "Simulating synchronization" : "Starting synchronization");
+            const message = context.options.dryRun ? "Starting the dry run" : "Starting the synchronization";
+            context.logger.info(message);
+            context.print(message);
             return Synchronizer.run(context, metaArchiveManager, database);
         } catch (exception) {
             context.logger.error(firstLineOnly(exception));
