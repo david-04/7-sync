@@ -72,6 +72,10 @@ class SyncStats {
     public readonly deleted = new FileAndDirectoryStats();
     public readonly orphans = new FileAndDirectoryStats();
     public readonly purged = new FileAndDirectoryStats();
+    public readonly unprocessable = readonly({
+        source: { symlinks: 0, other: 0 },
+        destination: { symlinks: 0, other: 0 }
+    });
 
     public readonly index = {
         hasLingeringOrphans: false,

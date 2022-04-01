@@ -106,25 +106,4 @@ class FileUtils {
     public static getChildrenIfDirectoryExists(directory: string) {
         return this.exists(directory) ? this.getChildren(directory) : { array: [], map: new Map<string, Dirent>() };
     }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Determine if a given directory entry is a directory or a symbolic link to a directory
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static isDirectoryOrDirectoryLink(parentPath: string, item: Dirent) {
-        return item.isDirectory() || (item.isSymbolicLink() && this.allowsListingChildren(parentPath, item));
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Check if readdirSync runs without errors
-    //------------------------------------------------------------------------------------------------------------------
-
-    private static allowsListingChildren(path: string, item: Dirent) {
-        try {
-            this.getChildren(node.path.join(path, item.name));
-            return true;
-        } catch (exception) {
-            return false;
-        }
-    }
 }

@@ -37,7 +37,9 @@ class WarningsGenerator {
             this.orphansWereFound(),
             this.purgeWasNecessary(),
             this.indexArchive(),
-            this.enumeratedFilenameCollisions()
+            this.enumeratedFilenameCollisions(),
+            this.unprocessableSourceItems(),
+            this.unprocessableDestinationItems(),
         ].flatMap(array => array).sort((a, b) => a.logLevel.index - b.logLevel.index);
         if (warnings.length) {
             warnings.forEach(warning => this.logger.log(warning.logLevel, warning.message));
@@ -173,6 +175,45 @@ class WarningsGenerator {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Symbolic links or otherwise unprocessable items in the source
+    //------------------------------------------------------------------------------------------------------------------
+
+    private unprocessableSourceItems() {
+        const unprocessable = this.format(
+            this.statistics.unprocessable.source.symlinks + this.statistics.unprocessable.source.other,
+            "symbolic link or otherwise unprocessable object",
+            "symbolic links or otherwise unprocessable objects",
+        );
+        return unprocessable.quantity
+            ? this.warning(
+                `The source contains ${unprocessable.asText}.`,
+                `${unprocessable.theyOrIt.upperCase} ${unprocessable.isOrAre} ignored and not synchronized.`,
+                "Please refer to the log file for the list of affected links/items."
+            )
+            : [];
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Symbolic links or otherwise unprocessable items in the destination
+    //------------------------------------------------------------------------------------------------------------------
+
+    private unprocessableDestinationItems() {
+        const unprocessable = this.format(
+            this.statistics.unprocessable.destination.symlinks + this.statistics.unprocessable.destination.other,
+            "symbolic link or otherwise unprocessable object",
+            "symbolic links or otherwise unprocessable objects",
+        );
+        return unprocessable.quantity
+            ? this.warning(
+                `The destination contains ${unprocessable.asText}.`,
+                `${unprocessable.theyOrIt.upperCase} ${unprocessable.isOrAre} ignored and not synchronized.`,
+                "Please delete them manually.",
+                "Refer to the log file for the list of the affected links/items."
+            )
+            : [];
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Package a message as an error
     //------------------------------------------------------------------------------------------------------------------
 
@@ -219,7 +260,8 @@ class WarningsGenerator {
                 upperCase: 1 === quantity ? "It" : "They",
             },
             haveOrHas: 1 === quantity ? "has" : "have",
-            wereOrWas: 1 === quantity ? "was" : "were"
+            wereOrWas: 1 === quantity ? "was" : "were",
+            isOrAre: 1 === quantity ? "is" : "are"
         }
     }
 

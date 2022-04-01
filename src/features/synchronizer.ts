@@ -51,8 +51,8 @@ class Synchronizer {
         destinationChildren.array.forEach(dirent => unavailableFilenames.add(dirent.name));
         const success1 = this.deleteOrphans(directory, destinationChildren.map);
         const items = this.analyzeDirectory(directory, destinationChildren.map);
-        const success2 = this.mapAndReduce(
-            items, item => this.processItem(directory, item.source, item.database, item.destination, unavailableFilenames)
+        const success2 = this.mapAndReduce(items, item =>
+            this.processItem(directory, item.source, item.database, item.destination, unavailableFilenames)
         );
         return success1 && success2;
     }
@@ -94,6 +94,12 @@ class Synchronizer {
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (dirent.isDirectory()) {
             return this.deleteOrphanedDirectory(destination);
+        } else if (!dirent.isFile()) {
+            this.statistics.unprocessable.destination.symlinks += dirent.isSymbolicLink() ? 1 : 0;
+            this.statistics.unprocessable.destination.other += dirent.isSymbolicLink() ? 0 : 1;
+            const path = node.path.join(destination, dirent.name);
+            this.logger.warn(`Ignoring ${path} because it's not a regular file or directory`);
+            return true;
         } else if (isRootFolder && MetaArchiveManager.isArchiveName(dirent.name)) {
             return true;
         } else {
@@ -139,6 +145,10 @@ class Synchronizer {
 
     private analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
         const sourceChildren = FileUtils.getChildrenIfDirectoryExists(directory.source.absolutePath).map;
+        this.removeSymlinks(directory.source.absolutePath, sourceChildren, this.statistics.unprocessable.source);
+        this.removeSymlinks(
+            directory.destination.absolutePath, destinationChildren, this.statistics.unprocessable.destination
+        );
         const databaseFiles = Array.from(directory.files.bySourceName.values());
         const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
         const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
@@ -152,7 +162,20 @@ class Synchronizer {
         const sourceOnlyItems = Array.from(sourceChildren.values()).map(source => ({
             source, database: undefined, destination: undefined
         }));
-        return this.sortAnalysisResults(directory, [...sourceOnlyItems, ...databaseItems]);
+        return this.sortAnalysisResults(...sourceOnlyItems, ...databaseItems);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Remove symbolic links from the
+    //------------------------------------------------------------------------------------------------------------------
+
+    private removeSymlinks(path: string, map: Map<string, Dirent>, statistics: { symlinks: number, other: number }) {
+        const toDelete = Array.from(map.values()).filter(dirent => !dirent.isFile() && !dirent.isDirectory());
+        toDelete.forEach(dirent => map.delete(dirent.name));
+        statistics.symlinks += toDelete.filter(dirent => dirent.isSymbolicLink()).length;
+        statistics.other += toDelete.filter(dirent => !dirent.isSymbolicLink()).length;
+        toDelete.map(entry => node.path.join(path, entry.name))
+            .forEach(name => this.logger.warn(`Ignoring ${name} because it's not a regular file or directory`));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -160,15 +183,12 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private sortAnalysisResults(
-        directory: MappedDirectory,
-        array: Array<{ source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent }>
+        ...array: Array<{ source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent }>
     ) {
         return array.map(item => {
             let isDirectory = item.database instanceof MappedSubdirectory;
             if (!isDirectory && item.source) {
-                isDirectory = FileUtils.isDirectoryOrDirectoryLink(
-                    node.path.join(directory.source.absolutePath, item.source.name), item.source
-                );
+                isDirectory = item.source.isDirectory();
             }
             if (!isDirectory && item.destination) {
                 isDirectory = item.destination.isDirectory();
@@ -234,7 +254,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewItem(parentDirectory: MappedDirectory, sourceDirent: Dirent, unavailableFilenames: Set<string>) {
-        return FileUtils.isDirectoryOrDirectoryLink(parentDirectory.source.absolutePath, sourceDirent)
+        return sourceDirent.isDirectory()
             ? this.processNewDirectory(parentDirectory, sourceDirent, unavailableFilenames)
             : this.processNewFile(parentDirectory, sourceDirent, unavailableFilenames);
     }
@@ -392,13 +412,7 @@ class Synchronizer {
         destinationDirent: Dirent,
         unavailableFilenames: Set<string>
     ) {
-        const sourceIsDirectory = FileUtils.isDirectoryOrDirectoryLink(
-            databaseEntry.source.absolutePath, sourceDirent
-        );
-        const destinationIsDirectory = FileUtils.isDirectoryOrDirectoryLink(
-            databaseEntry.destination.absolutePath, destinationDirent
-        );
-        if (sourceIsDirectory !== destinationIsDirectory) {
+        if (sourceDirent.isDirectory() !== destinationDirent.isDirectory()) {
             const success1 = this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
             const success2 = this.processNewItem(parentDirectory, sourceDirent, unavailableFilenames);
             return success1 && success2;
