@@ -112,7 +112,9 @@ class MetaArchiveManager {
         const orphansToDelete = hasCreatedNewIndex
             ? actions.orphansToDelete.includingLatest
             : actions.orphansToDelete.excludingLatest
-        const orphans = this.deleteOrphans(orphansToDelete.map(file => file.absolutePath));
+        const orphans = this.isDryRun
+            ? { orphans: { success: 0, failed: 0 }, latest: { success: 0, failed: 0 } }
+            : this.deleteOrphans(orphansToDelete.map(file => file.absolutePath));
         return { isUpToDate: hasCreatedNewIndex || !actions.mustCreateNewIndex, ...orphans };
     }
 
@@ -177,7 +179,7 @@ class MetaArchiveManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private zipDatabase(zipFile: string, database: MappedRootDirectory) {
-        this.logger.info("Serializing database");
+        this.logger.info("Serializing the database");
         const json = DatabaseSerializer.serializeDatabase(database);
         this.logger.info(`Storing the database as ${MetaArchiveManager.DATABASE_FILENAME} in ${zipFile}`);
         return this.addToArchive(zipFile, MetaArchiveManager.DATABASE_FILENAME, json);
