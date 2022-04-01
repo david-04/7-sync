@@ -164,11 +164,10 @@ class WarningsGenerator {
     private enumeratedFilenameCollisions() {
         return FilenameEnumerator.hasDetectedFilenameCollisions()
             ? this.error(
-                "The database is out of sync with the destination.",
-                "Generated filename might be re-used.",
-                "When synchronizing the encrypted destination to another location",
-                "without checking the modification date,",
-                "updated files might NOT be copied."
+                "IMPORTANT: The database is out of sync and old filenames might be re-used.",
+                "When synchronizing the destination to another location (e.g. uploading it to a cloud storage),",
+                "make sure that files are re-transferred if the file size or the last modified date has changed.",
+                "Alternatively, delete everything from the other location to force a full re-sync."
             )
             : [];
     }
@@ -258,7 +257,7 @@ class WarningsGenerator {
             if (80 < originalMessageLength) {
                 for (let position = Math.min(80, originalMessageLength - 2); 0 <= position; position--) {
                     if (" " === message.charAt(position)) {
-                        this.print(message.substring(0, position).trim());
+                        this.print(message.substring(0, position));
                         message = indent + message.substring(position + 1).trim()
                         break;
                     }

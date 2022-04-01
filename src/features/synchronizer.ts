@@ -214,10 +214,10 @@ class Synchronizer {
     ) {
         if (sourceDirent && destinationDirent) {
             return this.processPreexistingItem(parentDirectory, databaseEntry, sourceDirent, destinationDirent);
-        } else if (sourceDirent) {
-            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent)
-        } else {
+        } else if (destinationDirent) {
             return this.processDeletedItem(parentDirectory, databaseEntry, destinationDirent);
+        } else {
+            return this.processVanishedItem(parentDirectory, databaseEntry, sourceDirent)
         }
     }
 
@@ -277,17 +277,20 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processVanishedItem(
-        parentDirectory: MappedDirectory, databaseEntry: MappedSubdirectory | MappedFile, sourceDirent: Dirent
+        parentDirectory: MappedDirectory, databaseEntry: MappedSubdirectory | MappedFile, sourceDirent?: Dirent
     ) {
-
         const prefix = this.isDryRun ? "Would purge" : "Purging";
         const sourcePath = databaseEntry.source.absolutePath;
         const destinationPath = databaseEntry.destination.absolutePath;
         const children = databaseEntry instanceof MappedFile
             ? { files: 1, subdirectories: 0 }
             : databaseEntry.countChildren();
+        const files = 1 === children.files ? `${children.files} file` : `${children.files} files`;
+        const subdirectories = 1 === children.subdirectories
+            ? `${children.subdirectories} (sub)directory`
+            : `${children.subdirectories} (sub)directories`;
         const suffix = children.files || children.subdirectories
-            ? ` (including ${children.files} files and ${children.subdirectories} subdirectories)`
+            ? ` (including ${files} and ${subdirectories} subdirectories)`
             : "";
         this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
         parentDirectory.delete(databaseEntry);
@@ -296,7 +299,9 @@ class Synchronizer {
         if (databaseEntry instanceof MappedDirectoryBase) {
             this.statistics.purged.directories.success += children.subdirectories;
         }
-        this.processNewItem(parentDirectory, sourceDirent);
+        if (sourceDirent) {
+            this.processNewItem(parentDirectory, sourceDirent);
+        }
         return true;
     }
 
