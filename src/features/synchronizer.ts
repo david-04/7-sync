@@ -34,6 +34,7 @@ class Synchronizer {
         const statistics = synchronizer.statistics;
         if (!statistics.copied.total && !statistics.deleted.total) {
             context.print("The destination is already up to date");
+            context.logger.info("The destination is already up to date - no changes required");
         }
         synchronizer.updateIndex();
         StatisticsReporter.run(context, synchronizer.statistics);
@@ -395,9 +396,9 @@ class Synchronizer {
 
     private processPreexistingFile(parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent) {
         const properties = FileUtils.getProperties(databaseEntry.source.absolutePath);
-        const hasChanged = databaseEntry.created !== properties.ctimeMs
-            && databaseEntry.modified !== properties.mtimeMs
-            && databaseEntry.size !== properties.size;
+        const hasChanged = databaseEntry.created !== properties.birthtimeMs
+            || databaseEntry.modified !== properties.ctimeMs
+            || databaseEntry.size !== properties.size;
         if (hasChanged) {
             return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the source file was modified");
         } else {

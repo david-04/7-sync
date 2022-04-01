@@ -115,8 +115,8 @@ class FileManager {
             parent,
             new File(parent.source, sourceName),
             new File(parent.destination, destinationName),
+            properties.birthtimeMs,
             properties.ctimeMs,
-            properties.mtimeMs,
             properties.size
         );
         parent.add(newMappedFile);
