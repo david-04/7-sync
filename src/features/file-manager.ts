@@ -130,14 +130,14 @@ class FileManager {
     public deleteFile(
         options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
     ) {
-        const isMetaArchive = !options.source
+        const isMetadataArchive = !options.source
             && this.database.destination.absolutePath === node.path.dirname(options.destination)
-            && MetaArchiveManager.isArchiveName(node.path.basename(options.destination));
+            && MetadataManager.isMetadataArchiveName(node.path.basename(options.destination));
         return this.deleteFileOrDirectory({
             ...options,
             type: "file",
-            isMetaArchive,
-            suppressConsoleOutput: options.suppressConsoleOutput || isMetaArchive
+            isMetadataArchive: isMetadataArchive,
+            suppressConsoleOutput: options.suppressConsoleOutput || isMetadataArchive
         });
     }
 
@@ -161,7 +161,7 @@ class FileManager {
         suppressConsoleOutput?: boolean,
         reason?: string,
         type: "file" | "directory",
-        isMetaArchive?: boolean
+        isMetadataArchive?: boolean
 
     }) {
         const isOrphan = !options.source;
@@ -170,7 +170,7 @@ class FileManager {
         }
         const pathInfo = this.getLogFilePathInfo("rm", options.destination, options.source);
         const reason = options.reason ? ` ${options.reason}` : "";
-        if (isOrphan && !options.isMetaArchive) {
+        if (isOrphan && !options.isMetadataArchive) {
             this.logger.warn(this.isDryRun
                 ? `Would delete orphaned ${options.type} ${pathInfo}${reason}`
                 : `Deleting orphaned ${options.type} ${pathInfo}${reason}`

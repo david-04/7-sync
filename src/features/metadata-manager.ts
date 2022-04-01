@@ -2,7 +2,7 @@
 // Manage the index archive with the database and file listings
 //----------------------------------------------------------------------------------------------------------------------
 
-class MetaArchiveManager {
+class MetadataManager {
 
     public static readonly ARCHIVE_FILE_PREFIX = "___INDEX___";
 
@@ -58,7 +58,7 @@ class MetaArchiveManager {
     private loadDatabaseFromFile(absolutePath: string, name: string) {
         const list = this.context.sevenZip.listToStdout(absolutePath);
         if (list.success) {
-            return this.unzipDatabase(absolutePath, name, MetaArchiveManager.DATABASE_FILENAME);
+            return this.unzipDatabase(absolutePath, name, MetadataManager.DATABASE_FILENAME);
         } else {
             if (list.consoleOutput) {
                 this.logger.error(list.consoleOutput);
@@ -181,8 +181,8 @@ class MetaArchiveManager {
     private zipDatabase(zipFile: string, database: MappedRootDirectory) {
         this.logger.info("Serializing the database");
         const json = DatabaseSerializer.serializeDatabase(database);
-        this.logger.info(`Storing the database as ${MetaArchiveManager.DATABASE_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, MetaArchiveManager.DATABASE_FILENAME, json);
+        this.logger.info(`Storing the database as ${MetadataManager.DATABASE_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetadataManager.DATABASE_FILENAME, json);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -190,8 +190,8 @@ class MetaArchiveManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private zipReadme(zipFile: string) {
-        this.logger.info(`Storing the README as ${MetaArchiveManager.README_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, MetaArchiveManager.README_FILENAME, README);
+        this.logger.info(`Storing the README as ${MetadataManager.README_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetadataManager.README_FILENAME, README);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -201,8 +201,8 @@ class MetaArchiveManager {
     private zipFileListing(zipFile: string, database: MappedRootDirectory) {
         this.logger.info("Creating the file listing");
         const listing = FileListingCreator.create(database);
-        this.logger.info(`Storing the file listing as ${MetaArchiveManager.LISTING_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, MetaArchiveManager.LISTING_FILENAME, listing);
+        this.logger.info(`Storing the file listing as ${MetadataManager.LISTING_FILENAME} in ${zipFile}`);
+        return this.addToArchive(zipFile, MetadataManager.LISTING_FILENAME, listing);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -266,8 +266,8 @@ class MetaArchiveManager {
     // Check if the given name is an archive name
     //------------------------------------------------------------------------------------------------------------------
 
-    public static isArchiveName(name: string) {
-        const prefix = MetaArchiveManager.ARCHIVE_FILE_PREFIX;
+    public static isMetadataArchiveName(name: string) {
+        const prefix = MetadataManager.ARCHIVE_FILE_PREFIX;
         const suffix = ".7z";
         if (name.startsWith(prefix) && name.endsWith(suffix)) {
             const timestamp = name.substring(prefix.length, name.length - suffix.length);
@@ -282,14 +282,14 @@ class MetaArchiveManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private generateArchiveName() {
-        const timestamp = MetaArchiveManager.generateTimestamp();
+        const timestamp = MetadataManager.generateTimestamp();
         for (let index = 0; index < 1000000; index++) {
             const suffix = index ? `_${Logger.formatNumber(index, 6)}` : "";
-            const name = `${MetaArchiveManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
-            const tempName = `${MetaArchiveManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`
+            const name = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
+            const tempName = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`
             const nameWithPath = node.path.join(this.context.config.destination, name);
             const tempNameWithPath = node.path.join(this.context.config.destination, tempName);
-            if (!MetaArchiveManager.isArchiveName(name)) {
+            if (!MetadataManager.isMetadataArchiveName(name)) {
                 throw new InternalError(`Generated an invalid archive name: ${timestamp}`);
             }
             if (!FileUtils.exists(nameWithPath) && !FileUtils.exists(tempNameWithPath)) {
@@ -325,7 +325,7 @@ class MetaArchiveManager {
             .array
             .filter(dirent => !dirent.isDirectory())
             .map(dirent => dirent.name)
-            .filter(filename => MetaArchiveManager.isArchiveName(filename))
+            .filter(filename => MetadataManager.isMetadataArchiveName(filename))
             .sort()
             .map(filename => ({ name: filename, absolutePath: node.path.join(this.destination, filename) }));
         const total = files.length;
