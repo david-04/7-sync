@@ -17,6 +17,9 @@ class SevenZip {
         private readonly console: OutputStream
     ) {
         this.print = (message: string) => console.log(message);
+        if (!password) {
+            throw new FriendlyException("The password must not be empty");
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
