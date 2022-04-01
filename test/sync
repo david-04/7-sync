@@ -4,7 +4,7 @@
 # Delete data from previous runs and set up diretories
 #-----------------------------------------------------------------------------------------------------------------------
 
-rm -rf ./compare/* ./7-sync.log
+rm -rf ./compare/*
 mkdir -p ./compare ./destination ./source
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -13,7 +13,7 @@ mkdir -p ./compare ./destination ./source
 
 cd ./source && \
     find . -type d | sort > ../compare/source-1.txt; \
-    grep . `find . -type f | sort` >> ../compare/source-1.txt; \
+    grep . -r . | sort >> ../compare/source-1.txt; \
     cd ..
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ cd ./source && \
 #-----------------------------------------------------------------------------------------------------------------------
 
 touch 7-sync.log
-cat 7-sync.log | sed 's/^[^a-z]*//gi' > compare/log-1.log
+cat 7-sync.log | sed 's/^[^a-z]*//gi' > compare/logfile-1.log
 
 #-----------------------------------------------------------------------------------------------------------------------
 # compare/stdout-1.txt
@@ -39,11 +39,13 @@ cat 7-sync.out > compare/stdout-1.txt
 mkdir -p temp
 cd ./temp && \
     find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    touch 7-sync-database.json; \
     cp 7-sync-database.json ../compare/database-1.json; \
+    touch 7-sync-file-index.txt; \
     cp 7-sync-file-index.txt ../compare/index-1.txt; \
     rm 7-sync*.*; \
     find . -type d | sort > ../compare/destination-1.txt; \
-    echo | grep . `find . -type f | sort` >> ../compare/destination-1.txt; \
+    grep . -r . | sort >> ../compare/destination-1.txt; \
     cd ..
 rm -rf ./temp
 
@@ -61,7 +63,7 @@ node ../dist/7-sync.js sync --password=a "$@" | tee 7-sync.out
 
 cd ./source && \
     find . -type d | sort > ../compare/source-2.txt; \
-    grep . `find . -type f | sort` >> ../compare/source-2.txt; \
+    grep . -r . | sort >> ../compare/source-2.txt; \
     cd ..
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -85,11 +87,13 @@ cat 7-sync.out > compare/stdout-2.txt
 mkdir -p temp
 cd ./temp && \
     find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    touch 7-sync-database.json; \
     cp 7-sync-database.json ../compare/database-2.json; \
+    touch 7-sync-file-index.txt; \
     cp 7-sync-file-index.txt ../compare/index-2.txt; \
     rm 7-sync*.*; \
     find . -type d | sort > ../compare/destination-2.txt; \
-    echo | grep . `find . -type f | sort` >> ../compare/destination-2.txt; \
+    grep . -r . | sort >> ../compare/destination-2.txt; \
     cd ..
 rm -rf ./temp
 

@@ -4,5 +4,6 @@
 /yarn.lock
 /test/compare
 /test/destination
+/test/source
 /test/*.log
 /test/*.out

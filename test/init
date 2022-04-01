@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+rm -rf ./source
+mkdir -p ./source
+echo "This is a README file." > source/readme.txt
+mkdir -p ./source/Documents
+echo "This is my pay slip" > "source/Documents/pay slip.txt"
+mkdir -p ./source/Projects/shortycut
+echo "autorun: shortycut.ts" > "source/Projects/shortycut/Makefile"
+mkdir -p ./source/Projects/shortycut/src
+echo "console.log('Hello ShortyCut!');" > "source/Projects/shortycut/src/shortycut.ts"
+echo "declare const VERSION = '1.0';" > "source/Projects/shortycut/src/version.ts"
+mkdir -p ./source/Projects/aws-link-accountifier
+echo "license information" > "source/Projects/aws-link-accountifier/LICENSE"
+
+rm -rf ./destination
+mkdir -p ./destination
