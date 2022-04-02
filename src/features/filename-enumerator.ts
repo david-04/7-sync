@@ -6,8 +6,6 @@ class FilenameEnumerator {
 
     private static readonly LETTERS = "abcdefghijkmnpqrstuvwxyz123456789"; // cspell: disable-line
 
-    private static hasDetectedCollisions = false;
-
     private readonly firstLetter;
     private readonly nextLetter;
 
@@ -84,30 +82,10 @@ class FilenameEnumerator {
             const filename = prefix + next + suffix;
             const filenameWithPath = node.path.join(path, filename);
             if (FileUtils.exists(filenameWithPath)) {
-                this.warnAboutOutOfSyncDatabase(path, filename);
+                this.logger.warn(`The next filename is already occupied: ${path} => ${filename}`);
             } else if (!MetadataManager.isMetadataArchiveName(next)) {
                 return { enumeratedName: next, filename, filenameWithPath };
             }
         }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // On the first occasion only, warn about an out-of-sync database
-    //------------------------------------------------------------------------------------------------------------------
-
-    private warnAboutOutOfSyncDatabase(path: string, name: string) {
-        if (!FilenameEnumerator.hasDetectedCollisions) {
-            this.logger.warn(`The next filename is already occupied: ${path} => ${name}`);
-            this.logger.warn(`The database seems to be out of sync with the destination directory`);
-            FilenameEnumerator.hasDetectedCollisions = true;
-        }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Determine if at least one generated filename was already in use
-    //------------------------------------------------------------------------------------------------------------------
-
-    public static hasDetectedFilenameCollisions() {
-        return this.hasDetectedCollisions;
     }
 }

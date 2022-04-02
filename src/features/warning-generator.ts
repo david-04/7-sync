@@ -37,7 +37,6 @@ class WarningsGenerator {
             this.orphansWereFound(),
             this.purgeWasNecessary(),
             this.indexArchive(),
-            this.enumeratedFilenameCollisions(),
             this.unprocessableSourceItems(),
             this.unprocessableDestinationItems(),
         ].flatMap(array => array).sort((a, b) => a.logLevel.index - b.logLevel.index);
@@ -157,21 +156,6 @@ class WarningsGenerator {
         } else {
             return [];
         }
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // The database is out of sync with the file system
-    //------------------------------------------------------------------------------------------------------------------
-
-    private enumeratedFilenameCollisions() {
-        return FilenameEnumerator.hasDetectedFilenameCollisions()
-            ? this.error(
-                "IMPORTANT: The database is out of sync and old filenames might be re-used.",
-                "When synchronizing the destination to another location (e.g. uploading it to a cloud storage),",
-                "make sure that files are re-transferred if the file size or the last modified date has changed.",
-                "Alternatively, delete everything from the other location to force a full re-sync."
-            )
-            : [];
     }
 
     //------------------------------------------------------------------------------------------------------------------
