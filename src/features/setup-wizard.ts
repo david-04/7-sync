@@ -74,8 +74,8 @@ class SetupWizard {
                 normalizePath: true,
                 validate: async (file) => {
                     if (FileUtils.existsAndIsFile(file)) {
-                        const prompt = `${file} already exists. Do you want to overwrite it?`
-                        if (!await InteractivePrompt.promptYesNo(prompt)) {
+                        const question = `${file} already exists. Do you want to overwrite it?`
+                        if (!await InteractivePrompt.promptYesNo({ question: question })) {
                             return false;
                         }
                     }
@@ -127,7 +127,7 @@ class SetupWizard {
     // Get the password
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async getPassword(preset?: string): Promise<string> {
+    private static async getPassword(preset?: string) {
         while (true) {
             const question = preset
                 ? [
@@ -176,7 +176,7 @@ class SetupWizard {
     // Validate that the 7-Zip command can be executed
     //------------------------------------------------------------------------------------------------------------------
 
-    private static validateSevenZip(sevenZip: string): string | true {
+    private static validateSevenZip(sevenZip: string) {
         const useAbsolutePath = "Please specify an absolute path if 7-Zip is not in the search path.";
         try {
             const result1 = SevenZip.runAnyCommand({ executable: sevenZip });

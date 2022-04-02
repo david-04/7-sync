@@ -37,7 +37,7 @@ class Context {
         try {
             logger.info(`7-sync started in ${FileUtils.getAbsolutePath(".")}`);
             const config = Context.getConfig(files.config, options, logger);
-            const validatedPassword = await this.validateOrPromptForPassword(config.password, password);
+            const validatedPassword = await this.getValidatedPassword(config.password, password);
             const sevenZip = new SevenZip(config.sevenZip, validatedPassword, logger, console);
             const filenameEnumerator = new FilenameEnumerator(logger);
             logger.info(`Source .......... ${config.source}`);
@@ -95,7 +95,7 @@ class Context {
     // Obtain the password
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async validateOrPromptForPassword(saltedHash: string, password?: string) {
+    private static async getValidatedPassword(saltedHash: string, password?: string) {
         password = password ?? await this.promptForPassword(saltedHash);
         if (!PasswordHelper.validatePassword(password, saltedHash)) {
             throw new FriendlyException("Invalid password");
@@ -111,11 +111,12 @@ class Context {
         return InteractivePrompt.prompt({
             question: "Please enter the password.",
             isPassword: true,
+            useStderr: true,
             validate: input => {
-                console.log("");
+                console.error("");
                 const isCorrect = PasswordHelper.validatePassword(input, saltedHash);
                 if (!isCorrect) {
-                    console.log("Invalid password. Please try again.");
+                    console.error("Invalid password. Please try again.");
                 }
                 return isCorrect;
             }

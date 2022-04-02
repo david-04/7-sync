@@ -47,10 +47,10 @@ class Application {
         this.logger.debug("Extracted command line options:", options);
         switch (options.command) {
             case CommandLineParser.DEFAULT_OPTIONS.init.command:
-                SetupWizard.initialize(options);
+                await SetupWizard.initialize(options);
                 return 0;
             case CommandLineParser.DEFAULT_OPTIONS.reconfigure.command:
-                SetupWizard.reconfigure(options);
+                await SetupWizard.reconfigure(options);
                 return 0;
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
                 return this.sync(await Context.of(options));

@@ -19,21 +19,23 @@ class InteractivePrompt {
         validate: this.as<undefined | ((input: string) => boolean)>(undefined),
         defaultAnswer: this.as<undefined | string>(undefined),
         suppressExtraEmptyLineAfterInput: this.as<boolean>(false),
+        useStderr: this.as<boolean>(false)
     };
 
     //------------------------------------------------------------------------------------------------------------------
     // Prompt the user for input
     //------------------------------------------------------------------------------------------------------------------
 
-    public static async prompt(options?: Partial<typeof InteractivePrompt.DEFAULT_OPTIONS>): Promise<string> {
+    public static async prompt(options?: Partial<typeof InteractivePrompt.DEFAULT_OPTIONS>) {
         const effectiveOptions: (typeof InteractivePrompt.DEFAULT_OPTIONS) = { ...this.DEFAULT_OPTIONS, ...options };
-        this.displayQuestion(effectiveOptions.question);
+        const print = effectiveOptions.useStderr ? console.error : console.log;
+        this.displayQuestion(print, effectiveOptions.question);
         while (true) {
-            const answer = await this.readLine({ isPassword: effectiveOptions.isPassword });
+            const answer = await this.readLine({ ...effectiveOptions });
             const result = this.mapAndValidate(answer, effectiveOptions);
             if (result.isPresent()) {
                 if (!effectiveOptions.suppressExtraEmptyLineAfterInput) {
-                    console.log("");
+                    print("");
                 }
                 return result.getOrThrow();
             }
@@ -44,22 +46,25 @@ class InteractivePrompt {
     // Prompt for a yes/no question
     //------------------------------------------------------------------------------------------------------------------
 
-    public static async promptYesNo(question: string | string[]): Promise<boolean> {
-        const array = "string" === typeof question ? [question] : [...question];
+    public static async promptYesNo(
+        options: Partial<typeof InteractivePrompt.DEFAULT_OPTIONS> & { question: string | string[] }
+    ): Promise<boolean> {
+        const print = options.useStderr ? console.error : console.log;
+        const array = "string" === typeof options.question ? [options.question] : [...options.question];
         if (array.length) {
             array[array.length - 1] += " [y/n]";
         }
-        this.displayQuestion(array);
+        this.displayQuestion(print, array);
         while (true) {
-            const answer = await this.prompt({ suppressExtraEmptyLineAfterInput: true });
+            const answer = await this.prompt({ ...options, suppressExtraEmptyLineAfterInput: true });
             if (answer.match(/^y(es)?$/)) {
-                console.log("");
+                print("");
                 return true;
             } else if (answer.match(/^n(o)?$/)) {
-                console.log("");
+                print("");
                 return false;
             } else {
-                console.log("Please enter y or n")
+                print("Please enter y or n")
             }
         }
     }
@@ -68,7 +73,7 @@ class InteractivePrompt {
     // Show the question (if given)
     //------------------------------------------------------------------------------------------------------------------
 
-    private static displayQuestion(question?: string | string[]) {
+    private static displayQuestion(print: (message: string) => void, question: string | string[]) {
         const message = (Array.isArray(question) ? question : [question])
             .filter(line => null !== line && undefined !== line)
             .join("\n")
@@ -76,7 +81,7 @@ class InteractivePrompt {
             .replace(/(\r?\n)+/g, "\n")
             .trim();
         if (message) {
-            console.log(message);
+            print(message);
         }
     }
 
@@ -104,12 +109,15 @@ class InteractivePrompt {
     // Read a line of user input
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async readLine(options?: { isPassword: boolean }): Promise<string> {
-        const readlineInterface = node.readline.createInterface({ input: process.stdin, output: process.stdout });
-        if (options?.isPassword) {
+    private static readLine(options: { isPassword: boolean, useStderr: boolean }): Promise<string> {
+        const readlineInterface = node.readline.createInterface({
+            input: process.stdin,
+            output: options.useStderr ? process.stderr : process.stdout
+        });
+        if (options.isPassword) {
             (readlineInterface as unknown as { [index: string]: (text: string) => void })._writeToOutput = (text: string) => {
                 if (text === this.PROMPT) {
-                    process.stdout.write(this.PROMPT);
+                    (options.useStderr ? process.stderr : process.stdout).write(this.PROMPT);
                 }
             };
         }
