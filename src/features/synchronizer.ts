@@ -7,6 +7,7 @@ class Synchronizer {
     private readonly logger;
     private readonly isDryRun;
     private readonly fileManager;
+    private readonly print;
 
     private readonly statistics = new SyncStats();
 
@@ -15,13 +16,14 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private constructor(
-        context: Context,
+        private context: Context,
         private readonly metadataManager: MetadataManager,
         private readonly database: MappedRootDirectory
     ) {
         this.fileManager = new FileManager(context, database);
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
+        this.print = context.print;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -36,7 +38,7 @@ class Synchronizer {
             context.print("The destination is already up to date");
             context.logger.info("The destination is already up to date - no changes required");
         }
-        synchronizer.updateIndex();
+        synchronizer.updateIndex(true);
         StatisticsReporter.run(context, synchronizer.statistics);
         return WarningsGenerator.run(context, synchronizer.statistics);
     }
@@ -92,18 +94,15 @@ class Synchronizer {
 
     private deleteOrphanedItem(destination: string, dirent: Dirent) {
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
-        if (dirent.isDirectory()) {
-            return this.deleteOrphanedDirectory(destination);
-        } else if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
+        if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
             return true;
         } else {
-            const success = this.fileManager.deleteFile({ destination });
-            if (success) {
-                this.statistics.orphans.files.success++;
-            } else {
-                this.statistics.orphans.files.failed++;
+            if (!this.statistics.orphans.total) {
+                this.recalculateLastFilenames();
             }
-            return success;
+            return dirent.isDirectory()
+                ? this.deleteOrphanedDirectory(destination)
+                : this.deleteOrphanedFile(destination);
         }
     }
 
@@ -134,14 +133,28 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
+    // Delete an orphaned file
+    //------------------------------------------------------------------------------------------------------------------
+
+    private deleteOrphanedFile(destination: string) {
+        const success = this.fileManager.deleteFile({ destination });
+        if (success) {
+            this.statistics.orphans.files.success++;
+        } else {
+            this.statistics.orphans.files.failed++;
+        }
+        return success;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
     // Compare the database with the current destination directory
     //------------------------------------------------------------------------------------------------------------------
 
     private analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
         const sourceChildren = FileUtils.getChildrenIfDirectoryExists(directory.source.absolutePath).map;
         this.logAndDiscardSymbolicLinks(directory.source.absolutePath, sourceChildren, "source");
-        const databaseFiles = Array.from(directory.files.bySourceName.values());
-        const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
+        const databaseFiles = directory.files.bySourceName.values();
+        const databaseSubdirectories = directory.subdirectories.bySourceName.values();
         const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
             source: sourceChildren.get(database.source.name),
             database,
@@ -359,28 +372,29 @@ class Synchronizer {
         parentDirectory.delete(databaseEntry);
         if (destinationDirent) {
             const destinationChildren = FileUtils.getChildrenIfDirectoryExists(databaseEntry.destination.absolutePath);
-            const success1 = this.mapAndReduce(
-                Array.from(databaseEntry.files.bySourceName.values()),
+            const success1 = this.deleteOrphans(databaseEntry, destinationChildren.map);
+            const success2 = this.mapAndReduce(
+                databaseEntry.files.bySourceName.values(),
                 file => {
                     const dirent = destinationChildren.map.get(file.destination.name);
                     return this.processDeletedFile(databaseEntry, file, dirent);
                 }
             );
-            const success2 = this.mapAndReduce(
-                Array.from(databaseEntry.subdirectories.bySourceName.values()),
+            const success3 = this.mapAndReduce(
+                databaseEntry.subdirectories.bySourceName.values(),
                 subdirectory => this.syncDirectory(subdirectory)
             );
-            const success3 = success1 && success2 && this.fileManager.deleteDirectory({
+            const success4 = success1 && success2 && success3 && this.fileManager.deleteDirectory({
                 destination: databaseEntry.destination.absolutePath,
                 source: databaseEntry.source.absolutePath,
                 reason: "because the source directory was deleted"
             });
-            if (success3) {
+            if (success4) {
                 this.statistics.deleted.directories.success++;
             } else {
                 this.statistics.deleted.directories.failed++;
             }
-            return success3;
+            return success4;
         }
         return true;
     }
@@ -454,11 +468,53 @@ class Synchronizer {
     // Recreate the recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private updateIndex() {
-        const result = this.metadataManager.updateIndex(this.database, !!this.statistics.success);
-        this.statistics.index.isUpToDate = result.isUpToDate;
+    private updateIndex(isFinalUpdate: boolean) {
+        const result = this.metadataManager.updateIndex(this.database, !isFinalUpdate || !!this.statistics.success);
+        this.statistics.index.isUpToDate = isFinalUpdate && result.isUpToDate;
         this.statistics.index.hasLingeringOrphans = 0 < result.orphans.failed + result.latest.failed;
         this.statistics.orphans.files.success += result.orphans.success;
         this.statistics.orphans.files.failed += result.orphans.failed;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // When called for the first time, recursively update the "last" property of all database directories
+    //------------------------------------------------------------------------------------------------------------------
+
+    private recalculateLastFilenames() {
+        const message1 = "Found orphans - scanning the destination for filenames to not re-use";
+        this.logger.info(message1);
+        this.print(message1);
+        if (this.updateLastFilenames(this.database)) {
+            this.updateIndex(false);
+        } else {
+            this.logger.info("Did not find any orphan filenames of concern - no need to update the database");
+            this.print("Did not find any orphan filenames of concern");
+        }
+        const message2 = `Continuing with the ${this.isDryRun ? "dry run" : "synchronization"}`
+        this.logger.info(message2);
+        this.print(message2);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Recursively update the "last" property
+    //------------------------------------------------------------------------------------------------------------------
+
+    private updateLastFilenames(directory: MappedDirectory): number {
+        const path = directory.destination.absolutePath;
+        if (FileUtils.existsAndIsDirectory(path)) {
+            const updatedSubdirectories = directory.subdirectories.byDestinationName.values()
+                .map(subdirectory => this.updateLastFilenames(subdirectory))
+                .reduce((a, b) => a + b, 0);
+            const children = FileUtils.getChildrenIfDirectoryExists(path).array.map(dirent => dirent.name);
+            const last = this.context.filenameEnumerator.recalculateLastFilename(directory.last, children);
+            if (last === directory.last) {
+                return updatedSubdirectories;
+            } else {
+                directory.last = last;
+                return updatedSubdirectories + 1;
+            }
+        } else {
+            return 0;
+        }
     }
 }
