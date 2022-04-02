@@ -46,7 +46,9 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private syncDirectory(directory: MappedDirectory): boolean {
-        const destinationChildren = FileUtils.getChildrenIfDirectoryExists(directory.destination.absolutePath).map;
+        const absoluteDestinationPath = directory.destination.absolutePath;
+        const destinationChildren = FileUtils.getChildrenIfDirectoryExists(absoluteDestinationPath).map;
+        this.logAndDiscardSymbolicLinks(absoluteDestinationPath, destinationChildren, "destination");
         const success1 = this.deleteOrphans(directory, destinationChildren);
         const items = this.analyzeDirectory(directory, destinationChildren);
         const success2 = this.mapAndReduce(
@@ -92,12 +94,6 @@ class Synchronizer {
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (dirent.isDirectory()) {
             return this.deleteOrphanedDirectory(destination);
-        } else if (!dirent.isFile()) {
-            this.statistics.unprocessable.destination.symlinks += dirent.isSymbolicLink() ? 1 : 0;
-            this.statistics.unprocessable.destination.other += dirent.isSymbolicLink() ? 0 : 1;
-            const path = node.path.join(destination, dirent.name);
-            this.logger.warn(`Ignoring ${path} because it's not a regular file or directory`);
-            return true;
         } else if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
             return true;
         } else {
@@ -143,10 +139,7 @@ class Synchronizer {
 
     private analyzeDirectory(directory: MappedDirectory, destinationChildren: Map<string, Dirent>) {
         const sourceChildren = FileUtils.getChildrenIfDirectoryExists(directory.source.absolutePath).map;
-        this.removeSymlinks(directory.source.absolutePath, sourceChildren, this.statistics.unprocessable.source);
-        this.removeSymlinks(
-            directory.destination.absolutePath, destinationChildren, this.statistics.unprocessable.destination
-        );
+        this.logAndDiscardSymbolicLinks(directory.source.absolutePath, sourceChildren, "source");
         const databaseFiles = Array.from(directory.files.bySourceName.values());
         const databaseSubdirectories = Array.from(directory.subdirectories.bySourceName.values());
         const databaseItems = [...databaseFiles, ...databaseSubdirectories].map(database => ({
@@ -155,7 +148,9 @@ class Synchronizer {
             destination: destinationChildren.get(database.destination.name)
         }));
         databaseItems.forEach(item => {
-            if (item.source) sourceChildren.delete(item.source.name)
+            if (item.source) {
+                sourceChildren.delete(item.source.name);
+            }
         });
         const sourceOnlyItems = Array.from(sourceChildren.values()).map(source => ({
             source, database: undefined, destination: undefined
@@ -164,16 +159,19 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Remove symbolic links from the
+    // Remove symbolic links from the map
     //------------------------------------------------------------------------------------------------------------------
 
-    private removeSymlinks(path: string, map: Map<string, Dirent>, statistics: { symlinks: number, other: number }) {
+    private logAndDiscardSymbolicLinks(path: string, map: Map<string, Dirent>, category: "source" | "destination") {
         const toDelete = Array.from(map.values()).filter(dirent => !dirent.isFile() && !dirent.isDirectory());
         toDelete.forEach(dirent => map.delete(dirent.name));
+        const unprocessable = this.statistics.unprocessable;
+        const statistics = "source" === category ? unprocessable.source : unprocessable.destination;
         statistics.symlinks += toDelete.filter(dirent => dirent.isSymbolicLink()).length;
         statistics.other += toDelete.filter(dirent => !dirent.isSymbolicLink()).length;
-        toDelete.map(entry => node.path.join(path, entry.name))
-            .forEach(name => this.logger.warn(`Ignoring ${name} because it's not a regular file or directory`));
+        toDelete.map(entry => node.path.join(path, entry.name)).forEach(name =>
+            this.logger.warn(`Ignoring ${name} because it's a symbolic link or otherwise unprocessable`)
+        );
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -307,10 +305,10 @@ class Synchronizer {
             : databaseEntry.countChildren();
         const files = 1 === children.files ? `${children.files} file` : `${children.files} files`;
         const subdirectories = 1 === children.subdirectories
-            ? `${children.subdirectories} (sub)directory`
-            : `${children.subdirectories} (sub)directories`;
-        const suffix = children.files || children.subdirectories
-            ? ` (including ${files} and ${subdirectories} subdirectories)`
+            ? `${children.subdirectories} subdirectory`
+            : `${children.subdirectories} subdirectories`;
+        const suffix = databaseEntry instanceof MappedSubdirectory && (children.files || children.subdirectories)
+            ? ` (including ${files} and ${subdirectories})`
             : "";
         this.logger.warn(`${prefix} ${sourcePath}${suffix} from the database because ${destinationPath} has vanished`);
         parentDirectory.delete(databaseEntry);
@@ -363,11 +361,10 @@ class Synchronizer {
             const destinationChildren = FileUtils.getChildrenIfDirectoryExists(databaseEntry.destination.absolutePath);
             const success1 = this.mapAndReduce(
                 Array.from(databaseEntry.files.bySourceName.values()),
-                file => this.processDeletedFile(
-                    databaseEntry,
-                    file,
-                    destinationChildren.map.get(file.destination.name)
-                )
+                file => {
+                    const dirent = destinationChildren.map.get(file.destination.name);
+                    return this.processDeletedFile(databaseEntry, file, dirent);
+                }
             );
             const success2 = this.mapAndReduce(
                 Array.from(databaseEntry.subdirectories.bySourceName.values()),

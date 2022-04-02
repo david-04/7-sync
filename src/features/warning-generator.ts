@@ -207,7 +207,7 @@ class WarningsGenerator {
             ? this.warning(
                 `The destination contains ${unprocessable.asText}.`,
                 `${unprocessable.theyOrIt.upperCase} ${unprocessable.isOrAre} ignored and not synchronized.`,
-                "Please delete them manually.",
+                `Please delete ${unprocessable.itOrThem} manually.`,
                 "Refer to the log file for the list of the affected links/items."
             )
             : [];
@@ -261,7 +261,8 @@ class WarningsGenerator {
             },
             haveOrHas: 1 === quantity ? "has" : "have",
             wereOrWas: 1 === quantity ? "was" : "were",
-            isOrAre: 1 === quantity ? "is" : "are"
+            isOrAre: 1 === quantity ? "is" : "are",
+            itOrThem: 1 === quantity ? "it" : "them",
         }
     }
 
