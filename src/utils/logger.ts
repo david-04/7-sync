@@ -4,10 +4,10 @@
 
 class LogLevel {
 
-    public static readonly ERROR = new LogLevel(1, "ERROR");
-    public static readonly WARN = new LogLevel(2, "WARN ");
-    public static readonly INFO = new LogLevel(3, "INFO ");
-    public static readonly DEBUG = new LogLevel(4, "DEBUG");
+    public static readonly ERROR = new LogLevel(1, "ERROR  ");
+    public static readonly WARN = new LogLevel(2, "WARNING");
+    public static readonly INFO = new LogLevel(3, "INFO   ");
+    public static readonly DEBUG = new LogLevel(4, "DEBUG  ");
 
     private constructor(public readonly index: number, public readonly paddedName: string) { }
 }
