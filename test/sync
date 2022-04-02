@@ -38,7 +38,8 @@ cat 7-sync.out > compare/stdout-1.txt
 
 mkdir -p temp
 cd ./temp && \
-    find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    find ../destination -type f -name "*.7z" | xargs "-I{}" --no-run-if-empty 7z x -pa -y "{}" > /dev/null; \
+    find ../destination -type f -name "___INDEX___*.7z" | xargs --no-run-if-empty "-I{}" 7z x -pa -y "{}" > /dev/null; \
     touch 7-sync-database.json; \
     cp 7-sync-database.json ../compare/database-1.json; \
     touch 7-sync-file-index.txt; \
@@ -86,7 +87,8 @@ cat 7-sync.out > compare/stdout-2.txt
 
 mkdir -p temp
 cd ./temp && \
-    find ../destination -type f -name "*.7z" | xargs "-I{}" 7z x -pa "{}" > /dev/null; \
+    find ../destination -type f -name "*.7z" | xargs  --no-run-if-empty "-I{}" 7z x -pa -y "{}" > /dev/null; \
+    find ../destination -type f -name "___INDEX___*.7z" | xargs  --no-run-if-empty "-I{}" 7z x -pa -y "{}" > /dev/null; \
     touch 7-sync-database.json; \
     cp 7-sync-database.json ../compare/database-2.json; \
     touch 7-sync-file-index.txt; \
