@@ -34,3 +34,11 @@ function rethrow(exception: unknown, getErrorMessage: (error: string) => string)
         throw new Error(getErrorMessage(`${exception}`));
     }
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// Extract the first line (error message) from an exception
+//----------------------------------------------------------------------------------------------------------------------
+
+function firstLineOnly(exception: unknown) {
+    return `${exception}`.replace(/[\r\n].*$/m, "");
+}
