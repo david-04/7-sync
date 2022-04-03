@@ -53,14 +53,18 @@ class JsonParser {
     // Load and validate a JSON database
     //------------------------------------------------------------------------------------------------------------------
 
-    public static parseAndValidateDatabase(json: string) {
+    public static parseAndValidateDatabase(json: string, zipFile: string, databaseFile: string, destination: string) {
         return tryCatchRethrowFriendlyException(
             () => {
                 const database = this.parseJson<JsonDatabase>(json);
                 JsonValidator.validateDatabase(database);
                 return database;
             },
-            error => `Failed to parse database: ${error}`
+            error => [
+                `${databaseFile} in ${zipFile} is corrupt.`,
+                error,
+                `To force a full re-sync, delete everything from ${destination}`
+            ].join("\n")
         )
     }
 
@@ -83,7 +87,7 @@ class JsonParser {
     private static parseJson<T>(json: string): T {
         return tryCatchRethrowFriendlyException(
             () => JSON.parse(json) as T,
-            error => `Failed to parse JSON: ${error}`
+            error => `${error}`
         );
     }
 }

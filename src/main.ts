@@ -63,17 +63,26 @@ class Application {
     // Sync process orchestration
     //------------------------------------------------------------------------------------------------------------------
 
-    private sync(context: Context) {
+    private async sync(context: Context) {
         try {
             context.sevenZip.runSelfTest();
             const metadataManager = new MetadataManager(context);
-            const database = DatabaseAssembler.assemble(context, metadataManager.loadDatabaseOrGetEmptyOne());
+            const database = DatabaseAssembler.assemble(context, await metadataManager.loadOrInitializeDatabase());
             const message = context.options.dryRun ? "Starting the dry run" : "Starting the synchronization";
             context.logger.info(message);
             context.print(message);
             return Synchronizer.run(context, metadataManager, database);
         } catch (exception) {
-            context.logger.error(firstLineOnly(exception));
+            if (exception instanceof FriendlyException) {
+                exception.message
+                    .split(/\r?\n/)
+                    .map(line => line.trim())
+                    .filter(line => line)
+                    .forEach(line => context.logger.error(line))
+            } else {
+                context.logger.error(firstLineOnly(exception));
+            }
+            context.console.log("");
             throw exception;
         }
     }

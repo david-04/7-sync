@@ -40,7 +40,7 @@ class Synchronizer {
         }
         synchronizer.updateIndex(true);
         StatisticsReporter.run(context, synchronizer.statistics);
-        return WarningsGenerator.run(context, synchronizer.statistics);
+        return WarningsGenerator.run(context, synchronizer.statistics, metadataManager.hasPasswordChanged());
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -97,9 +97,6 @@ class Synchronizer {
         if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
             return true;
         } else {
-            if (!this.statistics.orphans.total) {
-                this.recalculateLastFilenames();
-            }
             return dirent.isDirectory()
                 ? this.deleteOrphanedDirectory(destination)
                 : this.deleteOrphanedFile(destination);
@@ -112,6 +109,9 @@ class Synchronizer {
 
     private deleteOrphanedDirectory(absolutePath: string) {
         this.deleteOrphanedChildren(absolutePath);
+        if (!this.statistics.orphans.total) {
+            this.recalculateLastFilenames();
+        }
         const success = this.fileManager.deleteDirectory({ destination: absolutePath });
         if (success) {
             this.statistics.orphans.directories.success++;
@@ -137,6 +137,9 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private deleteOrphanedFile(destination: string) {
+        if (!this.statistics.orphans.total) {
+            this.recalculateLastFilenames();
+        }
         const success = this.fileManager.deleteFile({ destination });
         if (success) {
             this.statistics.orphans.files.success++;

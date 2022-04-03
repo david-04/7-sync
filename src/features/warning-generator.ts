@@ -22,19 +22,19 @@ class WarningsGenerator {
     // Generate warnings
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, statistics: SyncStats) {
-        return new WarningsGenerator(context, statistics).generateWarningsAndGetExitCode();
+    public static run(context: Context, statistics: SyncStats, passwordHasChanged: boolean) {
+        return new WarningsGenerator(context, statistics).generateWarningsAndGetExitCode(passwordHasChanged);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Generate warnings
     //------------------------------------------------------------------------------------------------------------------
 
-    private generateWarningsAndGetExitCode() {
+    private generateWarningsAndGetExitCode(passwordHasChanged: boolean) {
         const warnings = [
             this.someFilesCouldNotBeCopied(),
             this.someFilesCouldNotBeDeleted(),
-            this.orphansWereFound(),
+            passwordHasChanged ? [] : this.orphansWereFound(),
             this.purgeWasNecessary(),
             this.indexArchive(),
             this.unprocessableSourceItems(),

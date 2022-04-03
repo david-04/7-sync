@@ -26,7 +26,7 @@ class SevenZip {
     // For the self-test, create a new SevenZip instance that uses a different password
     //------------------------------------------------------------------------------------------------------------------
 
-    private cloneWithDifferentPassword(newPassword: string) {
+    public cloneWithDifferentPassword(newPassword: string) {
         return new SevenZip(this.executable, newPassword, this.logger, this.console);
     }
 

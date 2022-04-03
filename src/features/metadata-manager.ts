@@ -10,7 +10,8 @@ class MetadataManager {
     private static readonly LISTING_FILENAME = "7-sync-file-index.txt";
     private static readonly README_FILENAME = "7-sync-README.txt"
 
-    private successfullyReadArchive?: string;
+    private passwordHasChanged = false;
+    private latestArchive?: string;
 
     private readonly logger;
     private readonly print;
@@ -32,57 +33,98 @@ class MetadataManager {
     // Load the database from the latest archive
     //------------------------------------------------------------------------------------------------------------------
 
-    public loadDatabaseOrGetEmptyOne(): JsonDatabase {
-        const files = this.listIndexArchives();
-        if (files) {
-            const json = this.loadDatabaseFromFile(files.latest.absolutePath, files.latest.name);
-            if (json) {
-                const database = JsonParser.parseAndValidateDatabase(json);
-                this.successfullyReadArchive = files.latest.absolutePath;
-                return database;
-            }
-        } else if (this.isDryRun) {
-            this.logger.warn(`There is no index file in ${this.destination} - would start with an empty database`);
-            this.print("There's no index file, would start with an empty database");
+    public async loadOrInitializeDatabase() {
+        const latest = this.listIndexArchives()?.latest;
+        if (latest) {
+            this.latestArchive = latest.absolutePath;
+            return this.loadDatabaseFromFile(latest.absolutePath, latest.name);
+        } else if (FileUtils.getChildrenIfDirectoryExists(this.destination).array.length) {
+            const indexFile = MetadataManager.ARCHIVE_FILE_PREFIX;
+            throw new FriendlyException(
+                `The destination has no ${indexFile} file but isn't empty either.\n`
+                + `For a full re-sync, delete everything from ${this.destination}`
+            );
         } else {
-            this.logger.warn(`There is no index file in ${this.destination} - starting with an empty database`);
-            this.print("There's no index file, starting with an empty database");
+            this.logger.info(`The destination ${this.destination} is empty - starting with an empty database`);
+            return { files: [], directories: [], last: "" };
         }
-        return { files: [], directories: [], last: "" };
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Verify that the archive can be read - and unzip the database from it
     //------------------------------------------------------------------------------------------------------------------
 
-    private loadDatabaseFromFile(absolutePath: string, name: string) {
-        const list = this.context.sevenZip.listToStdout(absolutePath);
-        if (list.success) {
-            return this.unzipDatabase(absolutePath, name, MetadataManager.DATABASE_FILENAME);
-        } else {
-            if (list.consoleOutput) {
-                this.logger.error(list.consoleOutput);
-            }
-            this.logger.error(`Failed to open ${absolutePath} - ${list.errorMessage}`);
-            this.print(`Can't read ${name} - assuming that the password has changed`);
-            if (this.isDryRun) {
-                this.logger.error(`Assuming that the password has changed - would start with an empty database`);
-                this.print("Would start with an empty database, forcing a full re-sync");
-            } else {
-                this.logger.error(`Assuming that the password has changed - starting with an empty database`);
-                this.print("Starting with an empty database, forcing a full re-sync");
+    private async loadDatabaseFromFile(absolutePath: string, name: string) {
+        const { sevenZip, passwordHasChanged } = await this.getSevenZipToAccessForFile(absolutePath);
+        this.passwordHasChanged = passwordHasChanged;
+        const databaseFilename = MetadataManager.DATABASE_FILENAME;
+        const json = this.unzipDatabase(sevenZip, absolutePath, name, databaseFilename);
+        const database = JsonParser.parseAndValidateDatabase(json, name, databaseFilename, this.destination);
+        return passwordHasChanged ? { files: [], directories: [], last: database.last } : database;
+    }
 
-            }
-            return undefined;
+    //------------------------------------------------------------------------------------------------------------------
+    // Obtain a SevenZip instance that can open the given file
+    //------------------------------------------------------------------------------------------------------------------
+
+    private async getSevenZipToAccessForFile(zipFile: string) {
+        if (this.checkIfSevenZipCanOpen(this.context.sevenZip, zipFile)) {
+            return { sevenZip: this.context.sevenZip, passwordHasChanged: false };
+        } else {
+            this.logger.error(`Prompting for the old password (assuming that it has changed)`);
+            console.error("The password seems to have changed.");
+            const oldPassword = await this.promptForOldPassword(zipFile);
+            this.logger.info("Obtained the correct old password");
+            return {
+                sevenZip: this.context.sevenZip.cloneWithDifferentPassword(oldPassword),
+                passwordHasChanged: true
+            };
         }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Prompt for the password
+    //------------------------------------------------------------------------------------------------------------------
+
+    private async promptForOldPassword(zipFile: string) {
+        return InteractivePrompt.prompt({
+            question: "Please enter the old password.",
+            isPassword: true,
+            useStderr: true,
+            validate: input => {
+                console.error("");
+                const sevenZipWithNewPassword = this.context.sevenZip.cloneWithDifferentPassword(input);
+                const isCorrect = this.checkIfSevenZipCanOpen(sevenZipWithNewPassword, zipFile);
+                if (!isCorrect) {
+                    console.error("");
+                    console.error("Invalid password. Please try again.");
+                }
+                return isCorrect;
+            }
+        });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify if that the sevenZip instance has the correct password to list the contents of the given file
+    //------------------------------------------------------------------------------------------------------------------
+
+    private checkIfSevenZipCanOpen(sevenZip: SevenZip, absolutePath: string) {
+        const result = sevenZip.listToStdout(absolutePath);
+        if (!result.success) {
+            if (result.consoleOutput) {
+                this.logger.error(result.consoleOutput);
+            }
+            this.logger.error(`Failed to open ${absolutePath} - ${result.errorMessage}`);
+        }
+        return result.success;
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Unzip the database from the given archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private unzipDatabase(absolutePath: string, name: string, databaseFilename: string) {
-        const unzip = this.context.sevenZip.unzipToStdout(absolutePath, databaseFilename);
+    private unzipDatabase(sevenZip: SevenZip, absolutePath: string, name: string, databaseFilename: string) {
+        const unzip = sevenZip.unzipToStdout(absolutePath, databaseFilename);
         if (unzip.success && unzip.consoleOutput) {
             this.logger.info(`Loaded database ${databaseFilename} from ${absolutePath}`);
             this.print(`Loading the database`);
@@ -93,12 +135,11 @@ class MetadataManager {
             }
             this.logger.error(`Failed to extract ${databaseFilename} from ${absolutePath} - ${unzip.errorMessage}`);
             this.print(`Failed to extract the database from ${name}`);
-            const message = this.isDryRun
-                ? "Would start with an empty database, forcing a full re-sync"
-                : "Starting with an empty database, forcing a full re-sync";
-            this.logger.error(message);
-            this.print(message);
-            return undefined;
+            throw new FriendlyException([
+                `The index file ${name} is corrupt.`,
+                `It does not contain the database (filename: ${databaseFilename}).`,
+                `To force a full re-sync, delete everything from ${this.destination}.`
+            ].join("\n"));
         }
     }
 
@@ -125,8 +166,8 @@ class MetadataManager {
     private determineUpdateIndexActions(hasChanged: boolean) {
         const archives = this.listIndexArchives();
         const mustCreateNewIndex = hasChanged
-            || undefined === this.successfullyReadArchive
-            || this.successfullyReadArchive !== archives?.latest.absolutePath;
+            || undefined === this.latestArchive
+            || (!this.passwordHasChanged && this.latestArchive !== archives?.latest.absolutePath);
         return {
             mustCreateNewIndex,
             orphansToDelete: {
@@ -347,5 +388,13 @@ class MetadataManager {
             );
         }
         return result.success;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Check if the password has changed
+    //------------------------------------------------------------------------------------------------------------------
+
+    public hasPasswordChanged() {
+        return this.passwordHasChanged;
     }
 }
