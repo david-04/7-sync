@@ -45,7 +45,7 @@ class SevenZip {
             this.removeTestDirectory(directory);
         } catch (exception) {
             tryCatchIgnore(() => this.removeTestDirectory(directory));
-            rethrowWithPrefixAndSuffix("7-Zip is not working correctly", exception, "(see log file for details)");
+            rethrow(exception, message => `7-Zip is not working correctly: ${message} (see log file for details)`);
         }
         this.logger.debug("All 7-Zip tests have passed");
     }

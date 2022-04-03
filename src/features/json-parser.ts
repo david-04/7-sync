@@ -33,7 +33,7 @@ class JsonParser {
             JsonValidator.validateConfig(finalConfig);
             return { originalConfig, finalConfig };
         } catch (exception) {
-            rethrowWithPrefix(`Failed to load configuration file ${file}:`, exception);
+            rethrow(exception, message => `Failed to load configuration file ${file}: ${message}`);
         }
     }
 

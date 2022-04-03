@@ -1,38 +1,12 @@
 //----------------------------------------------------------------------------------------------------------------------
-// Prepend a prefix to the exception's message and rethrow it
-//----------------------------------------------------------------------------------------------------------------------
-
-function rethrowWithPrefix(prefix: string, exception: unknown): never {
-    if (exception instanceof Error) {
-        exception.message = `${prefix}: ${exception.message}`;
-        throw exception;
-    } else {
-        throw new Error(`${prefix}: ${exception}`);
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-// Prepend a prefix and append a suffix to the exception's message and rethrow it
-//----------------------------------------------------------------------------------------------------------------------
-
-function rethrowWithPrefixAndSuffix(prefix: string, exception: unknown, suffix: string): never {
-    if (exception instanceof Error) {
-        exception.message = `${prefix}: ${exception.message} ${suffix}`;
-        throw exception;
-    } else {
-        throw new Error(`${prefix}: ${exception} ${suffix}`);
-    }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
 // Run code in a try-catch exception handler and and ignore errors
 //----------------------------------------------------------------------------------------------------------------------
 
-function tryCatchIgnore(action: () => void) {
+function tryCatchIgnore<T>(action: () => T): Optional<T> {
     try {
-        return action();
+        return Optional.of(action());
     } catch (ignored) {
-        // do nothing
+        return Optional.empty();
     }
 }
 
@@ -40,10 +14,23 @@ function tryCatchIgnore(action: () => void) {
 // Run code in a try-catch exception handler and return it's result
 //----------------------------------------------------------------------------------------------------------------------
 
-function tryCatchRethrowFriendlyException<T>(action: () => T, getErrorMessage: (error: string) => string | never) {
+function tryCatchRethrowFriendlyException<T>(action: () => T, getErrorMessage: (error: string) => string): T | never {
     try {
         return action();
     } catch (exception) {
         throw new FriendlyException(getErrorMessage(firstLineOnly(exception)));
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Run code and rethrow with a modified message
+//----------------------------------------------------------------------------------------------------------------------
+
+function rethrow(exception: unknown, getErrorMessage: (error: string) => string): never {
+    if (exception instanceof Error) {
+        exception.message = getErrorMessage(exception.message);
+        throw exception;
+    } else {
+        throw new Error(getErrorMessage(`${exception}`));
     }
 }

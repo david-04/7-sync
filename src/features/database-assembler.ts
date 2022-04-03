@@ -31,7 +31,7 @@ class DatabaseAssembler {
             this.assembleFilesAndSubdirectories(database, json);
             return database;
         } catch (exception) {
-            rethrowWithPrefix(`Failed to assemble database`, exception);
+            rethrow(exception, message => `Failed to assemble database - ${message}`);
         }
     }
 
