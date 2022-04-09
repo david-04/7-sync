@@ -434,7 +434,8 @@ class SevenZip {
             shell: false,
             windowsHide: true,
             encoding: "utf8",
-            input: options.stdin
+            input: options.stdin,
+            maxBuffer: 4 * 1024 * 1024 * 1024
         });
         return {
             success: 0 === result.status && !result.error,
