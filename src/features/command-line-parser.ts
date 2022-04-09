@@ -58,7 +58,7 @@ class CommandLineParser {
 
     private static showUsageAndExit(): never {
         this.exitWithMessage(`
-              Replicate a file and directory structure using 7-zip.
+              Create an encrypted copy of a directory using 7-Zip.
             |
             | Usage: 7-sync [command] [options]
             |
@@ -74,8 +74,12 @@ class CommandLineParser {
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
+            |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
             |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
+            |
+            | The password can also be stored as environment variable SEVEN_SYNC_PASSWORD
+            | See the full full documentation here: https://github.com/david-04/7-sync
         `.trim().replace(/^\s+/gm, "").replace(/^\| ?/gm, ""));
     }
 
