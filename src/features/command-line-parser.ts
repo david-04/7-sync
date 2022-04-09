@@ -98,7 +98,7 @@ class CommandLineParser {
     public static parse(argv: string[]) {
         if (argv.filter(parameter => parameter.match(/^--?(v|version)$/)).length) {
             this.showVersionAndExit();
-        } else if (argv.filter(parameter => parameter.match(/^--?(h|elp)$/)).length) {
+        } else if (argv.filter(parameter => parameter.match(/^--?(h|help)$/)).length) {
             this.showUsageAndExit();
         }
         const { commands, options } = this.splitParameters(argv);
