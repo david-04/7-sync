@@ -67,7 +67,11 @@ class Application {
         try {
             context.sevenZip.runSelfTest();
             const metadataManager = new MetadataManager(context);
-            const database = DatabaseAssembler.assemble(context, await metadataManager.loadOrInitializeDatabase());
+            const { json, mustSaveImmediately } = await metadataManager.loadOrInitializeDatabase();
+            const database = DatabaseAssembler.assemble(context, json);
+            if (mustSaveImmediately && !metadataManager.updateIndex(database).isUpToDate) {
+                throw new FriendlyException("Failed to save the database");
+            }
             const message = context.options.dryRun ? "Starting the dry run" : "Starting the synchronization";
             context.logger.info(message);
             context.print(message);

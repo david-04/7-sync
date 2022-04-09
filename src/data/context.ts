@@ -27,7 +27,7 @@ class Context {
     //------------------------------------------------------------------------------------------------------------------
 
     public static async of(options: SyncOptions) {
-        const password = options.password ?? node.process.env["7_SYNC_PASSWORD"];
+        const password = options.password ?? node.process.env["SEVEN_SYNC_PASSWORD"];
         delete options.password;
         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         const files = Context.getFileNames(options.config);

@@ -22,19 +22,19 @@ class WarningsGenerator {
     // Generate warnings
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, statistics: SyncStats, passwordHasChanged: boolean) {
-        return new WarningsGenerator(context, statistics).generateWarningsAndGetExitCode(passwordHasChanged);
+    public static run(context: Context, statistics: SyncStats) {
+        return new WarningsGenerator(context, statistics).generateWarningsAndGetExitCode();
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Generate warnings
     //------------------------------------------------------------------------------------------------------------------
 
-    private generateWarningsAndGetExitCode(passwordHasChanged: boolean) {
+    private generateWarningsAndGetExitCode() {
         const warnings = [
             this.someFilesCouldNotBeCopied(),
             this.someFilesCouldNotBeDeleted(),
-            passwordHasChanged ? [] : this.orphansWereFound(),
+            this.orphansWereFound(),
             this.purgeWasNecessary(),
             this.indexArchive(),
             this.unprocessableSourceItems(),
@@ -133,24 +133,22 @@ class WarningsGenerator {
     //------------------------------------------------------------------------------------------------------------------
 
     private indexArchive() {
-        const isUpToDate = this.statistics.index.isUpToDate;
         const hasOrphans = this.statistics.index.hasLingeringOrphans;
-        if (!isUpToDate) {
-            if (hasOrphans) {
-                return this.error(
-                    "Failed to update the database.",
-                    "The previous one was preserved but is outdated.",
-                    "The next synchronization run will delete and re-encrypted all files processed in this run."
-                );
-            } else {
-                return this.error(
-                    "Failed to save the database.",
-                    `The next synchronization run will delete and re-encrypt all files`
-                );
-            }
-        } else if (hasOrphans) {
+        const isUpToDate = this.statistics.index.isUpToDate;
+        if (!isUpToDate && hasOrphans) {
+            return this.error(
+                "Failed to update the database.",
+                "The previous one was preserved but is outdated.",
+                "The next synchronization run will delete and re-encrypted all files processed in this run."
+            );
+        } else if (!isUpToDate && !hasOrphans) {
+            return this.error(
+                "Failed to save the database.",
+                `The next synchronization run will delete and re-encrypt all files.`
+            );
+        } else if (isUpToDate && hasOrphans) {
             return this.warning(
-                "The database was saved but the old one could not be deleted.",
+                "The database was saved but the old one(s) could not be deleted.",
                 "It will be retried in the next synchronization run"
             );
         } else {

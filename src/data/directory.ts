@@ -39,7 +39,7 @@ type Directory = RootDirectory | Subdirectory;
 // Mapping of a source directory to a destination
 //----------------------------------------------------------------------------------------------------------------------
 
-class MappedDirectoryBase<T extends RootDirectory> {
+abstract class MappedDirectoryBase<T extends RootDirectory> {
 
     private readonly _files = readonly({
         bySourceName: new Map<string, MappedFile>(),
@@ -65,13 +65,31 @@ class MappedDirectoryBase<T extends RootDirectory> {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(public readonly source: T, public readonly destination: T, public last: string) { }
+    constructor(public readonly source: T, public readonly destination: T, private _last: string) { }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Get the "last" filename
+    //------------------------------------------------------------------------------------------------------------------
+
+    public get last() {
+        return this._last;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Set the "last" filename
+    //------------------------------------------------------------------------------------------------------------------
+
+    public set last(last: string) {
+        this._last = last;
+        this.markAsModified();
+    }
 
     //------------------------------------------------------------------------------------------------------------------
     // Add a file or subdirectory
     //------------------------------------------------------------------------------------------------------------------
 
     public add(fileOrSubdirectory: MappedFile | MappedSubdirectory) {
+        this.markAsModified();
         if (fileOrSubdirectory instanceof MappedFile) {
             this.addTo(this._files.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
             this.addTo(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
@@ -100,6 +118,7 @@ class MappedDirectoryBase<T extends RootDirectory> {
     //------------------------------------------------------------------------------------------------------------------
 
     public delete(fileOrSubdirectory: MappedFile | MappedSubdirectory) {
+        this.markAsModified();
         if (fileOrSubdirectory instanceof MappedFile) {
             this.deleteFrom(this._files.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
             this.deleteFrom(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
@@ -135,13 +154,66 @@ class MappedDirectoryBase<T extends RootDirectory> {
         this._subdirectories.byDestinationName.forEach((subdirectory) => subdirectory.countChildren(realStatistics));
         return realStatistics;
     }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Mark the database as modified
+    //------------------------------------------------------------------------------------------------------------------
+
+    public abstract markAsModified(): void;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 // A mapped root directory
 //----------------------------------------------------------------------------------------------------------------------
 
-class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> { }
+class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> {
+
+    private lastSavedAtMs?: number;
+    private _hasUnsavedChanges = true;
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Initialization
+    //------------------------------------------------------------------------------------------------------------------
+
+    constructor(source: RootDirectory, destination: RootDirectory, last: string) {
+        super(source, destination, last);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Check if the database has unsaved changes
+    //------------------------------------------------------------------------------------------------------------------
+
+    public hasUnsavedChanges() {
+        return this._hasUnsavedChanges;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Check if the database was saved within the last ... seconds
+    //------------------------------------------------------------------------------------------------------------------
+
+    public wasSavedWithinTheLastSeconds(seconds: number) {
+        return undefined === this.lastSavedAtMs
+            ? false
+            : new Date().getTime() - this.lastSavedAtMs <= seconds * 1000;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Mark the database as saved
+    //------------------------------------------------------------------------------------------------------------------
+
+    public markAsSaved(saved = true) {
+        this.lastSavedAtMs = new Date().getTime();
+        this._hasUnsavedChanges = !saved;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Mark the database as modified
+    //------------------------------------------------------------------------------------------------------------------
+
+    public markAsModified() {
+        this._hasUnsavedChanges = true;
+    }
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 // A mapped destination directory
@@ -160,6 +232,14 @@ class MappedSubdirectory extends MappedDirectoryBase<Subdirectory> {
         last: string
     ) {
         super(source, destination, last);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Mark the database as modified
+    //------------------------------------------------------------------------------------------------------------------
+
+    public markAsModified() {
+        this.parent.markAsModified();
     }
 }
 

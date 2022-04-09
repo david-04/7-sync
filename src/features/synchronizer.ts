@@ -38,9 +38,9 @@ class Synchronizer {
             context.print("The destination is already up to date");
             context.logger.info("The destination is already up to date - no changes required");
         }
-        synchronizer.updateIndex(true);
+        synchronizer.updateIndex();
         StatisticsReporter.run(context, synchronizer.statistics);
-        return WarningsGenerator.run(context, synchronizer.statistics, metadataManager.hasPasswordChanged());
+        return WarningsGenerator.run(context, synchronizer.statistics);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -93,6 +93,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private deleteOrphanedItem(destination: string, dirent: Dirent) {
+        this.updateIndexIfRequired();
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
             return true;
@@ -227,6 +228,7 @@ class Synchronizer {
         databaseEntry?: MappedSubdirectory | MappedFile,
         destinationDirent?: Dirent
     ) {
+        this.updateIndexIfRequired();
         if (databaseEntry) {
             return this.processKnownItem(parentDirectory, databaseEntry, sourceDirent, destinationDirent);
         } else if (sourceDirent) {
@@ -471,12 +473,20 @@ class Synchronizer {
     // Recreate the recovery archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private updateIndex(isFinalUpdate: boolean) {
-        const result = this.metadataManager.updateIndex(this.database, !isFinalUpdate || !!this.statistics.success);
-        this.statistics.index.isUpToDate = isFinalUpdate && result.isUpToDate;
-        this.statistics.index.hasLingeringOrphans = 0 < result.orphans.failed + result.latest.failed;
-        this.statistics.orphans.files.success += result.orphans.success;
-        this.statistics.orphans.files.failed += result.orphans.failed;
+    private updateIndex() {
+        const { remainingOrphans, isUpToDate } = this.metadataManager.updateIndex(this.database);
+        this.statistics.index.hasLingeringOrphans = 0 < remainingOrphans;
+        this.statistics.index.isUpToDate = isUpToDate;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Update the index if there are changes that haven't been saved in a while
+    //------------------------------------------------------------------------------------------------------------------
+
+    private updateIndexIfRequired() {
+        if (this.database.hasUnsavedChanges() && !this.database.wasSavedWithinTheLastSeconds(60)) {
+            this.updateIndex();
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -488,7 +498,7 @@ class Synchronizer {
         this.logger.info(message1);
         this.print(message1);
         if (this.updateLastFilenames(this.database)) {
-            this.updateIndex(false);
+            this.updateIndex();
         } else {
             this.logger.info("Did not find any orphan filenames of concern - no need to update the database");
             this.print("Did not find any orphan filenames of concern");

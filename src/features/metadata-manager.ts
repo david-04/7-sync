@@ -10,9 +10,6 @@ class MetadataManager {
     private static readonly LISTING_FILENAME = "7-sync-file-index.txt";
     private static readonly README_FILENAME = "7-sync-README.txt"
 
-    private passwordHasChanged = false;
-    private latestArchive?: string;
-
     private readonly logger;
     private readonly print;
     private readonly isDryRun;
@@ -34,10 +31,9 @@ class MetadataManager {
     //------------------------------------------------------------------------------------------------------------------
 
     public async loadOrInitializeDatabase() {
-        const latest = this.listIndexArchives()?.latest;
+        const latest = this.listMetadataArchives()?.latest;
         if (latest) {
-            this.latestArchive = latest.absolutePath;
-            return this.loadDatabaseFromFile(latest.absolutePath, latest.name);
+            return this.loadDatabaseFromFile(latest.absolutePath, latest.name)
         } else if (FileUtils.getChildrenIfDirectoryExists(this.destination).array.length) {
             const indexFile = MetadataManager.ARCHIVE_FILE_PREFIX;
             throw new FriendlyException(
@@ -46,7 +42,10 @@ class MetadataManager {
             );
         } else {
             this.logger.info(`The destination ${this.destination} is empty - starting with an empty database`);
-            return { files: [], directories: [], last: "" };
+            return {
+                json: { files: [], directories: [], last: "" },
+                mustSaveImmediately: true
+            };
         }
     }
 
@@ -56,11 +55,17 @@ class MetadataManager {
 
     private async loadDatabaseFromFile(absolutePath: string, name: string) {
         const { sevenZip, passwordHasChanged } = await this.getSevenZipToAccessForFile(absolutePath);
-        this.passwordHasChanged = passwordHasChanged;
         const databaseFilename = MetadataManager.DATABASE_FILENAME;
         const json = this.unzipDatabase(sevenZip, absolutePath, name, databaseFilename);
         const database = JsonParser.parseAndValidateDatabase(json, name, databaseFilename, this.destination);
-        return passwordHasChanged ? { files: [], directories: [], last: database.last } : database;
+        if (passwordHasChanged) {
+            return {
+                json: { files: [], directories: [], last: database.last },
+                mustSaveImmediately: true,
+            };
+        } else {
+            return { json: database, mustSaveImmediately: false };
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -147,34 +152,26 @@ class MetadataManager {
     // Update the index (if required)
     //------------------------------------------------------------------------------------------------------------------
 
-    public updateIndex(database: MappedRootDirectory, hasChanged: boolean) {
-        const actions = this.determineUpdateIndexActions(hasChanged);
-        const hasCreatedNewIndex = actions.mustCreateNewIndex ? this.createNewIndex(database) : false;
-        const orphansToDelete = hasCreatedNewIndex
-            ? actions.orphansToDelete.includingLatest
-            : actions.orphansToDelete.excludingLatest
-        const orphans = this.isDryRun
-            ? { orphans: { success: 0, failed: 0 }, latest: { success: 0, failed: 0 } }
-            : this.deleteOrphans(orphansToDelete.map(file => file.absolutePath));
-        return { isUpToDate: hasCreatedNewIndex || !actions.mustCreateNewIndex, ...orphans };
+    public updateIndex(database: MappedRootDirectory) {
+        const indexesToDelete = this.getMetadataArchives();
+        const remainingOrphans = this.deleteOrphans(indexesToDelete.orphans.map(file => file.absolutePath));
+        const mustCreateNewIndex = database.hasUnsavedChanges();
+        const hasCreatedNewIndex = mustCreateNewIndex && this.createNewIndex(database);
+        const isUpToDate = hasCreatedNewIndex || !mustCreateNewIndex;
+        database.markAsSaved(isUpToDate);
+        const remainingLatestOrphan = hasCreatedNewIndex
+            ? this.deleteOrphans(indexesToDelete.latest.map(file => file.absolutePath))
+            : indexesToDelete.latest.length;
+        return { isUpToDate, remainingOrphans: remainingOrphans + remainingLatestOrphan }
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Determine the actions to perform when updating the index
     //------------------------------------------------------------------------------------------------------------------
 
-    private determineUpdateIndexActions(hasChanged: boolean) {
-        const archives = this.listIndexArchives();
-        const mustCreateNewIndex = hasChanged
-            || undefined === this.latestArchive
-            || (!this.passwordHasChanged && this.latestArchive !== archives?.latest.absolutePath);
-        return {
-            mustCreateNewIndex,
-            orphansToDelete: {
-                includingLatest: archives ? [...archives.orphans, archives.latest] : [],
-                excludingLatest: archives?.orphans ?? []
-            }
-        };
+    private getMetadataArchives() {
+        const archives = this.listMetadataArchives();
+        return { latest: archives ? [archives.latest] : [], orphans: archives?.orphans ?? [] };
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -287,20 +284,7 @@ class MetadataManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private deleteOrphans(orphans: string[]) {
-        const deleted = orphans.filter(file => this.deleteFileIfExists(file)).length;
-        const failed = orphans.length - deleted;
-        const lastDeleted = 0 < deleted ? 1 : 0;
-        const lastFailed = !lastDeleted && failed ? 1 : 0;
-        return {
-            orphans: {
-                success: deleted - lastDeleted,
-                failed: failed - lastFailed
-            },
-            latest: {
-                success: lastDeleted,
-                failed: lastFailed
-            }
-        };
+        return orphans.filter(file => !this.deleteFileIfExists(file)).length;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -361,7 +345,7 @@ class MetadataManager {
     // Get the absolute path of all index files in the destination's root folder
     //------------------------------------------------------------------------------------------------------------------
 
-    private listIndexArchives() {
+    private listMetadataArchives() {
         const files = FileUtils.getChildren(this.destination)
             .array
             .filter(dirent => !dirent.isDirectory())
@@ -388,13 +372,5 @@ class MetadataManager {
             );
         }
         return result.success;
-    }
-
-    //------------------------------------------------------------------------------------------------------------------
-    // Check if the password has changed
-    //------------------------------------------------------------------------------------------------------------------
-
-    public hasPasswordChanged() {
-        return this.passwordHasChanged;
     }
 }
