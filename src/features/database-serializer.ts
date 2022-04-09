@@ -26,7 +26,7 @@ class DatabaseSerializer {
             last: database.last
         };
         JsonValidator.validateDatabase(json);
-        return JSON.stringify(json, undefined, 4);
+        return JSON.stringify(json);
     }
 
     //------------------------------------------------------------------------------------------------------------------
