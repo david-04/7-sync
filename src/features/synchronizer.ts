@@ -38,7 +38,9 @@ class Synchronizer {
             context.print("The destination is already up to date");
             context.logger.info("The destination is already up to date - no changes required");
         }
-        synchronizer.updateIndexIfRequired();
+        if (database.hasUnsavedChanges()) {
+            synchronizer.updateIndex();
+        }
         StatisticsReporter.run(context, synchronizer.statistics);
         return WarningsGenerator.run(context, synchronizer.statistics);
     }
