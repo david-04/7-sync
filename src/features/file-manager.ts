@@ -127,9 +127,13 @@ class FileManager {
     // Delete a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public deleteFile(
-        options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
-    ) {
+    public deleteFile(options: {
+        destination: string,
+        source?: string,
+        suppressConsoleOutput?: boolean,
+        reason?: string,
+        orphanDisplayPath?: string
+    }) {
         const isMetadataArchive = !options.source
             && this.database.destination.absolutePath === node.path.dirname(options.destination)
             && MetadataManager.isMetadataArchiveName(node.path.basename(options.destination));
@@ -145,9 +149,13 @@ class FileManager {
     // Delete a single directory
     //------------------------------------------------------------------------------------------------------------------
 
-    public deleteDirectory(
-        options: { destination: string, source?: string, suppressConsoleOutput?: boolean, reason?: string }
-    ) {
+    public deleteDirectory(options: {
+        destination: string,
+        source?: string,
+        suppressConsoleOutput?: boolean,
+        reason?: string,
+        orphanDisplayPath?: string
+    }) {
         return this.deleteFileOrDirectory({ ...options, type: "directory" });
     }
 
@@ -161,12 +169,16 @@ class FileManager {
         suppressConsoleOutput?: boolean,
         reason?: string,
         type: "file" | "directory",
-        isMetadataArchive?: boolean
-
+        isMetadataArchive?: boolean,
+        orphanDisplayPath?: string
     }) {
-        const isOrphan = !options.source;
+        const isOrphan = undefined !== options.orphanDisplayPath;
         if (!options.suppressConsoleOutput) {
-            this.print(`- ${this.getConsolePathInfo("rm", options.destination, options.source)}`);
+            if (options.orphanDisplayPath) {
+                this.print(`- ${options.orphanDisplayPath} (orphan)`);
+            } else {
+                this.print(`- ${this.getConsolePathInfo("rm", options.destination, options.source)}`);
+            }
         }
         const pathInfo = this.getLogFilePathInfo("rm", options.destination, options.source);
         const reason = options.reason ? ` ${options.reason}` : "";

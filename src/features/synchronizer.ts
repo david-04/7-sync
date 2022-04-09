@@ -38,7 +38,7 @@ class Synchronizer {
             context.print("The destination is already up to date");
             context.logger.info("The destination is already up to date - no changes required");
         }
-        synchronizer.updateIndex();
+        synchronizer.updateIndexIfRequired();
         StatisticsReporter.run(context, synchronizer.statistics);
         return WarningsGenerator.run(context, synchronizer.statistics);
     }
@@ -77,7 +77,13 @@ class Synchronizer {
             const dirent = array[1];
             if (!database.files.byDestinationName.has(name) && !database.subdirectories.byDestinationName.has(name)) {
                 const destination = node.path.join(database.destination.absolutePath, name);
-                const success = this.deleteOrphanedItem(destination, dirent);
+                const relativeRootPath = node.path.relative(
+                    this.database.source.absolutePath,
+                    database.source.absolutePath
+                );
+                const success = this.deleteOrphanedItem(destination, dirent, path => {
+                    return node.path.join(relativeRootPath, name, path.substring(destination.length));
+                });
                 if (success) {
                     destinationChildren.delete(name);
                 }
@@ -92,15 +98,15 @@ class Synchronizer {
     // Delete an orphaned file or directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteOrphanedItem(destination: string, dirent: Dirent) {
+    private deleteOrphanedItem(destination: string, dirent: Dirent, pathMapper: (destination: string) => string) {
         this.updateIndexIfRequired();
         const isRootFolder = node.path.dirname(destination) === this.database.destination.absolutePath;
         if (isRootFolder && MetadataManager.isMetadataArchiveName(dirent.name)) {
             return true;
         } else {
             return dirent.isDirectory()
-                ? this.deleteOrphanedDirectory(destination)
-                : this.deleteOrphanedFile(destination);
+                ? this.deleteOrphanedDirectory(destination, pathMapper)
+                : this.deleteOrphanedFile(destination, pathMapper);
         }
     }
 
@@ -108,12 +114,15 @@ class Synchronizer {
     // Delete an orphan directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteOrphanedDirectory(absolutePath: string) {
-        this.deleteOrphanedChildren(absolutePath);
+    private deleteOrphanedDirectory(absolutePath: string, pathMapper: (destination: string) => string) {
+        this.deleteOrphanedChildren(absolutePath, pathMapper);
         if (!this.statistics.orphans.total) {
             this.recalculateLastFilenames();
         }
-        const success = this.fileManager.deleteDirectory({ destination: absolutePath });
+        const success = this.fileManager.deleteDirectory({
+            destination: absolutePath,
+            orphanDisplayPath: pathMapper(absolutePath)
+        });
         if (success) {
             this.statistics.orphans.directories.success++;
         } else {
@@ -126,10 +135,10 @@ class Synchronizer {
     // Delete the contents of an orphan directory
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteOrphanedChildren(absoluteParentPath: string) {
+    private deleteOrphanedChildren(absoluteParentPath: string, pathMapper: (destination: string) => string) {
         return this.mapAndReduce(
             FileUtils.getChildren(absoluteParentPath).array,
-            dirent => this.deleteOrphanedItem(node.path.join(absoluteParentPath, dirent.name), dirent)
+            dirent => this.deleteOrphanedItem(node.path.join(absoluteParentPath, dirent.name), dirent, pathMapper)
         );
     }
 
@@ -137,11 +146,11 @@ class Synchronizer {
     // Delete an orphaned file
     //------------------------------------------------------------------------------------------------------------------
 
-    private deleteOrphanedFile(destination: string) {
+    private deleteOrphanedFile(destination: string, pathMapper: (destination: string) => string) {
         if (!this.statistics.orphans.total) {
             this.recalculateLastFilenames();
         }
-        const success = this.fileManager.deleteFile({ destination });
+        const success = this.fileManager.deleteFile({ destination, orphanDisplayPath: pathMapper(destination) });
         if (success) {
             this.statistics.orphans.files.success++;
         } else {

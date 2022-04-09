@@ -79,7 +79,7 @@ class SyncStats {
 
     public readonly index = {
         hasLingeringOrphans: false,
-        isUpToDate: false
+        isUpToDate: true
     };
 
     //------------------------------------------------------------------------------------------------------------------
