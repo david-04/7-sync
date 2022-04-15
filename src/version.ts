@@ -1,3 +1,3 @@
-const APPLICATION_VERSION = "0.9.0"
+const APPLICATION_VERSION = "1.0.0"
 const COPYRIGHT_OWNER = "David Hofmann";
 const COPYRIGHT_YEARS = "2022";
