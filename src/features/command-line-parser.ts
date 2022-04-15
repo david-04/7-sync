@@ -78,8 +78,9 @@ class CommandLineParser {
             |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
             |
-            | The password can also be stored as environment variable SEVEN_SYNC_PASSWORD
-            | See the full full documentation here: https://github.com/david-04/7-sync
+            | The password can also be stored as environment variable SEVEN_SYNC_PASSWORD.
+            |
+            | Full documentation: ${README_URL_BASE}
         `.trim().replace(/^\s+/gm, "").replace(/^\| ?/gm, ""));
     }
 

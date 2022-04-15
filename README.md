@@ -129,7 +129,7 @@ In the menu, enable `View` => `Flat View`:
 
 ![](docs/screenshot-02.png)
 
-This will show all files from all subdirectories in one flat list. Then select all the files (but no directories). This can be done by clicking on the first file in the list, then scrolling to the bottom, pressing the `Shift` key, and clicking on the last file in the list:
+This will show all files from all subdirectories in one flat list. Then select all the files (but no directories). This can be done by clicking on the first file in the list, scrolling down to the bottom, and clicking on the last file while holding the `Shift` key down:
 
 ![](docs/screenshot-03.png)
 
@@ -142,9 +142,9 @@ Make sure to populate the dialogue as follows:
 - The `Extract to` path must **not** contain `*` (like for example `C:\Restore\*\`). The checkbox below must **not** be ticked either. Otherwise, 7-Zip creates a separate subdirectory for each file.
 - Set the `Path mode` to `Full pathnames` and tick `Eliminate duplication of root folder`.
 
-Then enter the password and click `OK`. If the password is correct, 7-Zip will unpack all the files
+Then enter the password and click `OK`. If the password is correct, 7-Zip will unpack all files.
 
-# Errors and warnings
+# Errors
 
 At the end of a synchronization, 7-sync might display errors and warnings. More details might be available in the log file. It's created in parallel to the configuration file (default: `7-sync.log`) and contains information about the last 10 synchronizations and dry runs. Search for `ERROR` and `WARNING` to locate error messages.
 

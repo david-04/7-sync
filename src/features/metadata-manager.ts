@@ -203,7 +203,7 @@ class MetadataManager {
 
     private populateIndex(tempFile: string, finalFile: string, database: MappedRootDirectory) {
         const success = this.zipDatabase(tempFile, database)
-            && this.zipReadme(tempFile)
+            && this.zipReadme(tempFile, finalFile, database)
             && this.zipFileListing(tempFile, database)
             && this.renameArchive(tempFile, finalFile);
         if (!success) {
@@ -227,9 +227,11 @@ class MetadataManager {
     // Add the README to the zip archive
     //------------------------------------------------------------------------------------------------------------------
 
-    private zipReadme(zipFile: string) {
-        this.logger.info(`Storing the README as ${MetadataManager.README_FILENAME} in ${zipFile}`);
-        return this.addToArchive(zipFile, MetadataManager.README_FILENAME, README);
+    private zipReadme(tempFile: string, finalFile: string, database: MappedRootDirectory) {
+        this.logger.info(`Storing the README as ${MetadataManager.README_FILENAME} in ${tempFile}`);
+        const filename = node.path.relative(database.destination.absolutePath, finalFile);
+        const content = README_FILE_CONTENT.replace("___INDEX___2022-04-10-07-25-47-394.7z", filename);
+        return this.addToArchive(tempFile, MetadataManager.README_FILENAME, content);
     }
 
     //------------------------------------------------------------------------------------------------------------------

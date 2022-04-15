@@ -42,6 +42,7 @@ class WarningsGenerator {
         ].flatMap(array => array).sort((a, b) => a.logLevel.index - b.logLevel.index);
         if (warnings.length) {
             warnings.forEach(warning => this.logger.log(warning.logLevel, warning.message));
+            this.logger.warn(`Please refer to ${README_URL_WARNINGS} for more details`);
             const logLevel = warnings[0].logLevel;
             this.displayReport(logLevel, warnings.map(warning => warning.message));
             return logLevel === LogLevel.ERROR || LogLevel.WARN ? 1 : 0;
@@ -255,6 +256,8 @@ class WarningsGenerator {
     private displayReport(logLevel: LogLevel, messages: string[]) {
         this.displayBanner(logLevel);
         messages.forEach((message, index) => this.displayMessage(message, index, messages.length));
+        this.print("");
+        this.print(`See ${README_URL_WARNINGS}`);
     }
 
     //------------------------------------------------------------------------------------------------------------------
