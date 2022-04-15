@@ -488,6 +488,7 @@ class Synchronizer {
         const { remainingOrphans, isUpToDate } = this.metadataManager.updateIndex(this.database);
         this.statistics.index.hasLingeringOrphans = 0 < remainingOrphans;
         this.statistics.index.isUpToDate = isUpToDate;
+        return isUpToDate;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -509,7 +510,9 @@ class Synchronizer {
         this.logger.info(message1);
         this.print(message1);
         if (this.updateLastFilenames(this.database)) {
-            this.updateIndex();
+            if (!this.updateIndex()) {
+                throw new FriendlyException(`Failed to save the database (see log file for details)`);
+            }
         } else {
             this.logger.info("Did not find any orphan filenames of concern - no need to update the database");
             this.print("Did not find any orphan filenames of concern");
