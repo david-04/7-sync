@@ -48,7 +48,7 @@ const README_FILE_CONTENT = `
     extract the files:
 
     - Set the "Extract to" field to the directory where to place the decrypted
-        files. The path must NOT contain "*" (like for example C:\Restore\*\).
+        files. The path must NOT contain "*" (like for example C:\\Restore\\*\\).
         Also untick the checkbox right under this field. Otherwise, 7-Zip creates
         a separate subdirectory for each file being unzipped.
     - Set the "Path mode" to "Full pathnames".
