@@ -7,3 +7,4 @@
 /test/source
 /test/*.log
 /test/*.out
+*.tmp

@@ -1,0 +1,24 @@
+{
+  "name": "7-sync",
+  "version": "0.9.0",
+  "description": "A wrapper for 7-Zip to create cloud-friendly encrypted backups",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/david-04/7-sync.git",
+    "directory": "package"
+  },
+  "keywords": [
+    "7-Zip",
+    "sync",
+    "backup",
+    "encryption"
+  ],
+  "author": "David Hofmann",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/david-04/7-sync/issues"
+  },
+  "homepage": "https://github.com/david-04/7-sync#readme",
+  "bin": "./cli.js"
+}

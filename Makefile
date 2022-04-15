@@ -1,13 +1,22 @@
 7_SYNC_JS=dist/7-sync.js
 RUN=node "../$(7_SYNC_JS)"
+VERSION=$(shell grep -E "^## \[[0-9.]+\]" CHANGELOG.md | head -1 | sed "s|^\#\# \[||;s|\].*||")
 
-autorun : $(7_SYNC_JS)
+#-----------------------------------------------------------------------------------------------------------------------
+# Compile
+#-----------------------------------------------------------------------------------------------------------------------
 
-help : $(7_SYNC_JS)
-	cd test && $(RUN) --help
+autorun : build;
 
-version : $(7_SYNC_JS)
-	cd test && $(RUN) --version
+build : $(7_SYNC_JS);
+
+$(7_SYNC_JS) : $(wildcard src/*.ts src/*/*.ts src/*/*/*.ts src/*/*/*/*.ts)
+	echo Compiling....
+	tsc
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Test
+#-----------------------------------------------------------------------------------------------------------------------
 
 init : $(7_SYNC_JS)
 	cd test && rm -f 7-sync.cfg; $(RUN) init # --config=7-sync.cfg
@@ -19,6 +28,34 @@ sync : $(7_SYNC_JS)
 	rm -f test/*.log
 	cd test && $(RUN) sync --password=a
 
-$(7_SYNC_JS) : $(wildcard src/* src/*/* src/*/*/* src/*/*/*/*)
-	echo Compiling....
-	tsc
+help : $(7_SYNC_JS)
+	cd test && $(RUN) --help
+
+version : $(7_SYNC_JS)
+	cd test && $(RUN) --version
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Release
+#-----------------------------------------------------------------------------------------------------------------------
+
+release : clean update-version build
+	cp -f $(7_SYNC_JS) package
+
+update-version :
+	cat package/package.json \
+		| sed -E 's|"version": "[0-9.]+"|"version": "$(VERSION)"|' \
+		> package/package.json.tmp
+	mv -f package/package.json.tmp package/package.json
+	sed 's|.*APPLICATION_VERSION.*|const APPLICATION_VERSION = "$(VERSION)"|' src/version.ts \
+		> src/version.ts.tmp
+	mv -f src/version.ts.tmp src/version.ts
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Clean
+#-----------------------------------------------------------------------------------------------------------------------
+
+clean :
+    ifneq "$(wildcard dist/7-sync.js)" ""
+	rm dist/7-sync.js
+    endif
