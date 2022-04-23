@@ -56,6 +56,6 @@ update-version :
 #-----------------------------------------------------------------------------------------------------------------------
 
 clean :
-    ifneq "$(wildcard dist/7-sync.js)" ""
-	rm dist/7-sync.js
+    ifneq "$(wildcard dist/7-sync.js test/*.log test/*.out test/compare test/destination test/source)" ""
+	rm -rf dist/7-sync.js test/*.log test/*.out test/compare test/destination test/source
     endif
