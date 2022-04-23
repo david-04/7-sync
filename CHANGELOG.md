@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.0.2](https://github.com/david-04/7-sync/releases/tag/v1.0.2) (2022-04-23)
+
+- Avoid Windows reserved filenames (e.g. `PRN`, `AUX`, `NUL`, `COM1`, ...)
+
 ## [1.0.1](https://github.com/david-04/7-sync/releases/tag/v1.0.1) (2022-04-15)
 
 - Fixed link to CHANGELOG

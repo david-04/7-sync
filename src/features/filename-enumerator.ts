@@ -5,6 +5,32 @@
 class FilenameEnumerator {
 
     private static readonly LETTERS = "abcdefghijkmnpqrstuvwxyz123456789"; // cspell: disable-line
+    private static readonly RESERVED_NAMES = new Set([
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "COM0",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+        "LPT0"
+    ].map(name => name.toLowerCase()));
 
     private readonly firstLetter;
     private readonly nextLetter;
@@ -99,10 +125,12 @@ class FilenameEnumerator {
             next = next ? this.calculateNext(next) : this.firstLetter;
             const filename = prefix + next + suffix;
             const filenameWithPath = node.path.join(path, filename);
-            if (FileUtils.exists(filenameWithPath)) {
-                this.logger.warn(`The next filename is already occupied: ${path} => ${filename}`);
-            } else if (!MetadataManager.isMetadataArchiveName(next)) {
-                return { enumeratedName: next, filename, filenameWithPath };
+            if (!FilenameEnumerator.RESERVED_NAMES.has(next.toLowerCase())) {
+                if (FileUtils.exists(filenameWithPath)) {
+                    this.logger.warn(`The next filename is already occupied: ${path} => ${filename}`);
+                } else if (!MetadataManager.isMetadataArchiveName(next)) {
+                    return { enumeratedName: next, filename, filenameWithPath };
+                }
             }
         }
     }
@@ -112,8 +140,9 @@ class FilenameEnumerator {
     //------------------------------------------------------------------------------------------------------------------
 
     public recalculateLastFilename(last: string, filenames: string[]) {
+        const ext = ".7z";
         return filenames
-            .map(filename => filename.endsWith(".7z") ? filename.substring(0, filename.length - 3) : filename)
+            .map(filename => filename.endsWith(ext) ? filename.substring(0, filename.length - ext.length) : filename)
             .filter(basename => this.isEnumeratedName(basename))
             .reduce((a, b) => this.getLastFilename(a, b), this.isEnumeratedName(last) ? last : "");
     }

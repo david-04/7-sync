@@ -98,7 +98,7 @@ process.on("beforeExit", () => {
         Application.main();
     }
 });
-const APPLICATION_VERSION = "1.0.1";
+const APPLICATION_VERSION = "1.0.2";
 const COPYRIGHT_OWNER = "David Hofmann";
 const COPYRIGHT_YEARS = "2022";
 class Context {
@@ -1127,17 +1127,20 @@ class FilenameEnumerator {
             next = next ? this.calculateNext(next) : this.firstLetter;
             const filename = prefix + next + suffix;
             const filenameWithPath = node.path.join(path, filename);
-            if (FileUtils.exists(filenameWithPath)) {
-                this.logger.warn(`The next filename is already occupied: ${path} => ${filename}`);
-            }
-            else if (!MetadataManager.isMetadataArchiveName(next)) {
-                return { enumeratedName: next, filename, filenameWithPath };
+            if (!FilenameEnumerator.RESERVED_NAMES.has(next.toLowerCase())) {
+                if (FileUtils.exists(filenameWithPath)) {
+                    this.logger.warn(`The next filename is already occupied: ${path} => ${filename}`);
+                }
+                else if (!MetadataManager.isMetadataArchiveName(next)) {
+                    return { enumeratedName: next, filename, filenameWithPath };
+                }
             }
         }
     }
     recalculateLastFilename(last, filenames) {
+        const ext = ".7z";
         return filenames
-            .map(filename => filename.endsWith(".7z") ? filename.substring(0, filename.length - 3) : filename)
+            .map(filename => filename.endsWith(ext) ? filename.substring(0, filename.length - ext.length) : filename)
             .filter(basename => this.isEnumeratedName(basename))
             .reduce((a, b) => this.getLastFilename(a, b), this.isEnumeratedName(last) ? last : "");
     }
@@ -1176,6 +1179,32 @@ class FilenameEnumerator {
     }
 }
 FilenameEnumerator.LETTERS = "abcdefghijkmnpqrstuvwxyz123456789";
+FilenameEnumerator.RESERVED_NAMES = new Set([
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "COM0",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
+    "LPT0"
+].map(name => name.toLowerCase()));
 var _a;
 class InteractivePrompt {
     static prompt(options) {
