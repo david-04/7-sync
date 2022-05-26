@@ -8,7 +8,7 @@ class FriendlyException extends Error {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    public constructor(message: string, public readonly exitCode: number = 1) {
+    public constructor(message: string, public readonly exitCode = 1) {
         super(message);
     }
 }

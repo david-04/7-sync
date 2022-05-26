@@ -4,14 +4,24 @@
 
 abstract class OutputStream {
 
+    private static readonly JSON_STRINGIFY_INDENT = 4;
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Stringify a piece of data
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static stringify(item: unknown) {
+        return "object" === typeof item
+            ? JSON.stringify(item, undefined, OutputStream.JSON_STRINGIFY_INDENT)
+            : `${item}`;
+    }
+
     //------------------------------------------------------------------------------------------------------------------
     // Log messages and/or objects without indenting line breaks
     //------------------------------------------------------------------------------------------------------------------
 
     public log(...data: (string | object)[]) {
-        this.write(
-            data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`).join(" ")
-        );
+        this.write(data.map(OutputStream.stringify).join(" "));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -19,11 +29,7 @@ abstract class OutputStream {
     //------------------------------------------------------------------------------------------------------------------
 
     public logAligned(padding: string, ...data: (string | object)[]) {
-        const text = data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`)
-            .join(" ")
-            .split(/\r?\n/)
-            .join(padding);
-        this.write(text);
+        this.write(data.map(OutputStream.stringify).join(" ").split(/\r?\n/).join(padding));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -70,7 +76,7 @@ class ConsoleOutputStream extends OutputStream {
 
 class FileOutputStream extends OutputStream {
 
-    private fileDescriptor;
+    private readonly fileDescriptor;
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization

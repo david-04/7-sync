@@ -8,7 +8,7 @@ class Application {
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
-    constructor(private logger: Logger) { }
+    constructor(private readonly logger: Logger) { }
 
     //------------------------------------------------------------------------------------------------------------------
     // Entry point and error handling for the main program
@@ -17,7 +17,8 @@ class Application {
     public static async main() {
         const application = new Application(new Logger(LogLevel.ERROR, new NullOutputStream()));
         try {
-            process.exit(await application.run(process.argv.slice(2)));
+            const SKIPPED_ARGC = 2;
+            process.exit(await application.run(process.argv.slice(SKIPPED_ARGC)));
         } catch (exception) {
             if (exception instanceof FriendlyException) {
                 if (0 === exception.exitCode) {
@@ -42,7 +43,7 @@ class Application {
         this.logger.info("Parsing the command line options");
         const options = CommandLineParser.parse(argv);
         if (!options.config.endsWith(".cfg")) {
-            throw new FriendlyException(`"${options.config}" does not end with .cfg`)
+            throw new FriendlyException(`"${options.config}" does not end with .cfg`);
         }
         this.logger.debug("Extracted command line options:", options);
         switch (options.command) {
@@ -54,9 +55,9 @@ class Application {
                 return 0;
             case CommandLineParser.DEFAULT_OPTIONS.sync.command:
                 return this.sync(await Context.of(options));
+            default:
+                return assertNever(options);
         }
-        // @ts-expect-error The switch above should be exhaustive
-        throw new Error(`Internal error: Missing handler for ${context.options.command}`)
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -84,7 +85,7 @@ class Application {
                     .split(/\r?\n/)
                     .map(line => line.trim())
                     .filter(line => line)
-                    .forEach(line => context.logger.error(line))
+                    .forEach(line => context.logger.error(line));
             } else {
                 context.logger.error(firstLineOnly(exception));
             }

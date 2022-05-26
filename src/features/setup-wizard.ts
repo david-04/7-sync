@@ -22,11 +22,13 @@ class SetupWizard {
         return this.initializeOrReconfigure({ config: options.config, ...config.originalConfig });
     }
 
+    private static readonly JSON_STRINGIFY_INDENT = 4;
+
     //------------------------------------------------------------------------------------------------------------------
     // Acquire all information and update the file
     //------------------------------------------------------------------------------------------------------------------
 
-    private static async initializeOrReconfigure(presets: Partial<JsonConfig> & { config: string }) {
+    private static async initializeOrReconfigure(presets: Partial<JsonConfig> & { config: string; }) {
         console.log("");
         console.log("--------------------------------------------------------------------------------");
         console.log("7-sync configuration wizard");
@@ -36,7 +38,7 @@ class SetupWizard {
         const config = await this.getConfigFile(hasPresets, presets.config);
         const base = FileUtils.getAbsolutePath(FileUtils.normalize(FileUtils.getParent(config)));
         const source = await this.getSourceDirectory(config, base, presets?.source);
-        const destination = await this.getDestinationDirectory(config, base, source, presets.destination)
+        const destination = await this.getDestinationDirectory(config, base, source, presets.destination);
         const password = await this.getPassword(presets.password);
         const sevenZip = await this.getSevenZip(hasPresets, presets.sevenZip ?? "7z");
         const configJson: JsonConfig = {
@@ -45,7 +47,7 @@ class SetupWizard {
             password,
             sevenZip
         };
-        node.fs.writeFileSync(config, JSON.stringify(configJson, undefined, 4));
+        node.fs.writeFileSync(config, JSON.stringify(configJson, undefined, SetupWizard.JSON_STRINGIFY_INDENT));
         if (hasPresets) {
             console.log(`Config file "${config}" has been updated.`);
         } else {
@@ -72,9 +74,9 @@ class SetupWizard {
                 ],
                 defaultAnswer: preset,
                 normalizePath: true,
-                validate: async (file) => {
+                validate: async file => {
                     if (FileUtils.existsAndIsFile(file)) {
-                        const question = `${file} already exists. Do you want to overwrite it?`
+                        const question = `${file} already exists. Do you want to overwrite it?`;
                         if (!await InteractivePrompt.promptYesNo({ question: question })) {
                             return false;
                         }
@@ -197,12 +199,12 @@ class SetupWizard {
 
     private static async prompt(options: {
         question: string | string[],
-        defaultAnswer?: string
+        defaultAnswer?: string;
         presetAnswer?: string,
         validate?: (input: string) => Promise<boolean | string>,
         normalizePath?: boolean,
         isPassword?: boolean,
-        acceptBlankInput?: boolean
+        acceptBlankInput?: boolean;
     }) {
         let answer = options.presetAnswer;
         while (true) {

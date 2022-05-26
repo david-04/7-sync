@@ -15,7 +15,8 @@ class Application {
         return __awaiter(this, void 0, void 0, function* () {
             const application = new Application(new Logger(LogLevel.ERROR, new NullOutputStream()));
             try {
-                process.exit(yield application.run(process.argv.slice(2)));
+                const SKIPPED_ARGC = 2;
+                process.exit(yield application.run(process.argv.slice(SKIPPED_ARGC)));
             }
             catch (exception) {
                 if (exception instanceof FriendlyException) {
@@ -52,8 +53,9 @@ class Application {
                     return 0;
                 case CommandLineParser.DEFAULT_OPTIONS.sync.command:
                     return this.sync(yield Context.of(options));
+                default:
+                    return assertNever(options);
             }
-            throw new Error(`Internal error: Missing handler for ${context.options.command}`);
         });
     }
     sync(context) {
@@ -98,7 +100,7 @@ process.on("beforeExit", () => {
         Application.main();
     }
 });
-const APPLICATION_VERSION = "1.0.2";
+const APPLICATION_VERSION = "1.0.3";
 const COPYRIGHT_OWNER = "David Hofmann";
 const COPYRIGHT_YEARS = "2022";
 class Context {
@@ -119,7 +121,7 @@ class Context {
             delete options.password;
             const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
             const files = Context.getFileNames(options.config);
-            yield Logger.purge(files.log, 9);
+            yield Logger.purge(files.log, Context.MAX_LOG_FILES);
             const logger = Context.getLogger(files.log, false);
             logger.separator();
             try {
@@ -194,6 +196,7 @@ class Context {
         });
     }
 }
+Context.MAX_LOG_FILES = 9;
 class RootDirectory {
     constructor(absolutePath) {
         this.absolutePath = absolutePath;
@@ -211,22 +214,22 @@ class MappedDirectoryBase {
         this.source = source;
         this.destination = destination;
         this._last = _last;
-        this._files = readonly({
+        this._files = {
             bySourceName: new Map(),
             byDestinationName: new Map()
-        });
-        this.files = readonly({
+        };
+        this.files = {
             bySourceName: new ImmutableMap(this._files.bySourceName),
             byDestinationName: new ImmutableMap(this._files.byDestinationName)
-        });
-        this._subdirectories = readonly({
+        };
+        this._subdirectories = {
             bySourceName: new Map(),
             byDestinationName: new Map()
-        });
-        this.subdirectories = readonly({
+        };
+        this.subdirectories = {
             bySourceName: new ImmutableMap(this._subdirectories.bySourceName),
             byDestinationName: new ImmutableMap(this._subdirectories.byDestinationName)
-        });
+        };
     }
     get last() {
         return this._last;
@@ -283,7 +286,7 @@ class MappedDirectoryBase {
         const realStatistics = statistics !== null && statistics !== void 0 ? statistics : { files: 0, subdirectories: 0 };
         realStatistics.files += this._files.byDestinationName.size;
         realStatistics.subdirectories += this._subdirectories.byDestinationName.size;
-        this._subdirectories.byDestinationName.forEach((subdirectory) => subdirectory.countChildren(realStatistics));
+        this._subdirectories.byDestinationName.forEach(subdirectory => subdirectory.countChildren(realStatistics));
         return realStatistics;
     }
 }
@@ -298,7 +301,7 @@ class MappedRootDirectory extends MappedDirectoryBase {
     wasSavedWithinTheLastSeconds(seconds) {
         return undefined === this.lastSavedAtMs
             ? false
-            : new Date().getTime() - this.lastSavedAtMs <= seconds * 1000;
+            : new Date().getTime() - this.lastSavedAtMs <= seconds * MappedRootDirectory.MILLISECONDS_PER_SECOND;
     }
     markAsSaved(saved = true) {
         this.lastSavedAtMs = new Date().getTime();
@@ -308,6 +311,7 @@ class MappedRootDirectory extends MappedDirectoryBase {
         this._hasUnsavedChanges = true;
     }
 }
+MappedRootDirectory.MILLISECONDS_PER_SECOND = 1000;
 class MappedSubdirectory extends MappedDirectoryBase {
     constructor(parent, source, destination, last) {
         super(source, destination, last);
@@ -547,10 +551,10 @@ class SyncStats {
         this.deleted = new FileAndDirectoryStats();
         this.orphans = new FileAndDirectoryStats();
         this.purged = new FileAndDirectoryStats();
-        this.unprocessable = readonly({
+        this.unprocessable = {
             source: { symlinks: 0, other: 0 },
             destination: { symlinks: 0, other: 0 }
-        });
+        };
         this.index = {
             hasLingeringOrphans: false,
             isUpToDate: true
@@ -566,6 +570,7 @@ class SyncStats {
 var _a;
 class CommandLineParser {
     static showUsageAndExit() {
+        const configFile = this.DEFAULT_CONFIG_FILE;
         this.exitWithMessage(`
               Create an encrypted copy of a directory using 7-Zip.
             |
@@ -580,7 +585,7 @@ class CommandLineParser {
             | Options:
             |
             |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
-            |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
+            |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${configFile})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
             |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
@@ -601,17 +606,17 @@ class CommandLineParser {
     }
     static parse(argv) {
         if (argv.filter(parameter => parameter.match(/^--?(v|version)$/)).length) {
-            this.showVersionAndExit();
+            return this.showVersionAndExit();
         }
         else if (argv.filter(parameter => parameter.match(/^--?(h|help)$/)).length) {
-            this.showUsageAndExit();
+            return this.showUsageAndExit();
         }
         const { commands, options } = this.splitParameters(argv);
         if (0 === commands.length) {
-            this.exitWithError('Missing command');
+            return this.exitWithError("Missing command");
         }
         else if (1 < commands.length) {
-            this.exitWithError(`More than one command specified: ${commands.join(", ")}`);
+            return this.exitWithError(`More than one command specified: ${commands.join(", ")}`);
         }
         else {
             return this.assembleOptions(commands[0], options);
@@ -620,11 +625,16 @@ class CommandLineParser {
     static splitParameters(argv) {
         const options = new Map();
         const commands = new Array();
+        const prefix = "--";
+        const separator = "=";
+        const minLength = prefix.length + separator.length;
         argv.forEach(argument => {
-            if (argument.startsWith("--")) {
-                const index = argument.indexOf("=");
-                const key = 3 <= index ? argument.substring(2, index).trim() : argument.substring(2).trim();
-                const value = 3 <= index ? argument.substring(index + 1) : true;
+            if (argument.startsWith(prefix)) {
+                const index = argument.indexOf(separator);
+                const key = minLength <= index
+                    ? argument.substring(prefix.length, index).trim()
+                    : argument.substring(prefix.length).trim();
+                const value = minLength <= index ? argument.substring(index + separator.length) : true;
                 options.set(key, "string" === typeof value && this.OPTIONS.password !== key ? value.trim() : value);
             }
             else {
@@ -644,19 +654,16 @@ class CommandLineParser {
     static getDefaultOptions(command) {
         const defaultOptionsMap = this.DEFAULT_OPTIONS;
         const defaultOptions = defaultOptionsMap[this.getInternalKey(this.DEFAULT_OPTIONS, command, false)];
-        if (defaultOptions) {
-            return defaultOptions;
-        }
-        else {
-            this.exitWithError(`Internal error - no default options for command "${command}"`);
-        }
+        return defaultOptions
+            ? defaultOptions
+            : this.exitWithError(`Internal error - no default options for command "${command}"`);
     }
     static setOption(command, defaultOptions, suppliedKey, suppliedValue) {
         const defaultKey = this.getInternalKey(this.OPTIONS, suppliedKey, true);
         if ("command" === suppliedKey || !(defaultKey in defaultOptions)) {
             this.exitWithError(`Command "${command}" does not support option --${suppliedKey}`);
         }
-        const defaultValue = defaultOptions[defaultKey];
+        const defaultValue = asAny(defaultOptions)[defaultKey];
         if ("boolean" === typeof defaultValue) {
             if ("boolean" !== typeof suppliedValue) {
                 this.exitWithError(`Option --${suppliedKey} can't have a value assigned`);
@@ -667,7 +674,7 @@ class CommandLineParser {
                 this.exitWithError(`Option --${suppliedKey} requires a value`);
             }
         }
-        defaultOptions[defaultKey] = suppliedValue;
+        asAny(defaultOptions)[defaultKey] = suppliedValue;
     }
     static getInternalKey(mapping, suppliedKey, isOption) {
         for (const internalKey of Object.keys(mapping)) {
@@ -678,10 +685,10 @@ class CommandLineParser {
             }
         }
         if (isOption) {
-            this.exitWithError(`Invalid option --${suppliedKey}`);
+            return this.exitWithError(`Invalid option --${suppliedKey}`);
         }
         else {
-            this.exitWithError(`Invalid argument "${suppliedKey}"`);
+            return this.exitWithError(`Invalid argument "${suppliedKey}"`);
         }
     }
     static as(value) {
@@ -811,7 +818,7 @@ class DatabaseAssembler {
             return database;
         }
         catch (exception) {
-            rethrow(exception, message => `Failed to assemble database - ${message}`);
+            return rethrow(exception, message => `Failed to assemble database - ${message}`);
         }
     }
     assembleFilesAndSubdirectories(directory, json) {
@@ -847,7 +854,7 @@ class DatabaseSerializer {
     }
     static serialize(database) {
         const json = {
-            directories: database.subdirectories.bySourceName.sorted().map(directory => this.directoryToJson(directory)),
+            directories: database.subdirectories.bySourceName.sorted().map(dir => this.directoryToJson(dir)),
             files: database.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: database.last
         };
@@ -858,7 +865,7 @@ class DatabaseSerializer {
         return {
             source: directory.source.name,
             destination: directory.destination.name,
-            directories: directory.subdirectories.bySourceName.sorted().map(subDirectory => this.directoryToJson(subDirectory)),
+            directories: directory.subdirectories.bySourceName.sorted().map(subDir => this.directoryToJson(subDir)),
             files: directory.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: directory.last
         };
@@ -917,7 +924,7 @@ class FileManager {
             }
             catch (exception) {
                 this.logger.error(`Failed to create directory ${paths.destination.absolutePath} - ${firstLineOnly(exception)}`);
-                this.print("===> FAILED");
+                this.print(FileManager.LOG_MESSAGE_FAILED);
             }
         }
         return newDestinationDirectory
@@ -953,13 +960,13 @@ class FileManager {
             if (!result.success) {
                 this.logger.error(result.consoleOutput);
                 this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
-                this.print("===> FAILED");
+                this.print(FileManager.LOG_MESSAGE_FAILED);
             }
             return result.success;
         }
         catch (exception) {
             this.logger.error(`Failed to zip ${pathInfo} - ${firstLineOnly(exception)}`);
-            this.print("===> FAILED");
+            this.print(FileManager.LOG_MESSAGE_FAILED);
             return false;
         }
     }
@@ -1003,7 +1010,7 @@ class FileManager {
         }
         const success = this.doDeleteFileOrDirectory(options.destination, "directory" === options.type);
         if (!success && !options.suppressConsoleOutput) {
-            this.print("===> FAILED");
+            this.print(FileManager.LOG_MESSAGE_FAILED);
         }
         return success;
     }
@@ -1063,6 +1070,7 @@ class FileManager {
         return this.context.filenameEnumerator.getNextAvailableFilename(directory.destination.absolutePath, directory.last, prefix, suffix);
     }
 }
+FileManager.LOG_MESSAGE_FAILED = "===> FAILED";
 class FilenameEnumerator {
     constructor(logger) {
         this.logger = logger;
@@ -1281,7 +1289,8 @@ class InteractivePrompt {
             output: options.useStderr ? process.stderr : process.stdout
         });
         if (options.isPassword) {
-            readlineInterface._writeToOutput = (text) => {
+            const implementation = readlineInterface;
+            implementation._writeToOutput = (text) => {
                 if (text === this.PROMPT) {
                     (options.useStderr ? process.stderr : process.stdout).write(this.PROMPT);
                 }
@@ -1332,13 +1341,15 @@ class JsonParser {
             return { originalConfig, finalConfig };
         }
         catch (exception) {
-            rethrow(exception, message => `Failed to load configuration file ${file}: ${message}`);
+            return rethrow(exception, message => `Failed to load configuration file ${file}: ${message}`);
         }
     }
     static overwriteConfigWithCommandLineOptions(config, options) {
-        for (const key of Object.keys(options)) {
-            if (Object.prototype.hasOwnProperty.call(config, key) && undefined !== options[key]) {
-                config[key] = options[key];
+        const configAsAny = asAny(config);
+        const optionsAsAny = asAny(options);
+        for (const key of Object.keys(optionsAsAny)) {
+            if (Object.prototype.hasOwnProperty.call(config, key) && undefined !== optionsAsAny[key]) {
+                configAsAny[key] = optionsAsAny[key];
             }
         }
     }
@@ -1426,7 +1437,7 @@ class ObjectValidator extends Validator {
                     this.throw(path, `Property "${key}" is missing`);
                 }
                 else {
-                    this.propertyValidators[key].validate(`${path}/${key}`, value[key]);
+                    this.propertyValidators[key].validate(`${path}/${key}`, asAny(value)[key]);
                 }
             }
             for (const key of Object.keys(value)) {
@@ -1486,6 +1497,7 @@ JsonValidator.SOURCE_AND_DESTINATION_VALIDATORS = {
 JsonValidator.LAST_VALIDATOR = {
     last: new StringValidator()
 };
+var _a;
 class MetadataManager {
     constructor(context) {
         this.context = context;
@@ -1495,9 +1507,9 @@ class MetadataManager {
         this.destination = context.config.destination;
     }
     loadOrInitializeDatabase() {
-        var _a;
+        var _b;
         return __awaiter(this, void 0, void 0, function* () {
-            const latest = (_a = this.listMetadataArchives()) === null || _a === void 0 ? void 0 : _a.latest;
+            const latest = (_b = this.listMetadataArchives()) === null || _b === void 0 ? void 0 : _b.latest;
             if (latest) {
                 return this.loadDatabaseFromFile(latest.absolutePath, latest.name);
             }
@@ -1587,7 +1599,7 @@ class MetadataManager {
         }
         else {
             if (unzip.consoleOutput) {
-                this.logger.error(unzip.consoleOutput.substring(0, Math.min(unzip.consoleOutput.length, 1000)));
+                this.logger.error(unzip.consoleOutput.substring(0, Math.min(unzip.consoleOutput.length, MetadataManager.MAX_UNZIP_CONSOLE_OUTPUT_LENGTH)));
             }
             this.logger.error(`Failed to extract ${databaseFilename} from ${absolutePath} - ${unzip.errorMessage}`);
             this.print(`Failed to extract the database from ${name}`);
@@ -1611,9 +1623,9 @@ class MetadataManager {
         return { isUpToDate, remainingOrphans: remainingOrphans + remainingLatestOrphan };
     }
     getMetadataArchives() {
-        var _a;
+        var _b;
         const archives = this.listMetadataArchives();
-        return { latest: archives ? [archives.latest] : [], orphans: (_a = archives === null || archives === void 0 ? void 0 : archives.orphans) !== null && _a !== void 0 ? _a : [] };
+        return { latest: archives ? [archives.latest] : [], orphans: (_b = archives === null || archives === void 0 ? void 0 : archives.orphans) !== null && _b !== void 0 ? _b : [] };
     }
     createNewIndex(database) {
         const archive = this.generateArchiveName();
@@ -1707,8 +1719,8 @@ class MetadataManager {
     }
     generateArchiveName() {
         const timestamp = MetadataManager.generateTimestamp();
-        for (let index = 0; index < 1000000; index++) {
-            const suffix = index ? `_${Logger.formatNumber(index, 6)}` : "";
+        for (let index = 0; index <= MetadataManager.MAX_INDEX; index++) {
+            const suffix = index ? `_${Logger.formatNumber(index, MetadataManager.INDEX_LENGTH)}` : "";
             const name = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
             const tempName = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`;
             const nameWithPath = node.path.join(this.context.config.destination, name);
@@ -1725,13 +1737,13 @@ class MetadataManager {
     static generateTimestamp() {
         const now = new Date();
         return [
-            [4, now.getFullYear()],
-            [2, now.getMonth() + 1],
-            [2, now.getDate()],
-            [2, now.getHours()],
-            [2, now.getMinutes()],
-            [2, now.getSeconds()],
-            [3, now.getMilliseconds()]
+            [Logger.LENGTH_YEAR, now.getFullYear()],
+            [Logger.LENGTH_MONTH, now.getMonth() + 1],
+            [Logger.LENGTH_DAY, now.getDate()],
+            [Logger.LENGTH_HOURS, now.getHours()],
+            [Logger.LENGTH_MINUTES, now.getMinutes()],
+            [Logger.LENGTH_SECONDS, now.getSeconds()],
+            [Logger.LENGTH_MILLISECONDS, now.getMilliseconds()]
         ].map(array => Logger.formatNumber(array[1], array[0])).join("-");
     }
     listMetadataArchives() {
@@ -1756,10 +1768,14 @@ class MetadataManager {
         return result.success;
     }
 }
+_a = MetadataManager;
 MetadataManager.ARCHIVE_FILE_PREFIX = "___INDEX___";
 MetadataManager.DATABASE_FILENAME = "7-sync-database.json";
 MetadataManager.LISTING_FILENAME = "7-sync-file-index.txt";
 MetadataManager.README_FILENAME = "7-sync-README.txt";
+MetadataManager.MAX_INDEX = 999999;
+MetadataManager.INDEX_LENGTH = `${_a.MAX_INDEX}`.length;
+MetadataManager.MAX_UNZIP_CONSOLE_OUTPUT_LENGTH = 1000;
 class SetupWizard {
     static initialize(options) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1794,7 +1810,7 @@ class SetupWizard {
                 password,
                 sevenZip
             };
-            node.fs.writeFileSync(config, JSON.stringify(configJson, undefined, 4));
+            node.fs.writeFileSync(config, JSON.stringify(configJson, undefined, SetupWizard.JSON_STRINGIFY_INDENT));
             if (hasPresets) {
                 console.log(`Config file "${config}" has been updated.`);
             }
@@ -1949,6 +1965,7 @@ class SetupWizard {
         return "string" === typeof result ? `ERROR: ${result}` : result;
     }
 }
+SetupWizard.JSON_STRINGIFY_INDENT = 4;
 class SevenZip {
     constructor(executable, password, logger, console) {
         this.executable = executable;
@@ -2072,7 +2089,7 @@ class SevenZip {
         const result = this.unzipToStdout(zipFile, filenameInArchive);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Unzipping with a wrong password does not cause an error");
         }
         if (result.consoleOutput === content) {
@@ -2085,7 +2102,7 @@ class SevenZip {
         const result = this.zipFile(directory, file, zipFile);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Zipping a non-existent file does not cause an error");
         }
     }
@@ -2100,7 +2117,7 @@ class SevenZip {
         const result = this.listToStdout(zipFile);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Listing archive file contents with a wrong password does not cause an error");
         }
     }
@@ -2211,7 +2228,7 @@ class SevenZip {
             windowsHide: true,
             encoding: "utf8",
             input: options.stdin,
-            maxBuffer: 4 * 1024 * 1024 * 1024
+            maxBuffer: SevenZip.MAX_OUTPUT_BUFFER
         });
         return {
             success: 0 === result.status && !result.error,
@@ -2248,14 +2265,19 @@ class SevenZip {
     }
     static formatStdinPipe(stdin) {
         const completeText = stdin ? stdin.trim() : "";
-        const firstLine = completeText.replace(/\r?\n.*/, "...");
-        const truncated = firstLine.length <= 30
+        const firstLine = completeText.replace(/\r?\n.*/, SevenZip.ELLIPSIS);
+        const truncatedLength = Math.max(SevenZip.MAX_LINE_LENGTH, firstLine.length - SevenZip.ELLIPSIS.length);
+        const truncated = firstLine.length <= SevenZip.MAX_LINE_LENGTH
             ? firstLine
-            : `${firstLine.substring(0, Math.max(30, firstLine.length - 3))}...`;
+            : `${firstLine.substring(0, truncatedLength)}...`;
         const quoted = this.quoteParameter(truncated);
         return quoted ? `echo ${quoted} | ` : "";
     }
 }
+SevenZip.MAX_OUTPUT_BUFFER = 4294967296;
+SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO = "Expected an exit code other than 0 or an error";
+SevenZip.MAX_LINE_LENGTH = 30;
+SevenZip.ELLIPSIS = "...";
 class StatisticsReporter {
     constructor(context, statistics) {
         this.context = context;
@@ -2358,9 +2380,9 @@ class StatisticsReporter {
         if (files || directories) {
             const message = 1 === files + directories ? singular : plural;
             const filesAndDirectories = this.formatCounters(files, directories);
-            const index = message.indexOf("{}");
+            const index = message.indexOf(StatisticsReporter.PLACEHOLDER);
             const messageStart = 0 <= index ? message.substring(0, index) : message;
-            const messageEnd = 0 <= index ? message.substring(index + 2) : "";
+            const messageEnd = 0 <= index ? message.substring(index + StatisticsReporter.PLACEHOLDER.length) : "";
             this.logger.log(logLevel, messageStart + filesAndDirectories + messageEnd);
             return true;
         }
@@ -2382,6 +2404,7 @@ class StatisticsReporter {
         }
     }
 }
+StatisticsReporter.PLACEHOLDER = "{}";
 class Synchronizer {
     constructor(context, metadataManager, database) {
         this.context = context;
@@ -2421,14 +2444,11 @@ class Synchronizer {
     }
     deleteOrphans(database, destinationChildren) {
         return this.mapAndReduce(Array.from(destinationChildren), array => {
-            const name = array[0];
-            const dirent = array[1];
+            const [name, dirent] = array;
             if (!database.files.byDestinationName.has(name) && !database.subdirectories.byDestinationName.has(name)) {
                 const destination = node.path.join(database.destination.absolutePath, name);
                 const relativeRootPath = node.path.relative(this.database.source.absolutePath, database.source.absolutePath);
-                const success = this.deleteOrphanedItem(destination, dirent, path => {
-                    return node.path.join(relativeRootPath, name, path.substring(destination.length));
-                });
+                const success = this.deleteOrphanedItem(destination, dirent, path => node.path.join(relativeRootPath, name, path.substring(destination.length)));
                 if (success) {
                     destinationChildren.delete(name);
                 }
@@ -2716,7 +2736,8 @@ class Synchronizer {
         return isUpToDate;
     }
     updateIndexIfRequired() {
-        if (this.database.hasUnsavedChanges() && !this.database.wasSavedWithinTheLastSeconds(60)) {
+        if (this.database.hasUnsavedChanges()
+            && !this.database.wasSavedWithinTheLastSeconds(Synchronizer.DATABASE_SAVE_INTERVAL_SECONDS)) {
             this.updateIndex();
         }
     }
@@ -2758,6 +2779,7 @@ class Synchronizer {
         }
     }
 }
+Synchronizer.DATABASE_SAVE_INTERVAL_SECONDS = 60;
 class WarningsGenerator {
     constructor(context, statistics) {
         this.statistics = statistics;
@@ -2912,22 +2934,28 @@ class WarningsGenerator {
         const useNumbering = 1 < total;
         message = (useNumbering ? `${index + 1}. ${message}` : message).trim();
         const indent = useNumbering ? "   " : "";
+        const MIN_LENGTH = 2;
+        const MAX_LENGTH = 80;
         while (message) {
-            const originalMessageLength = message.length;
-            if (80 < originalMessageLength) {
-                for (let position = Math.min(80, originalMessageLength - 2); 0 <= position; position--) {
-                    if (" " === message.charAt(position)) {
-                        this.print(message.substring(0, position));
-                        message = indent + message.substring(position + 1).trim();
-                        break;
-                    }
+            message = this.displayNextLine(message, indent, MIN_LENGTH, MAX_LENGTH);
+        }
+    }
+    displayNextLine(message, indent, minLength, maxLength) {
+        const originalLength = message.length;
+        if (maxLength < originalLength) {
+            for (let position = Math.min(maxLength, originalLength - minLength); 0 <= position; position--) {
+                if (" " === message.charAt(position)) {
+                    this.print(message.substring(0, position));
+                    message = indent + message.substring(position + 1).trim();
+                    break;
                 }
             }
-            if (message.length === originalMessageLength) {
-                this.print(message);
-                message = "";
-            }
         }
+        if (message.length === originalLength) {
+            this.print(message);
+            message = "";
+        }
+        return message;
     }
 }
 function tryCatchIgnore(action) {
@@ -3004,16 +3032,22 @@ class FileUtils {
         return this.exists(directory) ? this.getChildren(directory) : { array: [], map: new Map() };
     }
 }
+var _a;
 class LogLevel {
     constructor(index, paddedName) {
         this.index = index;
         this.paddedName = paddedName;
     }
 }
-LogLevel.ERROR = new LogLevel(1, "ERROR  ");
-LogLevel.WARN = new LogLevel(2, "WARNING");
-LogLevel.INFO = new LogLevel(3, "INFO   ");
-LogLevel.DEBUG = new LogLevel(4, "DEBUG  ");
+_a = LogLevel;
+LogLevel.LOG_LEVEL_ERROR = 1;
+LogLevel.LOG_LEVEL_WARN = 2;
+LogLevel.LOG_LEVEL_INFO = 3;
+LogLevel.LOG_LEVEL_DEBUG = 4;
+LogLevel.ERROR = new LogLevel(_a.LOG_LEVEL_ERROR, "ERROR  ");
+LogLevel.WARN = new LogLevel(_a.LOG_LEVEL_WARN, "WARNING");
+LogLevel.INFO = new LogLevel(_a.LOG_LEVEL_INFO, "INFO   ");
+LogLevel.DEBUG = new LogLevel(_a.LOG_LEVEL_DEBUG, "DEBUG  ");
 class Logger {
     constructor(logLevel, outputStream) {
         this.logLevel = logLevel;
@@ -3045,19 +3079,19 @@ class Logger {
     static getCurrentTimestamp() {
         const now = new Date();
         return [
-            this.formatNumber(now.getFullYear(), 4),
+            this.formatNumber(now.getFullYear(), Logger.LENGTH_YEAR),
             "-",
-            this.formatNumber(now.getMonth() + 1, 2),
+            this.formatNumber(now.getMonth() + 1, Logger.LENGTH_MONTH),
             "-",
-            this.formatNumber(now.getDate(), 2),
+            this.formatNumber(now.getDate(), Logger.LENGTH_DAY),
             " ",
-            this.formatNumber(now.getHours(), 2),
+            this.formatNumber(now.getHours(), Logger.LENGTH_HOURS),
             ":",
-            this.formatNumber(now.getMinutes(), 2),
+            this.formatNumber(now.getMinutes(), Logger.LENGTH_MINUTES),
             ":",
-            this.formatNumber(now.getSeconds(), 2),
+            this.formatNumber(now.getSeconds(), Logger.LENGTH_SECONDS),
             ".",
-            this.formatNumber(now.getMilliseconds(), 3),
+            this.formatNumber(now.getMilliseconds(), Logger.LENGTH_MILLISECONDS),
         ].join("");
     }
     static formatNumber(number, length) {
@@ -3109,7 +3143,7 @@ class Logger {
                 }
             });
             return new Promise(resolve => {
-                readline.on('close', () => {
+                readline.on("close", () => {
                     resolve();
                 });
             }).then(() => {
@@ -3119,8 +3153,16 @@ class Logger {
         });
     }
 }
-Logger.SEPARATOR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(() => "----------").join("");
+Logger.SEPARATOR = "------------------------------------------------------------"
+    + "------------------------------------------------------------";
 Logger.PADDING = "\n                              ";
+Logger.LENGTH_YEAR = 4;
+Logger.LENGTH_MONTH = 2;
+Logger.LENGTH_DAY = 2;
+Logger.LENGTH_HOURS = 2;
+Logger.LENGTH_MINUTES = 2;
+Logger.LENGTH_SECONDS = 2;
+Logger.LENGTH_MILLISECONDS = 3;
 const node = (() => ({
     crypto: require("crypto"),
     child_process: require("child_process"),
@@ -3131,21 +3173,23 @@ const node = (() => ({
     readline: require("readline")
 }))();
 class OutputStream {
+    static stringify(item) {
+        return "object" === typeof item
+            ? JSON.stringify(item, undefined, OutputStream.JSON_STRINGIFY_INDENT)
+            : `${item}`;
+    }
     log(...data) {
-        this.write(data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`).join(" "));
+        this.write(data.map(OutputStream.stringify).join(" "));
     }
     logAligned(padding, ...data) {
-        const text = data.map(item => "object" === typeof item ? JSON.stringify(item, undefined, 4) : `${item}`)
-            .join(" ")
-            .split(/\r?\n/)
-            .join(padding);
-        this.write(text);
+        this.write(data.map(OutputStream.stringify).join(" ").split(/\r?\n/).join(padding));
     }
     write(_data) {
     }
     close() {
     }
 }
+OutputStream.JSON_STRINGIFY_INDENT = 4;
 class NullOutputStream extends OutputStream {
 }
 class ConsoleOutputStream extends OutputStream {
@@ -3178,16 +3222,21 @@ class FileOutputStream extends OutputStream {
 }
 class PasswordHelper {
     static createSaltedHash(password) {
-        return this.createHash(node.crypto.randomBytes(16).toString("hex"), password);
+        return this.createHash(node.crypto.randomBytes(PasswordHelper.SALT_LENGTH).toString("hex"), password);
     }
     static validatePassword(password, saltedHash) {
         return saltedHash === this.createHash(saltedHash.replace(/:.*/, ""), password);
     }
     static createHash(salt, password) {
-        const hash = node.crypto.scryptSync(password, salt, 64, { N: 1024 }).toString("base64");
+        const hash = node.crypto.scryptSync(password, salt, PasswordHelper.KEY_LENGTH, { N: 1024 }).toString("base64");
         return `${salt}:${hash}`;
     }
 }
-function readonly(object) {
-    return object;
+PasswordHelper.SALT_LENGTH = 16;
+PasswordHelper.KEY_LENGTH = 64;
+function assertNever(_value) {
+    throw new Error("Not never");
+}
+function asAny(value) {
+    return value;
 }

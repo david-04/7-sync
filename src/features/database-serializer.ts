@@ -21,7 +21,7 @@ class DatabaseSerializer {
 
     private static serialize(database: MappedRootDirectory) {
         const json: JsonDatabase = {
-            directories: database.subdirectories.bySourceName.sorted().map(directory => this.directoryToJson(directory)),
+            directories: database.subdirectories.bySourceName.sorted().map(dir => this.directoryToJson(dir)),
             files: database.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: database.last
         };
@@ -37,10 +37,10 @@ class DatabaseSerializer {
         return {
             source: directory.source.name,
             destination: directory.destination.name,
-            directories: directory.subdirectories.bySourceName.sorted().map(subDirectory => this.directoryToJson(subDirectory)),
+            directories: directory.subdirectories.bySourceName.sorted().map(subDir => this.directoryToJson(subDir)),
             files: directory.files.bySourceName.sorted().map(file => this.fileToJson(file)),
             last: directory.last
-        }
+        };
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -54,6 +54,6 @@ class DatabaseSerializer {
             created: file.created,
             modified: file.modified,
             size: file.size
-        }
+        };
     }
 }

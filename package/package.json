@@ -1,6 +1,6 @@
 {
   "name": "7-sync",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A wrapper for 7-Zip to create cloud-friendly encrypted backups",
   "main": "index.js",
   "repository": {

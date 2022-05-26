@@ -4,10 +4,15 @@
 
 class LogLevel {
 
-    public static readonly ERROR = new LogLevel(1, "ERROR  ");
-    public static readonly WARN = new LogLevel(2, "WARNING");
-    public static readonly INFO = new LogLevel(3, "INFO   ");
-    public static readonly DEBUG = new LogLevel(4, "DEBUG  ");
+    private static readonly LOG_LEVEL_ERROR = 1;
+    private static readonly LOG_LEVEL_WARN = 2;
+    private static readonly LOG_LEVEL_INFO = 3;
+    private static readonly LOG_LEVEL_DEBUG = 4;
+
+    public static readonly ERROR = new LogLevel(this.LOG_LEVEL_ERROR, "ERROR  ");
+    public static readonly WARN = new LogLevel(this.LOG_LEVEL_WARN, "WARNING");
+    public static readonly INFO = new LogLevel(this.LOG_LEVEL_INFO, "INFO   ");
+    public static readonly DEBUG = new LogLevel(this.LOG_LEVEL_DEBUG, "DEBUG  ");
 
     private constructor(public readonly index: number, public readonly paddedName: string) { }
 }
@@ -18,8 +23,17 @@ class LogLevel {
 
 class Logger {
 
-    public static readonly SEPARATOR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(() => "----------").join("");
+    public static readonly SEPARATOR = "------------------------------------------------------------"
+        + "------------------------------------------------------------";
     public static readonly PADDING = "\n                              ";
+
+    public static readonly LENGTH_YEAR = 4;
+    public static readonly LENGTH_MONTH = 2;
+    public static readonly LENGTH_DAY = 2;
+    public static readonly LENGTH_HOURS = 2;
+    public static readonly LENGTH_MINUTES = 2;
+    public static readonly LENGTH_SECONDS = 2;
+    public static readonly LENGTH_MILLISECONDS = 3;
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -74,20 +88,20 @@ class Logger {
     private static getCurrentTimestamp() {
         const now = new Date();
         return [
-            this.formatNumber(now.getFullYear(), 4),
+            this.formatNumber(now.getFullYear(), Logger.LENGTH_YEAR),
             "-",
-            this.formatNumber(now.getMonth() + 1, 2),
+            this.formatNumber(now.getMonth() + 1, Logger.LENGTH_MONTH),
             "-",
-            this.formatNumber(now.getDate(), 2),
+            this.formatNumber(now.getDate(), Logger.LENGTH_DAY),
             " ",
-            this.formatNumber(now.getHours(), 2),
+            this.formatNumber(now.getHours(), Logger.LENGTH_HOURS),
             ":",
-            this.formatNumber(now.getMinutes(), 2),
+            this.formatNumber(now.getMinutes(), Logger.LENGTH_MINUTES),
             ":",
-            this.formatNumber(now.getSeconds(), 2),
+            this.formatNumber(now.getSeconds(), Logger.LENGTH_SECONDS),
             ".",
-            this.formatNumber(now.getMilliseconds(), 3),
-        ].join("")
+            this.formatNumber(now.getMilliseconds(), Logger.LENGTH_MILLISECONDS),
+        ].join("");
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -125,7 +139,7 @@ class Logger {
         });
         io.on("line", line => count += this.isSeparator(line) ? 1 : 0);
         return new Promise<number>(resolve => {
-            io.on("close", () => resolve(count))
+            io.on("close", () => resolve(count));
         });
     }
 
@@ -158,12 +172,12 @@ class Logger {
             }
         });
         return new Promise<void>(resolve => {
-            readline.on('close', () => {
+            readline.on("close", () => {
                 resolve();
             });
         }).then(() => {
             node.fs.rmSync(file);
-            node.fs.renameSync(tmpFile, file)
+            node.fs.renameSync(tmpFile, file);
         });
     }
 }

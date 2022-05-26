@@ -23,7 +23,7 @@ class SuccessAndFailureStats {
     //------------------------------------------------------------------------------------------------------------------
 
     public get total() {
-        return this.success + this.failed
+        return this.success + this.failed;
     }
 }
 
@@ -50,7 +50,7 @@ class FileAndDirectoryStats {
     //------------------------------------------------------------------------------------------------------------------
 
     public get total() {
-        return this.files.total + this.directories.total
+        return this.files.total + this.directories.total;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -72,10 +72,10 @@ class SyncStats {
     public readonly deleted = new FileAndDirectoryStats();
     public readonly orphans = new FileAndDirectoryStats();
     public readonly purged = new FileAndDirectoryStats();
-    public readonly unprocessable = readonly({
+    public readonly unprocessable = {
         source: { symlinks: 0, other: 0 },
         destination: { symlinks: 0, other: 0 }
-    });
+    };
 
     public readonly index = {
         hasLingeringOrphans: false,

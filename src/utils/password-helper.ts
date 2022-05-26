@@ -4,12 +4,16 @@
 
 class PasswordHelper {
 
+    private static readonly SALT_LENGTH = 16;
+
+    private static readonly KEY_LENGTH = 64;
+
     //------------------------------------------------------------------------------------------------------------------
     // Create a salted hash for the given password
     //------------------------------------------------------------------------------------------------------------------
 
     public static createSaltedHash(password: string) {
-        return this.createHash(node.crypto.randomBytes(16).toString("hex"), password);
+        return this.createHash(node.crypto.randomBytes(PasswordHelper.SALT_LENGTH).toString("hex"), password);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -25,7 +29,7 @@ class PasswordHelper {
     //------------------------------------------------------------------------------------------------------------------
 
     private static createHash(salt: string, password: string) {
-        const hash = node.crypto.scryptSync(password, salt, 64, { N: 1024 }).toString("base64");
+        const hash = node.crypto.scryptSync(password, salt, PasswordHelper.KEY_LENGTH, { N: 1024 }).toString("base64");
         return `${salt}:${hash}`;
     }
 }

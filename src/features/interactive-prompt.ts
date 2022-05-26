@@ -47,7 +47,7 @@ class InteractivePrompt {
     //------------------------------------------------------------------------------------------------------------------
 
     public static async promptYesNo(
-        options: Partial<typeof InteractivePrompt.DEFAULT_OPTIONS> & { question: string | string[] }
+        options: Partial<typeof InteractivePrompt.DEFAULT_OPTIONS> & { question: string | string[]; }
     ): Promise<boolean> {
         const print = options.useStderr ? console.error : console.log;
         const array = "string" === typeof options.question ? [options.question] : [...options.question];
@@ -64,7 +64,7 @@ class InteractivePrompt {
                 print("");
                 return false;
             } else {
-                print("Please enter y or n")
+                print("Please enter y or n");
             }
         }
     }
@@ -109,13 +109,14 @@ class InteractivePrompt {
     // Read a line of user input
     //------------------------------------------------------------------------------------------------------------------
 
-    private static readLine(options: { isPassword: boolean, useStderr: boolean }): Promise<string> {
+    private static readLine(options: { isPassword: boolean, useStderr: boolean; }): Promise<string> {
         const readlineInterface = node.readline.createInterface({
             input: process.stdin,
             output: options.useStderr ? process.stderr : process.stdout
         });
         if (options.isPassword) {
-            (readlineInterface as unknown as { [index: string]: (text: string) => void })._writeToOutput = (text: string) => {
+            const implementation = readlineInterface as unknown as { [index: string]: (text: string) => void; };
+            implementation._writeToOutput = (text: string) => {
                 if (text === this.PROMPT) {
                     (options.useStderr ? process.stderr : process.stdout).write(this.PROMPT);
                 }

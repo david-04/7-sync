@@ -4,6 +4,8 @@
 
 class Context {
 
+    private static readonly MAX_LOG_FILES = 9;
+
     public readonly print;
 
     //------------------------------------------------------------------------------------------------------------------
@@ -13,7 +15,7 @@ class Context {
     private constructor(
         public readonly options: SyncOptions,
         public readonly config: JsonConfig,
-        public readonly files: { config: string, log: string },
+        public readonly files: { config: string, log: string; },
         public readonly logger: Logger,
         public readonly console: OutputStream,
         public readonly filenameEnumerator: FilenameEnumerator,
@@ -31,7 +33,7 @@ class Context {
         delete options.password;
         const console = options.silent ? new NullOutputStream() : new ConsoleOutputStream();
         const files = Context.getFileNames(options.config);
-        await Logger.purge(files.log, 9);
+        await Logger.purge(files.log, Context.MAX_LOG_FILES);
         const logger = Context.getLogger(files.log, false);
         logger.separator();
         try {

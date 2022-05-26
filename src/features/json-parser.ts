@@ -27,13 +27,13 @@ class JsonParser {
                 ...mergedConfig,
                 source: FileUtils.getAbsolutePath(FileUtils.resolve(file, mergedConfig.source)),
                 destination: FileUtils.getAbsolutePath(FileUtils.resolve(file, mergedConfig.destination)),
-            }
+            };
             logger.debug(finalConfig);
             logger.debug("Validating the configuration");
             JsonValidator.validateConfig(finalConfig);
             return { originalConfig, finalConfig };
         } catch (exception) {
-            rethrow(exception, message => `Failed to load configuration file ${file}: ${message}`);
+            return rethrow(exception, message => `Failed to load configuration file ${file}: ${message}`);
         }
     }
 
@@ -41,10 +41,12 @@ class JsonParser {
     // Overwrite the loaded configuration with command line options (if/as supplied)
     //------------------------------------------------------------------------------------------------------------------
 
-    private static overwriteConfigWithCommandLineOptions(config: any, options: any) {
-        for (const key of Object.keys(options)) {
-            if (Object.prototype.hasOwnProperty.call(config, key) && undefined !== options[key]) {
-                config[key] = options[key];
+    private static overwriteConfigWithCommandLineOptions(config: unknown, options: unknown) {
+        const configAsAny = asAny(config);
+        const optionsAsAny = asAny(options);
+        for (const key of Object.keys(optionsAsAny)) {
+            if (Object.prototype.hasOwnProperty.call(config, key) && undefined !== optionsAsAny[key]) {
+                configAsAny[key] = optionsAsAny[key];
             }
         }
     }
@@ -65,7 +67,7 @@ class JsonParser {
                 error,
                 `To force a full re-sync, delete everything from ${destination}`
             ].join("\n")
-        )
+        );
     }
 
     //------------------------------------------------------------------------------------------------------------------

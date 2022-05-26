@@ -120,7 +120,7 @@ class WarningsGenerator {
         const purged = this.format(this.statistics.purged.files.total);
         const theyWereOrWouldBeRemoved = this.isDryRun
             ? `${purged.theyOrIt.upperCase} would be removed from the database.`
-            : `${purged.theyOrIt.upperCase} ${purged.haveOrHas} been removed from the database.`
+            : `${purged.theyOrIt.upperCase} ${purged.haveOrHas} been removed from the database.`;
         return purged.quantity
             ? this.warning(
                 `There ${purged.wereOrWas} ${purged.asText} that ${purged.haveOrHas} vanished from the destination.`,
@@ -246,7 +246,7 @@ class WarningsGenerator {
             wereOrWas: 1 === quantity ? "was" : "were",
             isOrAre: 1 === quantity ? "is" : "are",
             itOrThem: 1 === quantity ? "it" : "them",
-        }
+        };
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -280,21 +280,32 @@ class WarningsGenerator {
         const useNumbering = 1 < total;
         message = (useNumbering ? `${index + 1}. ${message}` : message).trim();
         const indent = useNumbering ? "   " : "";
+        const MIN_LENGTH = 2;
+        const MAX_LENGTH = 80;
         while (message) {
-            const originalMessageLength = message.length;
-            if (80 < originalMessageLength) {
-                for (let position = Math.min(80, originalMessageLength - 2); 0 <= position; position--) {
-                    if (" " === message.charAt(position)) {
-                        this.print(message.substring(0, position));
-                        message = indent + message.substring(position + 1).trim()
-                        break;
-                    }
+            message = this.displayNextLine(message, indent, MIN_LENGTH, MAX_LENGTH);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Extract and print the first line
+    //------------------------------------------------------------------------------------------------------------------
+
+    private displayNextLine(message: string, indent: string, minLength: number, maxLength: number) {
+        const originalLength = message.length;
+        if (maxLength < originalLength) {
+            for (let position = Math.min(maxLength, originalLength - minLength); 0 <= position; position--) {
+                if (" " === message.charAt(position)) {
+                    this.print(message.substring(0, position));
+                    message = indent + message.substring(position + 1).trim();
+                    break;
                 }
             }
-            if (message.length === originalMessageLength) {
-                this.print(message);
-                message = "";
-            }
         }
+        if (message.length === originalLength) {
+            this.print(message);
+            message = "";
+        }
+        return message;
     }
 }

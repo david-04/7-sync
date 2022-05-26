@@ -4,7 +4,7 @@
 
 abstract class Validator {
 
-    public abstract validate(path: string, value: any): void;
+    public abstract validate(path: string, value: unknown): void;
 
     protected throw(path: string, message: string) {
         const location = path ? ` at ${path}` : "";
@@ -57,7 +57,7 @@ class NumberValidator extends Validator {
 
 class ObjectValidator<T extends object> extends Validator {
 
-    public constructor(private readonly propertyValidators: { [index: string]: Validator }) {
+    public constructor(private readonly propertyValidators: { [index: string]: Validator; }) {
         super();
     }
 
@@ -77,7 +77,7 @@ class ObjectValidator<T extends object> extends Validator {
                 if (!Object.prototype.hasOwnProperty.call(value, key)) {
                     this.throw(path, `Property "${key}" is missing`);
                 } else {
-                    this.propertyValidators[key].validate(`${path}/${key}`, (value as any)[key]);
+                    this.propertyValidators[key].validate(`${path}/${key}`, asAny(value)[key]);
                 }
             }
             for (const key of Object.keys(value)) {
@@ -125,11 +125,11 @@ class JsonValidator {
     private static readonly SOURCE_AND_DESTINATION_VALIDATORS = {
         source: new NonEmptyStringValidator(),
         destination: new NonEmptyStringValidator(),
-    }
+    };
 
     private static readonly LAST_VALIDATOR = {
         last: new StringValidator()
-    }
+    };
 
     private static getConfigValidator() {
         return new ObjectValidator<JsonConfig>({
@@ -155,7 +155,7 @@ class JsonValidator {
             ...this.LAST_VALIDATOR
         });
         validator.setValidator("directories", new ArrayValidator(validator));
-        return validator
+        return validator;
     }
 
     private static getDatabaseValidator() {

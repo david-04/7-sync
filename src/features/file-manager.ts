@@ -8,6 +8,8 @@ class FileManager {
     private readonly logger;
     private readonly isDryRun;
 
+    private static readonly LOG_MESSAGE_FAILED = "===> FAILED";
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
@@ -42,7 +44,7 @@ class FileManager {
                 this.logger.error(
                     `Failed to create directory ${paths.destination.absolutePath} - ${firstLineOnly(exception)}`
                 );
-                this.print("===> FAILED");
+                this.print(FileManager.LOG_MESSAGE_FAILED);
             }
         }
         return newDestinationDirectory
@@ -79,7 +81,7 @@ class FileManager {
         }
         return success
             ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next)
-            : undefined
+            : undefined;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -94,12 +96,12 @@ class FileManager {
             if (!result.success) {
                 this.logger.error(result.consoleOutput);
                 this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
-                this.print("===> FAILED");
+                this.print(FileManager.LOG_MESSAGE_FAILED);
             }
             return result.success;
         } catch (exception) {
             this.logger.error(`Failed to zip ${pathInfo} - ${firstLineOnly(exception)}`);
-            this.print("===> FAILED");
+            this.print(FileManager.LOG_MESSAGE_FAILED);
             return false;
         }
     }
@@ -132,7 +134,7 @@ class FileManager {
         source?: string,
         suppressConsoleOutput?: boolean,
         reason?: string,
-        orphanDisplayPath?: string
+        orphanDisplayPath?: string;
     }) {
         const isMetadataArchive = !options.source
             && this.database.destination.absolutePath === node.path.dirname(options.destination)
@@ -154,7 +156,7 @@ class FileManager {
         source?: string,
         suppressConsoleOutput?: boolean,
         reason?: string,
-        orphanDisplayPath?: string
+        orphanDisplayPath?: string;
     }) {
         return this.deleteFileOrDirectory({ ...options, type: "directory" });
     }
@@ -170,7 +172,7 @@ class FileManager {
         reason?: string,
         type: "file" | "directory",
         isMetadataArchive?: boolean,
-        orphanDisplayPath?: string
+        orphanDisplayPath?: string;
     }) {
         const isOrphan = undefined !== options.orphanDisplayPath;
         if (!options.suppressConsoleOutput) {
@@ -195,7 +197,7 @@ class FileManager {
         }
         const success = this.doDeleteFileOrDirectory(options.destination, "directory" === options.type);
         if (!success && !options.suppressConsoleOutput) {
-            this.print("===> FAILED");
+            this.print(FileManager.LOG_MESSAGE_FAILED);
         }
         return success;
     }

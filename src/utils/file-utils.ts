@@ -93,7 +93,7 @@ class FileUtils {
     //------------------------------------------------------------------------------------------------------------------
 
     public static getChildren(directory: string) {
-        const array = node.fs.readdirSync(directory, { withFileTypes: true })
+        const array = node.fs.readdirSync(directory, { withFileTypes: true });
         const map = new Map<string, Dirent>();
         array.forEach(item => map.set(item.name, item));
         return { array, map };

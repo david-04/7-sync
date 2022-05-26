@@ -2,6 +2,14 @@
 // Convert a JSON object literal into a read-only object
 //----------------------------------------------------------------------------------------------------------------------
 
-function readonly<T>(object: T): Readonly<T> {
-    return object;
+function assertNever(_value: never): never {
+    throw new Error("Not never");
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Bundle all any-conversions here so that we get only one compiler warning
+//----------------------------------------------------------------------------------------------------------------------
+
+function asAny(value: unknown) {
+    return value as any;
 }

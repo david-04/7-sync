@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.0.3](https://github.com/david-04/7-sync/releases/tag/v1.0.3) (2022-05-27)
+
+- Technical maintenance (satisfy more SonarQube linting rules)
+
 ## [1.0.2](https://github.com/david-04/7-sync/releases/tag/v1.0.2) (2022-04-23)
 
 - Avoid Windows reserved filenames (e.g. `PRN`, `AUX`, `NUL`, `COM1`, ...)

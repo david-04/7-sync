@@ -4,7 +4,14 @@
 
 class SevenZip {
 
+    // 4 * 1024 * 1024 * 1024
+    private static readonly MAX_OUTPUT_BUFFER = 4_294_967_296;
+    private static readonly EXPECT_EXIT_CODE_OTHER_THAN_ZERO = "Expected an exit code other than 0 or an error";
+    private static readonly MAX_LINE_LENGTH = 30;
+
     private readonly print;
+
+    private static readonly ELLIPSIS = "...";
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -115,7 +122,9 @@ class SevenZip {
             error => `Failed to create the test file ${file} - ${error}`
         );
         if (FileUtils.existsAndIsDirectory(file)) {
-            throw new FriendlyException(`Failed to create the test file ${file} (writeFileSync did not raise an error)`);
+            throw new FriendlyException(
+                `Failed to create the test file ${file} (writeFileSync did not raise an error)`
+            );
         }
     }
 
@@ -199,7 +208,7 @@ class SevenZip {
         const result = this.unzipToStdout(zipFile, filenameInArchive);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Unzipping with a wrong password does not cause an error");
         }
         if (result.consoleOutput === content) {
@@ -217,7 +226,7 @@ class SevenZip {
         const result = this.zipFile(directory, file, zipFile);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Zipping a non-existent file does not cause an error");
         }
     }
@@ -242,7 +251,7 @@ class SevenZip {
         const result = this.listToStdout(zipFile);
         if (result.success) {
             this.logExecution(result);
-            this.logger.error("Expected an exit code other than 0 or an error");
+            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
             throw new FriendlyException("Listing archive file contents with a wrong password does not cause an error");
         }
     }
@@ -256,7 +265,7 @@ class SevenZip {
             getCommand: () => string,
             consoleOutput: string,
             errorMessage?: string,
-            details: { status: number | null, error?: Error }
+            details: { status: number | null, error?: Error; };
         },
         logLevel = LogLevel.ERROR
     ) {
@@ -304,7 +313,7 @@ class SevenZip {
     // Verify that a recently created zip archive can be listed
     //------------------------------------------------------------------------------------------------------------------
 
-    private verifyZipResult<T extends { success: boolean, errorMessage: string, consoleOutput: string }>(
+    private verifyZipResult<T extends { success: boolean, errorMessage: string, consoleOutput: string; }>(
         zipFile: string, zipResult: T
     ): T {
         if (!FileUtils.existsAndIsFile(zipFile)) {
@@ -312,7 +321,7 @@ class SevenZip {
                 ...zipResult,
                 success: false,
                 errorMessage: `7-Zip returned no error but ${zipFile} was not created either`
-            }
+            };
         }
         const listResult = this.listToStdout(zipFile);
         if (!listResult.success) {
@@ -415,7 +424,7 @@ class SevenZip {
     // Run 7-Zip with the given parameters
     //------------------------------------------------------------------------------------------------------------------
 
-    private runSevenZip(options: { workingDirectory?: string, parameters?: string[], stdin?: string }) {
+    private runSevenZip(options: { workingDirectory?: string, parameters?: string[], stdin?: string; }) {
         return SevenZip.runAnyCommand({ ...options, executable: this.executable });
     }
 
@@ -427,7 +436,7 @@ class SevenZip {
         workingDirectory?: string,
         executable: string,
         parameters?: string[],
-        stdin?: string
+        stdin?: string;
     }) {
         const result = node.child_process.spawnSync(options.executable, options.parameters ?? [], {
             cwd: options.workingDirectory,
@@ -435,7 +444,7 @@ class SevenZip {
             windowsHide: true,
             encoding: "utf8",
             input: options.stdin,
-            maxBuffer: 4 * 1024 * 1024 * 1024
+            maxBuffer: SevenZip.MAX_OUTPUT_BUFFER
         });
         return {
             success: 0 === result.status && !result.error,
@@ -468,7 +477,7 @@ class SevenZip {
     // Format a command
     //------------------------------------------------------------------------------------------------------------------
 
-    private static formatCommand(options: { executable: string, parameters?: string[], stdin?: string }) {
+    private static formatCommand(options: { executable: string, parameters?: string[], stdin?: string; }) {
         const command = [options.executable, ...(options.parameters ?? [])].map(this.quoteParameter).join(" ");
         const stdin = this.formatStdinPipe(options.stdin);
         return stdin + command;
@@ -488,10 +497,11 @@ class SevenZip {
 
     private static formatStdinPipe(stdin?: string) {
         const completeText = stdin ? stdin.trim() : "";
-        const firstLine = completeText.replace(/\r?\n.*/, "...");
-        const truncated = firstLine.length <= 30
+        const firstLine = completeText.replace(/\r?\n.*/, SevenZip.ELLIPSIS);
+        const truncatedLength = Math.max(SevenZip.MAX_LINE_LENGTH, firstLine.length - SevenZip.ELLIPSIS.length);
+        const truncated = firstLine.length <= SevenZip.MAX_LINE_LENGTH
             ? firstLine
-            : `${firstLine.substring(0, Math.max(30, firstLine.length - 3))}...`;
+            : `${firstLine.substring(0, truncatedLength)}...`;
         const quoted = this.quoteParameter(truncated);
         return quoted ? `echo ${quoted} | ` : "";
     }

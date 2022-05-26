@@ -4,6 +4,8 @@
 
 class Synchronizer {
 
+    private static readonly DATABASE_SAVE_INTERVAL_SECONDS = 60;
+
     private readonly logger;
     private readonly isDryRun;
     private readonly fileManager;
@@ -11,12 +13,13 @@ class Synchronizer {
 
     private readonly statistics = new SyncStats();
 
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
 
     private constructor(
-        private context: Context,
+        private readonly context: Context,
         private readonly metadataManager: MetadataManager,
         private readonly database: MappedRootDirectory
     ) {
@@ -75,21 +78,20 @@ class Synchronizer {
 
     private deleteOrphans(database: MappedDirectory, destinationChildren: Map<string, Dirent>) {
         return this.mapAndReduce(Array.from(destinationChildren), array => {
-            const name = array[0];
-            const dirent = array[1];
+            const [name, dirent] = array;
             if (!database.files.byDestinationName.has(name) && !database.subdirectories.byDestinationName.has(name)) {
                 const destination = node.path.join(database.destination.absolutePath, name);
                 const relativeRootPath = node.path.relative(
                     this.database.source.absolutePath,
                     database.source.absolutePath
                 );
-                const success = this.deleteOrphanedItem(destination, dirent, path => {
-                    return node.path.join(relativeRootPath, name, path.substring(destination.length));
-                });
+                const success = this.deleteOrphanedItem(destination, dirent, path =>
+                    node.path.join(relativeRootPath, name, path.substring(destination.length))
+                );
                 if (success) {
                     destinationChildren.delete(name);
                 }
-                return success
+                return success;
             } else {
                 return true;
             }
@@ -207,7 +209,7 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private sortAnalysisResults(
-        ...array: Array<{ source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent }>
+        ...array: Array<{ source?: Dirent, database?: MappedSubdirectory | MappedFile, destination?: Dirent; }>
     ) {
         return array.map(item => {
             let isDirectory = item.database instanceof MappedSubdirectory;
@@ -222,7 +224,7 @@ class Synchronizer {
             if (a.isDirectory === b.isDirectory) {
                 const name1 = (a.database?.source.name ?? a.source?.name ?? "").toLowerCase();
                 const name2 = (b.database?.source.name ?? b.source?.name ?? "").toLowerCase();
-                return name1 < name2 ? -1 : 1
+                return name1 < name2 ? -1 : 1;
             } else {
                 return a.isDirectory ? -1 : 1;
             }
@@ -287,7 +289,7 @@ class Synchronizer {
     ) {
         return databaseEntry instanceof MappedFile
             ? this.processDeletedFile(parentDirectory, databaseEntry, destinationDirent)
-            : this.processDeletedDirectory(parentDirectory, databaseEntry, destinationDirent)
+            : this.processDeletedDirectory(parentDirectory, databaseEntry, destinationDirent);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -446,7 +448,9 @@ class Synchronizer {
             || databaseEntry.modified !== properties.ctimeMs
             || databaseEntry.size !== properties.size;
         if (hasChanged) {
-            return this.processModifiedFile(parentDirectory, databaseEntry, sourceDirent, "the source file was modified");
+            return this.processModifiedFile(
+                parentDirectory, databaseEntry, sourceDirent, "the source file was modified"
+            );
         } else {
             return true;
         }
@@ -496,7 +500,8 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private updateIndexIfRequired() {
-        if (this.database.hasUnsavedChanges() && !this.database.wasSavedWithinTheLastSeconds(60)) {
+        if (this.database.hasUnsavedChanges()
+            && !this.database.wasSavedWithinTheLastSeconds(Synchronizer.DATABASE_SAVE_INTERVAL_SECONDS)) {
             this.updateIndex();
         }
     }
@@ -517,7 +522,7 @@ class Synchronizer {
             this.logger.info("Did not find any orphan filenames of concern - no need to update the database");
             this.print("Did not find any orphan filenames of concern");
         }
-        const message2 = `Continuing with the ${this.isDryRun ? "dry run" : "synchronization"}`
+        const message2 = `Continuing with the ${this.isDryRun ? "dry run" : "synchronization"}`;
         this.logger.info(message2);
         this.print(message2);
     }

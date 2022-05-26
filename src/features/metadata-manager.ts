@@ -8,12 +8,18 @@ class MetadataManager {
 
     private static readonly DATABASE_FILENAME = "7-sync-database.json";
     private static readonly LISTING_FILENAME = "7-sync-file-index.txt";
-    private static readonly README_FILENAME = "7-sync-README.txt"
+    private static readonly README_FILENAME = "7-sync-README.txt";
+
+    private static readonly MAX_INDEX = 999999;
+    private static readonly INDEX_LENGTH = `${this.MAX_INDEX}`.length;
+    private static readonly MAX_UNZIP_CONSOLE_OUTPUT_LENGTH = 1000;
 
     private readonly logger;
     private readonly print;
     private readonly isDryRun;
     private readonly destination;
+
+
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -33,7 +39,7 @@ class MetadataManager {
     public async loadOrInitializeDatabase() {
         const latest = this.listMetadataArchives()?.latest;
         if (latest) {
-            return this.loadDatabaseFromFile(latest.absolutePath, latest.name)
+            return this.loadDatabaseFromFile(latest.absolutePath, latest.name);
         } else if (FileUtils.getChildrenIfDirectoryExists(this.destination).array.length) {
             const indexFile = MetadataManager.ARCHIVE_FILE_PREFIX;
             throw new FriendlyException(
@@ -136,7 +142,10 @@ class MetadataManager {
             return unzip.consoleOutput;
         } else {
             if (unzip.consoleOutput) {
-                this.logger.error(unzip.consoleOutput.substring(0, Math.min(unzip.consoleOutput.length, 1000)));
+                this.logger.error(unzip.consoleOutput.substring(
+                    0,
+                    Math.min(unzip.consoleOutput.length, MetadataManager.MAX_UNZIP_CONSOLE_OUTPUT_LENGTH))
+                );
             }
             this.logger.error(`Failed to extract ${databaseFilename} from ${absolutePath} - ${unzip.errorMessage}`);
             this.print(`Failed to extract the database from ${name}`);
@@ -162,7 +171,7 @@ class MetadataManager {
         const remainingLatestOrphan = hasCreatedNewIndex
             ? this.deleteOrphans(indexesToDelete.latest.map(file => file.absolutePath))
             : indexesToDelete.latest.length;
-        return { isUpToDate, remainingOrphans: remainingOrphans + remainingLatestOrphan }
+        return { isUpToDate, remainingOrphans: remainingOrphans + remainingLatestOrphan };
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -310,10 +319,10 @@ class MetadataManager {
 
     private generateArchiveName() {
         const timestamp = MetadataManager.generateTimestamp();
-        for (let index = 0; index < 1000000; index++) {
-            const suffix = index ? `_${Logger.formatNumber(index, 6)}` : "";
+        for (let index = 0; index <= MetadataManager.MAX_INDEX; index++) {
+            const suffix = index ? `_${Logger.formatNumber(index, MetadataManager.INDEX_LENGTH)}` : "";
             const name = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}.7z`;
-            const tempName = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`
+            const tempName = `${MetadataManager.ARCHIVE_FILE_PREFIX}${timestamp}${suffix}_TMP.7z`;
             const nameWithPath = node.path.join(this.context.config.destination, name);
             const tempNameWithPath = node.path.join(this.context.config.destination, tempName);
             if (!MetadataManager.isMetadataArchiveName(name)) {
@@ -333,13 +342,13 @@ class MetadataManager {
     private static generateTimestamp() {
         const now = new Date();
         return [
-            [4, now.getFullYear()],
-            [2, now.getMonth() + 1],
-            [2, now.getDate()],
-            [2, now.getHours()],
-            [2, now.getMinutes()],
-            [2, now.getSeconds()],
-            [3, now.getMilliseconds()]
+            [Logger.LENGTH_YEAR, now.getFullYear()],
+            [Logger.LENGTH_MONTH, now.getMonth() + 1],
+            [Logger.LENGTH_DAY, now.getDate()],
+            [Logger.LENGTH_HOURS, now.getHours()],
+            [Logger.LENGTH_MINUTES, now.getMinutes()],
+            [Logger.LENGTH_SECONDS, now.getSeconds()],
+            [Logger.LENGTH_MILLISECONDS, now.getMilliseconds()]
         ].map(array => Logger.formatNumber(array[1], array[0])).join("-");
     }
 
@@ -367,7 +376,7 @@ class MetadataManager {
         const result = this.context.sevenZip.zipString(content, filename, zipFile);
         if (!result.success) {
             if (result.consoleOutput) {
-                this.context.logger.error(result.consoleOutput)
+                this.context.logger.error(result.consoleOutput);
             }
             this.context.logger.error(
                 `Failed to add ${filename} to the create recovery archive ${zipFile}: ${result.errorMessage}`

@@ -23,7 +23,7 @@ class CommandLineParser {
         silent: "silent",
         help: "help",
         version: "version"
-    }
+    };
 
     //------------------------------------------------------------------------------------------------------------------
     // Default options per command
@@ -50,13 +50,14 @@ class CommandLineParser {
             command: "reconfigure",
             ...this.SHARED_DEFAULT_OPTIONS
         })
-    }
+    };
 
     //------------------------------------------------------------------------------------------------------------------
     // Usage information
     //------------------------------------------------------------------------------------------------------------------
 
     private static showUsageAndExit(): never {
+        const configFile = this.DEFAULT_CONFIG_FILE;
         this.exitWithMessage(`
               Create an encrypted copy of a directory using 7-Zip.
             |
@@ -71,7 +72,7 @@ class CommandLineParser {
             | Options:
             |
             |   --${this.OPTIONS.sevenZip}=<7_ZIP_EXECUTABLE>  the 7-Zip executable to use
-            |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${this.DEFAULT_CONFIG_FILE})
+            |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${configFile})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
             |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
@@ -102,15 +103,15 @@ class CommandLineParser {
 
     public static parse(argv: string[]) {
         if (argv.filter(parameter => parameter.match(/^--?(v|version)$/)).length) {
-            this.showVersionAndExit();
+            return this.showVersionAndExit();
         } else if (argv.filter(parameter => parameter.match(/^--?(h|help)$/)).length) {
-            this.showUsageAndExit();
+            return this.showUsageAndExit();
         }
         const { commands, options } = this.splitParameters(argv);
         if (0 === commands.length) {
-            this.exitWithError('Missing command');
+            return this.exitWithError("Missing command");
         } else if (1 < commands.length) {
-            this.exitWithError(`More than one command specified: ${commands.join(", ")}`);
+            return this.exitWithError(`More than one command specified: ${commands.join(", ")}`);
         } else {
             return this.assembleOptions(commands[0], options);
         }
@@ -123,12 +124,17 @@ class CommandLineParser {
     private static splitParameters(argv: string[]) {
         const options = new Map<string, string | true>();
         const commands = new Array<string>();
+        const prefix = "--";
+        const separator = "=";
+        const minLength = prefix.length + separator.length;
         argv.forEach(argument => {
-            if (argument.startsWith("--")) {
-                const index = argument.indexOf("=");
-                const key = 3 <= index ? argument.substring(2, index).trim() : argument.substring(2).trim();
-                const value = 3 <= index ? argument.substring(index + 1) : true;
-                options.set(key, "string" === typeof value && this.OPTIONS.password !== key ? value.trim() : value)
+            if (argument.startsWith(prefix)) {
+                const index = argument.indexOf(separator);
+                const key = minLength <= index
+                    ? argument.substring(prefix.length, index).trim()
+                    : argument.substring(prefix.length).trim();
+                const value = minLength <= index ? argument.substring(index + separator.length) : true;
+                options.set(key, "string" === typeof value && this.OPTIONS.password !== key ? value.trim() : value);
             } else {
                 this.getInternalKey(this.DEFAULT_OPTIONS, argument, false);
                 commands.push(argument);
@@ -154,25 +160,25 @@ class CommandLineParser {
     //------------------------------------------------------------------------------------------------------------------
 
     private static getDefaultOptions(command: string) {
-        const defaultOptionsMap: { [index: string]: TaskOptions } = this.DEFAULT_OPTIONS;
+        const defaultOptionsMap: { [index: string]: TaskOptions; } = this.DEFAULT_OPTIONS;
         const defaultOptions = defaultOptionsMap[this.getInternalKey(this.DEFAULT_OPTIONS, command, false)];
-        if (defaultOptions) {
-            return defaultOptions;
-        } else {
-            this.exitWithError(`Internal error - no default options for command "${command}"`);
-        }
+        return defaultOptions
+            ? defaultOptions
+            : this.exitWithError(`Internal error - no default options for command "${command}"`);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Set a single option value
     //------------------------------------------------------------------------------------------------------------------
 
-    private static setOption(command: string, defaultOptions: object, suppliedKey: string, suppliedValue: boolean | string) {
+    private static setOption(
+        command: string, defaultOptions: object, suppliedKey: string, suppliedValue: boolean | string
+    ) {
         const defaultKey = this.getInternalKey(this.OPTIONS, suppliedKey, true);
         if ("command" === suppliedKey || !(defaultKey in defaultOptions)) {
             this.exitWithError(`Command "${command}" does not support option --${suppliedKey}`);
         }
-        const defaultValue = (defaultOptions as any)[defaultKey];
+        const defaultValue = asAny(defaultOptions)[defaultKey];
         if ("boolean" === typeof defaultValue) {
             if ("boolean" !== typeof suppliedValue) {
                 this.exitWithError(`Option --${suppliedKey} can't have a value assigned`);
@@ -182,16 +188,20 @@ class CommandLineParser {
                 this.exitWithError(`Option --${suppliedKey} requires a value`);
             }
         }
-        (defaultOptions as any)[defaultKey] = suppliedValue;
+        asAny(defaultOptions)[defaultKey] = suppliedValue;
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Get the internal key for a command or option (e.g. 7-zip => sevenZip)
     //------------------------------------------------------------------------------------------------------------------
 
-    private static getInternalKey(mapping: { [index: string]: string }, suppliedKey: string, isOption: true): string
-    private static getInternalKey(mapping: { [index: string]: { command: string } }, suppliedKey: string, isOption: false): string
-    private static getInternalKey(mapping: { [index: string]: string | { command: string } }, suppliedKey: string, isOption: boolean) {
+    private static getInternalKey(mapping: { [index: string]: string; }, suppliedKey: string, isOption: true): string;
+    private static getInternalKey(
+        mapping: { [index: string]: { command: string; }; }, suppliedKey: string, isOption: false
+    ): string;
+    private static getInternalKey(
+        mapping: { [index: string]: string | { command: string; }; }, suppliedKey: string, isOption: boolean
+    ) {
         for (const internalKey of Object.keys(mapping)) {
             const mappedValue = mapping[internalKey];
             const externalKey = "string" === typeof mappedValue ? mappedValue : mappedValue.command;
@@ -200,9 +210,9 @@ class CommandLineParser {
             }
         }
         if (isOption) {
-            this.exitWithError(`Invalid option --${suppliedKey}`);
+            return this.exitWithError(`Invalid option --${suppliedKey}`);
         } else {
-            this.exitWithError(`Invalid argument "${suppliedKey}"`);
+            return this.exitWithError(`Invalid argument "${suppliedKey}"`);
         }
     }
 

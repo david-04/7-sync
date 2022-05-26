@@ -9,7 +9,7 @@ class FileListingCreator {
     //------------------------------------------------------------------------------------------------------------------
 
     public static create(database: MappedRootDirectory) {
-        return this.recurseInto(database, []).join("\n") + "\n"
+        return this.recurseInto(database, []).join("\n") + "\n";
     }
 
     //------------------------------------------------------------------------------------------------------------------

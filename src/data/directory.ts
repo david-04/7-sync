@@ -24,7 +24,7 @@ class Subdirectory extends RootDirectory {
     //------------------------------------------------------------------------------------------------------------------
 
     public constructor(parent: Directory, public readonly name: string) {
-        super(node.path.join(parent.absolutePath, name))
+        super(node.path.join(parent.absolutePath, name));
         this.relativePath = parent instanceof Subdirectory ? node.path.join(parent.relativePath, name) : name;
     }
 }
@@ -41,25 +41,25 @@ type Directory = RootDirectory | Subdirectory;
 
 abstract class MappedDirectoryBase<T extends RootDirectory> {
 
-    private readonly _files = readonly({
+    private readonly _files = {
         bySourceName: new Map<string, MappedFile>(),
         byDestinationName: new Map<string, MappedFile>()
-    });
+    } as const;
 
-    public readonly files = readonly({
+    public readonly files = {
         bySourceName: new ImmutableMap(this._files.bySourceName),
         byDestinationName: new ImmutableMap(this._files.byDestinationName)
-    });
+    } as const;
 
-    private readonly _subdirectories = readonly({
+    private readonly _subdirectories = {
         bySourceName: new Map<string, MappedSubdirectory>(),
         byDestinationName: new Map<string, MappedSubdirectory>()
-    });
+    } as const;
 
-    public readonly subdirectories = readonly({
+    public readonly subdirectories = {
         bySourceName: new ImmutableMap(this._subdirectories.bySourceName),
         byDestinationName: new ImmutableMap(this._subdirectories.byDestinationName)
-    });
+    } as const;
 
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
@@ -124,7 +124,9 @@ abstract class MappedDirectoryBase<T extends RootDirectory> {
             this.deleteFrom(this._files.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
         } else {
             this.deleteFrom(this._subdirectories.bySourceName, fileOrSubdirectory.source.name, fileOrSubdirectory);
-            this.deleteFrom(this._subdirectories.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory);
+            this.deleteFrom(
+                this._subdirectories.byDestinationName, fileOrSubdirectory.destination.name, fileOrSubdirectory
+            );
         }
     }
 
@@ -137,7 +139,7 @@ abstract class MappedDirectoryBase<T extends RootDirectory> {
         if (undefined === mapValue) {
             throw new Error(`Internal error: Directory entry ${key} does not exist`);
         } else if (mapValue !== value) {
-            throw new Error(`Internal error: ${key} points to the wrong directory entry`)
+            throw new Error(`Internal error: ${key} points to the wrong directory entry`);
         } else {
             map.delete(key);
         }
@@ -147,11 +149,11 @@ abstract class MappedDirectoryBase<T extends RootDirectory> {
     // Recursively count the the children
     //------------------------------------------------------------------------------------------------------------------
 
-    public countChildren(statistics?: { files: number, subdirectories: number }) {
+    public countChildren(statistics?: { files: number, subdirectories: number; }) {
         const realStatistics = statistics ?? { files: 0, subdirectories: 0 };
         realStatistics.files += this._files.byDestinationName.size;
         realStatistics.subdirectories += this._subdirectories.byDestinationName.size;
-        this._subdirectories.byDestinationName.forEach((subdirectory) => subdirectory.countChildren(realStatistics));
+        this._subdirectories.byDestinationName.forEach(subdirectory => subdirectory.countChildren(realStatistics));
         return realStatistics;
     }
 
@@ -167,6 +169,8 @@ abstract class MappedDirectoryBase<T extends RootDirectory> {
 //----------------------------------------------------------------------------------------------------------------------
 
 class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> {
+
+    private static readonly MILLISECONDS_PER_SECOND = 1_000;
 
     private lastSavedAtMs?: number;
     private _hasUnsavedChanges = true;
@@ -194,7 +198,7 @@ class MappedRootDirectory extends MappedDirectoryBase<RootDirectory> {
     public wasSavedWithinTheLastSeconds(seconds: number) {
         return undefined === this.lastSavedAtMs
             ? false
-            : new Date().getTime() - this.lastSavedAtMs <= seconds * 1000;
+            : new Date().getTime() - this.lastSavedAtMs <= seconds * MappedRootDirectory.MILLISECONDS_PER_SECOND;
     }
 
     //------------------------------------------------------------------------------------------------------------------

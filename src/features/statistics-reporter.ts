@@ -6,6 +6,8 @@ class StatisticsReporter {
 
     private readonly logger;
 
+    private static readonly PLACEHOLDER = "{}";
+
     //------------------------------------------------------------------------------------------------------------------
     // Initialization
     //------------------------------------------------------------------------------------------------------------------
@@ -138,16 +140,16 @@ class StatisticsReporter {
         messages: {
             dryRun: {
                 singular: string,
-                plural: string
+                plural: string;
             },
             success: {
                 singular: string,
-                plural: string
+                plural: string;
             },
             failed: {
                 singular: string,
-                plural: string
-            }
+                plural: string;
+            };
         }
     ) {
         if (this.context.options.dryRun) {
@@ -191,9 +193,9 @@ class StatisticsReporter {
         if (files || directories) {
             const message = 1 === files + directories ? singular : plural;
             const filesAndDirectories = this.formatCounters(files, directories);
-            const index = message.indexOf("{}");
+            const index = message.indexOf(StatisticsReporter.PLACEHOLDER);
             const messageStart = 0 <= index ? message.substring(0, index) : message;
-            const messageEnd = 0 <= index ? message.substring(index + 2) : "";
+            const messageEnd = 0 <= index ? message.substring(index + StatisticsReporter.PLACEHOLDER.length) : "";
             this.logger.log(logLevel, messageStart + filesAndDirectories + messageEnd);
             return true;
         } else {

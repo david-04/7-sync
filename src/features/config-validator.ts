@@ -33,7 +33,7 @@ class ConfigValidator {
         } else if (FileUtils.exists(config)) {
             return `${config} is not a regular file`;
         } else if (FileUtils.existsAndIsDirectory(directory)) {
-            return true
+            return true;
         } else if (FileUtils.exists(directory)) {
             return `Directory ${directory} is not a directory`;
         } else {
@@ -72,7 +72,7 @@ class ConfigValidator {
         } else if (FileUtils.equals(resolvedSource, resolvedDestination)) {
             return "The destination directory can't be the same as the source directory";
         } else if (FileUtils.isParentChild(resolvedDestination, config)) {
-            return "The destination directory must not contain the configuration file"
+            return "The destination directory must not contain the configuration file";
         } else if (FileUtils.isParentChild(resolvedDestination, resolvedSource)) {
             return "The source directory must not be inside the destination directory";
         } else if (FileUtils.isParentChild(resolvedSource, resolvedDestination)) {
