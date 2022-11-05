@@ -11,5 +11,5 @@ function assertNever(_value: never): never {
 //----------------------------------------------------------------------------------------------------------------------
 
 function asAny(value: unknown) {
-    return value as any;
+    return value as any; // NOSONAR
 }

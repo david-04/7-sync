@@ -4,7 +4,7 @@
 
 class Optional<T> {
 
-    private static readonly EMPTY = new Optional<any>();
+    private static readonly EMPTY = new Optional<any>(); // NOSONAR
 
     //--------------------------------------------------------------------------------------------------------------
     // Initialization
