@@ -78,7 +78,7 @@ class Application {
             const message = context.options.dryRun ? "Starting the dry run" : "Starting the synchronization";
             context.logger.info(message);
             context.print(message);
-            return Synchronizer.run(context, metadataManager, database);
+            return await Synchronizer.run(context, metadataManager, database);
         } catch (exception) {
             if (exception instanceof FriendlyException) {
                 exception.message

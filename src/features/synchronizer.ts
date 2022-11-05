@@ -10,6 +10,7 @@ class Synchronizer {
     private readonly isDryRun;
     private readonly fileManager;
     private readonly print;
+    private readonly asyncTaskPool;
 
     private readonly statistics = new SyncStats();
 
@@ -26,15 +27,17 @@ class Synchronizer {
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
         this.print = context.print;
+        this.asyncTaskPool = new AsyncTaskPool(1);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Run the synchronization
     //------------------------------------------------------------------------------------------------------------------
 
-    public static run(context: Context, metadataManager: MetadataManager, database: MappedRootDirectory) {
+    public static async run(context: Context, metadataManager: MetadataManager, database: MappedRootDirectory) {
         const synchronizer = new Synchronizer(context, metadataManager, database);
         synchronizer.syncDirectory(database);
+        await synchronizer.asyncTaskPool.waitForAllTasksToComplete();
         const statistics = synchronizer.statistics;
         if (!statistics.copied.total && !statistics.deleted.total && !statistics.orphans.total) {
             context.print("The destination is already up to date");
