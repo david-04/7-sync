@@ -314,13 +314,14 @@ class Synchronizer {
     //------------------------------------------------------------------------------------------------------------------
 
     private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
-        if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
-            this.statistics.copied.files.success++;
-            return true;
-        } else {
-            this.statistics.copied.files.failed++;
-            return false;
-        }
+        this.asyncTaskPool.enqueue(async () => {
+            if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
+                this.statistics.copied.files.success++;
+            } else {
+                this.statistics.copied.files.failed++;
+            }
+        });
+        return true;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -465,25 +466,27 @@ class Synchronizer {
     private processModifiedFile(
         parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent, reason: string
     ) {
-        parentDirectory.delete(databaseEntry);
-        const deleteSucceeded = this.fileManager.deleteFile({
-            destination: databaseEntry.destination.absolutePath,
-            source: databaseEntry.source.absolutePath,
-            reason: `because ${reason}`,
-            suppressConsoleOutput: true
+        this.asyncTaskPool.enqueue(async () => {
+            parentDirectory.delete(databaseEntry);
+            const deleteSucceeded = this.fileManager.deleteFile({
+                destination: databaseEntry.destination.absolutePath,
+                source: databaseEntry.source.absolutePath,
+                reason: `because ${reason}`,
+                suppressConsoleOutput: true
+            });
+            if (deleteSucceeded) {
+                this.statistics.deleted.files.success++;
+            } else {
+                this.statistics.deleted.files.failed++;
+            }
+            const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
+            if (copySucceeded) {
+                this.statistics.copied.files.success++;
+            } else {
+                this.statistics.copied.files.failed++;
+            }
         });
-        if (deleteSucceeded) {
-            this.statistics.deleted.files.success++;
-        } else {
-            this.statistics.deleted.files.failed++;
-        }
-        const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
-        if (copySucceeded) {
-            this.statistics.copied.files.success++;
-        } else {
-            this.statistics.copied.files.failed++;
-        }
-        return deleteSucceeded && copySucceeded;
+        return true;
     }
 
     //------------------------------------------------------------------------------------------------------------------
