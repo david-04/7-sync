@@ -26,6 +26,7 @@ class DoubleLinkedList<T> {
         node.previous = this.lastNode;
         if (this.lastNode) {
             this.lastNode.next = node;
+            this.lastNode = node;
         } else {
             this.firstNode = node;
             this.lastNode = node;
