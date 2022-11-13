@@ -56,7 +56,7 @@ rm -rf ./temp
 
 make -C .. dist/7-sync.js
 rm -f 7-sync.log 7-sync.out
-node ../dist/7-sync.js sync --password=a "$@" | tee 7-sync.out
+time node ../dist/7-sync.js sync --password=a "$@" | tee 7-sync.out
 
 #-----------------------------------------------------------------------------------------------------------------------
 # compare/source-2
