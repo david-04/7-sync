@@ -41,14 +41,14 @@ class SevenZip {
     // Run the self tests
     //------------------------------------------------------------------------------------------------------------------
 
-    public runSelfTest() {
+    public async runSelfTest() {
         this.logger.info(`Verifying that 7-Zip is working correctly`);
         this.print("Verifying that 7-Zip is working correctly");
         const directory = this.createTemporaryDirectory();
         try {
             const correctPassword = this.cloneWithDifferentPassword("correct-password");
             const invalidPassword = this.cloneWithDifferentPassword("invalid-password");
-            correctPassword.runAllSelfTests(directory, invalidPassword);
+            await correctPassword.runAllSelfTests(directory, invalidPassword);
             this.removeTestDirectory(directory);
         } catch (exception) {
             tryCatchIgnore(() => this.removeTestDirectory(directory));
@@ -97,19 +97,19 @@ class SevenZip {
     // Run all self tests
     //------------------------------------------------------------------------------------------------------------------
 
-    private runAllSelfTests(directory: string, sevenZipWithWrongPassword: SevenZip) {
+    private async runAllSelfTests(directory: string, sevenZipWithWrongPassword: SevenZip) {
         const filename = "data.txt";
         const content = "Test data";
         const zipFile = node.path.join(directory, "archive.7z");
         this.createTestFile(node.path.join(directory, filename), content);
-        this.testGeneralInvocation();
-        this.testInvalidParameters();
-        this.testZipAndUnzipFile(directory, filename, content, zipFile);
-        this.testZipAndUnzipString(content, "In-memory data", zipFile);
-        this.testZipNonExistentFile(directory, "non-existent-file", zipFile);
-        sevenZipWithWrongPassword.testUnzipWithWrongPassword(zipFile, filename, content);
-        this.selfTestList(zipFile);
-        sevenZipWithWrongPassword.testListWithWrongPassword(zipFile);
+        await this.testGeneralInvocation();
+        await this.testInvalidParameters();
+        await this.testZipAndUnzipFile(directory, filename, content, zipFile);
+        await this.testZipAndUnzipString(content, "In-memory data", zipFile);
+        await this.testZipNonExistentFile(directory, "non-existent-file", zipFile);
+        await sevenZipWithWrongPassword.testUnzipWithWrongPassword(zipFile, filename, content);
+        await this.selfTestList(zipFile);
+        await sevenZipWithWrongPassword.testListWithWrongPassword(zipFile);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -132,8 +132,8 @@ class SevenZip {
     // Verify that 7-Zip can be executed
     //------------------------------------------------------------------------------------------------------------------
 
-    private testGeneralInvocation() {
-        const result = this.runSevenZip({});
+    private async testGeneralInvocation() {
+        const result = await this.runSevenZip({});
         if (!result.success) {
             this.logExecution(result);
             throw new FriendlyException(`The program can't be started - ${result.errorMessage}`);
@@ -144,8 +144,8 @@ class SevenZip {
     // Verify invalid parameters cause an error
     //------------------------------------------------------------------------------------------------------------------
 
-    private testInvalidParameters() {
-        const result = this.runSevenZip({ parameters: ["--invalid-option", "non-existent-file"] });
+    private async testInvalidParameters() {
+        const result = await this.runSevenZip({ parameters: ["--invalid-option", "non-existent-file"] });
         if (result.success) {
             this.logExecution(result);
             throw new FriendlyException("Passing invalid parameters does not cause an error");
@@ -156,13 +156,13 @@ class SevenZip {
     // Verify that a file can be zipped and that its content can be unzipped thereafter
     //------------------------------------------------------------------------------------------------------------------
 
-    private testZipAndUnzipFile(directory: string, filename: string, content: string, zipFile: string) {
-        const zipResult = this.zipFile(directory, filename, zipFile);
+    private async testZipAndUnzipFile(directory: string, filename: string, content: string, zipFile: string) {
+        const zipResult = await this.zipFile(directory, filename, zipFile);
         if (!zipResult.success) {
             this.logExecution(zipResult);
             throw new FriendlyException("Failed to add a file to a zip archive");
         }
-        const unzipResult = this.unzipToStdout(zipFile, filename);
+        const unzipResult = await this.unzipToStdout(zipFile, filename);
         if (!zipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
@@ -180,13 +180,13 @@ class SevenZip {
     // Verify that in-memory text content can be zipped and unzipped
     //------------------------------------------------------------------------------------------------------------------
 
-    private testZipAndUnzipString(content: string, filenameInArchive: string, zipFile: string) {
-        const zipResult = this.zipString(content, filenameInArchive, zipFile);
+    private async testZipAndUnzipString(content: string, filenameInArchive: string, zipFile: string) {
+        const zipResult = await this.zipString(content, filenameInArchive, zipFile);
         if (!zipResult.success) {
             this.logExecution(zipResult);
             throw new FriendlyException("Failed to add string content to a zip archive");
         }
-        const unzipResult = this.unzipToStdout(zipFile, filenameInArchive);
+        const unzipResult = await this.unzipToStdout(zipFile, filenameInArchive);
         if (!unzipResult.success) {
             this.logExecution(zipResult, LogLevel.INFO);
             this.logExecution(unzipResult);
@@ -204,8 +204,8 @@ class SevenZip {
     // Verify invalid parameters cause an error
     //------------------------------------------------------------------------------------------------------------------
 
-    private testUnzipWithWrongPassword(zipFile: string, filenameInArchive: string, content: string) {
-        const result = this.unzipToStdout(zipFile, filenameInArchive);
+    private async testUnzipWithWrongPassword(zipFile: string, filenameInArchive: string, content: string) {
+        const result = await this.unzipToStdout(zipFile, filenameInArchive);
         if (result.success) {
             this.logExecution(result);
             this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
@@ -222,8 +222,8 @@ class SevenZip {
     // Verify that zipping a non-existent file causes an error
     //------------------------------------------------------------------------------------------------------------------
 
-    private testZipNonExistentFile(directory: string, file: string, zipFile: string) {
-        const result = this.zipFile(directory, file, zipFile);
+    private async testZipNonExistentFile(directory: string, file: string, zipFile: string) {
+        const result = await this.zipFile(directory, file, zipFile);
         if (result.success) {
             this.logExecution(result);
             this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
@@ -235,8 +235,8 @@ class SevenZip {
     // Verify that files within an archive can be listed
     //------------------------------------------------------------------------------------------------------------------
 
-    private selfTestList(zipFile: string) {
-        const result = this.listToStdout(zipFile);
+    private async selfTestList(zipFile: string) {
+        const result = await this.listToStdout(zipFile);
         if (!result.success) {
             this.logExecution(result);
             throw new FriendlyException(`Listing the contents of a zip archive failed`);
@@ -247,8 +247,8 @@ class SevenZip {
     // Verify that files within an archive can't be listed with the wrong password
     //------------------------------------------------------------------------------------------------------------------
 
-    private testListWithWrongPassword(zipFile: string) {
-        const result = this.listToStdout(zipFile);
+    private async testListWithWrongPassword(zipFile: string) {
+        const result = await this.listToStdout(zipFile);
         if (result.success) {
             this.logExecution(result);
             this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
@@ -265,7 +265,7 @@ class SevenZip {
             getCommand: () => string,
             consoleOutput: string,
             errorMessage?: string,
-            details: { status: number | null, error?: Error; };
+            exitCode: number | null;
         },
         logLevel = LogLevel.ERROR
     ) {
@@ -273,7 +273,7 @@ class SevenZip {
             `Running command: ${options.getCommand()}`,
             options.consoleOutput || "The command did not produce any console output",
             options.errorMessage ?? "",
-            null !== options.details.status ? `The command exited with code ${options.details.status}` : ""
+            null !== options.exitCode ? `The command exited with code ${options.exitCode}` : ""
         ]
             .filter(line => line)
             .forEach(line => this.logger.log(logLevel, line));
@@ -283,12 +283,13 @@ class SevenZip {
     // Zip a file
     //------------------------------------------------------------------------------------------------------------------
 
-    public zipFile(workingDirectory: string, sourceFile: string, zipFile: string) {
-        return this.verifyZipResult(zipFile, this.runSevenZip({
+    public async zipFile(workingDirectory: string, sourceFile: string, zipFile: string) {
+        return this.verifyZipResult(zipFile, await this.runSevenZip({
             workingDirectory,
             parameters: [
                 ...this.getZipParameters(),
                 zipFile,
+                "--",
                 sourceFile
             ]
         }));
@@ -298,8 +299,23 @@ class SevenZip {
     // Zip in-memory string content
     //------------------------------------------------------------------------------------------------------------------
 
-    public zipString(content: string, filenameInArchive: string, zipFile: string) {
-        return this.verifyZipResult(zipFile, this.runSevenZip({
+    public zipStringSync(content: string, filenameInArchive: string, zipFile: string) {
+        return this.verifyZipResultSync(zipFile, this.runSevenZipSync({
+            parameters: [
+                ...this.getZipParameters(),
+                `-si${filenameInArchive}`, // read from stdin
+                zipFile // write to this zip archive
+            ],
+            stdin: content
+        }));
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Zip in-memory string content
+    //------------------------------------------------------------------------------------------------------------------
+
+    public async zipString(content: string, filenameInArchive: string, zipFile: string) {
+        return this.verifyZipResult(zipFile, await this.runSevenZip({
             parameters: [
                 ...this.getZipParameters(),
                 `-si${filenameInArchive}`, // read from stdin
@@ -313,7 +329,7 @@ class SevenZip {
     // Verify that a recently created zip archive can be listed
     //------------------------------------------------------------------------------------------------------------------
 
-    private verifyZipResult<T extends { success: boolean, errorMessage: string, consoleOutput: string; }>(
+    private verifyZipResultSync<T extends { success: boolean, errorMessage: string, consoleOutput: string; }>(
         zipFile: string, zipResult: T
     ): T {
         if (!FileUtils.existsAndIsFile(zipFile)) {
@@ -323,7 +339,41 @@ class SevenZip {
                 errorMessage: `7-Zip returned no error but ${zipFile} was not created either`
             };
         }
-        const listResult = this.listToStdout(zipFile);
+        const listResult = this.listToStdoutSync(zipFile);
+        if (!listResult.success) {
+            return {
+                ...zipResult,
+                success: false,
+                errorMessage: `The zip file was created but listing its contents failed - ${listResult.errorMessage}`,
+                consoleOutput: [
+                    "================================[ zip command ]================================",
+                    "",
+                    zipResult.consoleOutput,
+                    "",
+                    "================================[ list command ]================================",
+                    "",
+                    listResult.consoleOutput
+                ].join("\n")
+            };
+        }
+        return zipResult;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Verify that a recently created zip archive can be listed
+    //------------------------------------------------------------------------------------------------------------------
+
+    private async verifyZipResult<T extends { success: boolean, errorMessage: string, consoleOutput: string; }>(
+        zipFile: string, zipResult: T
+    ): Promise<T> {
+        if (!FileUtils.existsAndIsFile(zipFile)) {
+            return {
+                ...zipResult,
+                success: false,
+                errorMessage: `7-Zip returned no error but ${zipFile} was not created either`
+            };
+        }
+        const listResult = await this.listToStdout(zipFile);
         if (!listResult.success) {
             return {
                 ...zipResult,
@@ -347,7 +397,22 @@ class SevenZip {
     // Unzip a file to stdout
     //------------------------------------------------------------------------------------------------------------------
 
-    public unzipToStdout(zipFile: string, filenameInArchive: string) {
+    public unzipToStdoutSync(zipFile: string, filenameInArchive: string) {
+        return this.runSevenZipSync({
+            parameters: [
+                ...this.getUnzipParameters(),
+                `-so`, // write to stdout
+                zipFile, // the zip archive to read
+                filenameInArchive // the filename within the archive
+            ],
+        });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Unzip a file to stdout
+    //------------------------------------------------------------------------------------------------------------------
+
+    public async unzipToStdout(zipFile: string, filenameInArchive: string) {
         return this.runSevenZip({
             parameters: [
                 ...this.getUnzipParameters(),
@@ -362,7 +427,20 @@ class SevenZip {
     // List file contents to stdout
     //------------------------------------------------------------------------------------------------------------------
 
-    public listToStdout(zipFile: string) {
+    public listToStdoutSync(zipFile: string) {
+        return this.runSevenZipSync({
+            parameters: [
+                ...this.getListParameters(),
+                zipFile
+            ]
+        });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // List file contents to stdout
+    //------------------------------------------------------------------------------------------------------------------
+
+    public async listToStdout(zipFile: string) {
         return this.runSevenZip({
             parameters: [
                 ...this.getListParameters(),
@@ -424,7 +502,15 @@ class SevenZip {
     // Run 7-Zip with the given parameters
     //------------------------------------------------------------------------------------------------------------------
 
-    private runSevenZip(options: { workingDirectory?: string, parameters?: string[], stdin?: string; }) {
+    private runSevenZipSync(options: { workingDirectory?: string, parameters?: string[], stdin?: string; }) {
+        return SevenZip.runAnyCommandSync({ ...options, executable: this.executable });
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Run 7-Zip with the given parameters
+    //------------------------------------------------------------------------------------------------------------------
+
+    private async runSevenZip(options: { workingDirectory?: string, parameters?: string[], stdin?: string; }) {
         return SevenZip.runAnyCommand({ ...options, executable: this.executable });
     }
 
@@ -432,7 +518,7 @@ class SevenZip {
     // Run any arbitrary command
     //------------------------------------------------------------------------------------------------------------------
 
-    public static runAnyCommand(options: {
+    public static runAnyCommandSync(options: {
         workingDirectory?: string,
         executable: string,
         parameters?: string[],
@@ -451,8 +537,67 @@ class SevenZip {
             errorMessage: this.formatErrorMessage(result.status, result.error),
             consoleOutput: [result.stdout ?? "", result.stderr ?? ""].map(text => text.trim()).join("\n").trim(),
             getCommand: () => this.formatCommand(options),
-            details: { ...result }
+            exitCode: result.status
         };
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Run any arbitrary command
+    //------------------------------------------------------------------------------------------------------------------
+
+    public static async runAnyCommand(options: {
+        workingDirectory?: string,
+        executable: string,
+        parameters?: string[],
+        stdin?: string;
+    }) {
+        return new Promise<{
+            success: boolean;
+            errorMessage: string;
+            consoleOutput: string;
+            getCommand: () => string;
+            exitCode: number | null;
+        }>(resolve => {
+            let stderr = "";
+            let stdout = "";
+            try {
+                const process = node.child_process.spawn(options.executable, options.parameters ?? [], {
+                    cwd: options.workingDirectory,
+                    shell: false,
+                    windowsHide: true,
+                });
+                process.stderr.on("data", data => stderr += data);
+                process.stdout.on("data", data => stdout += data);
+                process.on("error", error => {
+                    resolve({
+                        success: false,
+                        errorMessage: this.formatErrorMessage(null, error),
+                        consoleOutput: [stdout ?? "", stderr ?? ""].map(text => text.trim()).join("\n").trim(),
+                        getCommand: () => this.formatCommand(options),
+                        exitCode: process.exitCode
+                    });
+                });
+                process.on("close", code => {
+                    resolve({
+                        success: 0 === code,
+                        errorMessage: this.formatErrorMessage(code),
+                        consoleOutput: [stdout ?? "", stderr ?? ""].map(text => text.trim()).join("\n").trim(),
+                        getCommand: () => this.formatCommand(options),
+                        exitCode: process.exitCode
+                    });
+                });
+                process.stdin.write(options.stdin ?? "");
+                process.stdin.end();
+            } catch (error) {
+                resolve({
+                    success: false,
+                    errorMessage: this.formatErrorMessage(null, error instanceof Error ? error : new Error(`${error}`)),
+                    consoleOutput: [stdout ?? "", stderr ?? ""].map(text => text.trim()).join("\n").trim(),
+                    getCommand: () => this.formatCommand(options),
+                    exitCode: process.exitCode ?? null
+                });
+            }
+        });
     }
 
     //------------------------------------------------------------------------------------------------------------------

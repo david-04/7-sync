@@ -48,7 +48,7 @@ class FileManager {
             }
         }
         return newDestinationDirectory
-            ? this.storeNewSubdirectory(directory, source.name, newDestinationDirectory, paths.next)
+            ? this.storeNewSubdirectory(directory, source.name, newDestinationDirectory)
             : undefined;
     }
 
@@ -56,11 +56,10 @@ class FileManager {
     // Wrap a destination directory into a mapped directory and attach it to the database
     //------------------------------------------------------------------------------------------------------------------
 
-    private storeNewSubdirectory(parent: MappedDirectory, sourceName: string, destination: Subdirectory, last: string) {
+    private storeNewSubdirectory(parent: MappedDirectory, sourceName: string, destination: Subdirectory) {
         const source = new Subdirectory(parent.source, sourceName);
         const newMappedSubdirectory = new MappedSubdirectory(parent, source, destination, "");
         parent.add(newMappedSubdirectory);
-        parent.last = last;
         return newMappedSubdirectory;
     }
 
@@ -68,7 +67,7 @@ class FileManager {
     // Synchronize a single file
     //------------------------------------------------------------------------------------------------------------------
 
-    public zipFile(parentDirectory: MappedDirectory, source: Dirent) {
+    public async zipFile(parentDirectory: MappedDirectory, source: Dirent) {
         const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
         this.print(`+ ${paths.source.relativePath}`);
         const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
@@ -77,10 +76,12 @@ class FileManager {
             this.logger.info(`Would zip ${pathInfo}`);
         } else {
             this.logger.info(`Zipping ${pathInfo}`);
-            success = this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
+            success = await this.zipFileAndLogErrors(
+                pathInfo, paths.source.relativePath, paths.destination.absolutePath
+            );
         }
         return success
-            ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next)
+            ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename)
             : undefined;
     }
 
@@ -88,9 +89,9 @@ class FileManager {
     // Compress the given file, check if it was successful and log errors if applicable
     //------------------------------------------------------------------------------------------------------------------
 
-    private zipFileAndLogErrors(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
+    private async zipFileAndLogErrors(pathInfo: string, sourceRelativePath: string, destinationAbsolutePath: string) {
         try {
-            const result = this.context.sevenZip.zipFile(
+            const result = await this.context.sevenZip.zipFile(
                 this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath
             );
             if (!result.success) {
@@ -110,7 +111,7 @@ class FileManager {
     // Wrap a destination file into a mapped file and attach it to the database
     //------------------------------------------------------------------------------------------------------------------
 
-    private storeNewFile(parent: MappedDirectory, sourceName: string, destinationName: string, last: string) {
+    private storeNewFile(parent: MappedDirectory, sourceName: string, destinationName: string) {
         const properties = FileUtils.getProperties(node.path.join(parent.source.absolutePath, sourceName));
         const newMappedFile = new MappedFile(
             parent,
@@ -121,7 +122,6 @@ class FileManager {
             properties.size
         );
         parent.add(newMappedFile);
-        parent.last = last;
         return newMappedFile;
     }
 
@@ -228,7 +228,7 @@ class FileManager {
     private getSourceAndDestinationPaths(directory: MappedDirectory, source: Dirent, suffix: string) {
         const sourceAbsolute = node.path.join(directory.source.absolutePath, source.name);
         const sourceRelative = node.path.relative(this.database.source.absolutePath, sourceAbsolute);
-        const next = this.getNextAvailableFilename(directory, "", suffix);
+        const next = this.reserveNextAvailableFilename(directory, "", suffix);
         const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
         const destinationRelative = node.path.relative(this.database.destination.absolutePath, destinationAbsolute);
         return {
@@ -240,8 +240,7 @@ class FileManager {
                 filename: next.filename,
                 absolutePath: destinationAbsolute,
                 relativePath: destinationRelative
-            },
-            next: next.enumeratedName
+            }
         };
     }
 
@@ -275,9 +274,11 @@ class FileManager {
     // Get the next available enumerated file name
     //------------------------------------------------------------------------------------------------------------------
 
-    private getNextAvailableFilename(directory: MappedDirectory, prefix: string, suffix: string) {
-        return this.context.filenameEnumerator.getNextAvailableFilename(
+    private reserveNextAvailableFilename(directory: MappedDirectory, prefix: string, suffix: string) {
+        const next = this.context.filenameEnumerator.getNextAvailableFilename(
             directory.destination.absolutePath, directory.last, prefix, suffix
         );
+        directory.last = next.enumeratedName;
+        return next;
     }
 }

@@ -34,4 +34,5 @@ interface SyncOptions extends SharedOptions {
     password?: string;
     sevenZip?: string;
     silent: boolean;
+    parallel: number;
 }

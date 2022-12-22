@@ -27,7 +27,7 @@ class Synchronizer {
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
         this.print = context.print;
-        this.asyncTaskPool = new AsyncTaskPool(1);
+        this.asyncTaskPool = new AsyncTaskPool(Math.max(1, context.options.parallel));
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ class Synchronizer {
 
     private processNewFile(parentDirectory: MappedDirectory, sourceDirent: Dirent) {
         this.asyncTaskPool.enqueue(async () => {
-            if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
+            if (await this.fileManager.zipFile(parentDirectory, sourceDirent)) {
                 this.statistics.copied.files.success++;
             } else {
                 this.statistics.copied.files.failed++;
@@ -479,7 +479,7 @@ class Synchronizer {
             } else {
                 this.statistics.deleted.files.failed++;
             }
-            const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
+            const copySucceeded = !!(await this.fileManager.zipFile(parentDirectory, sourceDirent));
             if (copySucceeded) {
                 this.statistics.copied.files.success++;
             } else {

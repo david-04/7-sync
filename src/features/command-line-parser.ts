@@ -19,6 +19,7 @@ class CommandLineParser {
         config: "config",
         dryRun: "dry-run",
         password: "password", //NOSONAR This is not an actual password
+        parallel: "parallel",
         sevenZip: "7-zip",
         silent: "silent",
         help: "help",
@@ -40,7 +41,8 @@ class CommandLineParser {
             dryRun: false,
             password: undefined,
             sevenZip: undefined,
-            silent: false
+            silent: false,
+            parallel: 1
         }),
         init: this.as<Readonly<InitOptions>>({
             command: "init",
@@ -75,6 +77,7 @@ class CommandLineParser {
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${configFile})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
+            |   --${this.OPTIONS.parallel}=<NO_OF_JOBS>     run multiple 7-Zip instances in parallel (default: 1)
             |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
             |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
@@ -188,7 +191,18 @@ class CommandLineParser {
                 this.exitWithError(`Option --${suppliedKey} requires a value`);
             }
         }
-        asAny(defaultOptions)[defaultKey] = suppliedValue;
+        if ("number" === typeof defaultValue) {
+            const parsedNumber = parseInt(asAny(suppliedValue));
+            if (isNaN(parsedNumber)) {
+                this.exitWithError(`Invalid value for --${suppliedKey} (${suppliedValue} is not a number)`);
+            }
+            if (suppliedKey === this.OPTIONS.parallel && parsedNumber < 1) {
+                this.exitWithError(`Invalid value for --${suppliedKey} (it must be 1 or greater)`);
+            }
+            asAny(defaultOptions)[defaultKey] = parsedNumber;
+        } else {
+            asAny(defaultOptions)[defaultKey] = suppliedValue;
+        }
     }
 
     //------------------------------------------------------------------------------------------------------------------

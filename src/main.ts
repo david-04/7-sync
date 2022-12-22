@@ -66,7 +66,7 @@ class Application {
 
     private async sync(context: Context) {
         try {
-            context.sevenZip.runSelfTest();
+            await context.sevenZip.runSelfTest();
             const metadataManager = new MetadataManager(context);
             const { json, mustSaveImmediately } = await metadataManager.loadOrInitializeDatabase();
             const database = DatabaseAssembler.assemble(context, json);

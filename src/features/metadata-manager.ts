@@ -118,7 +118,7 @@ class MetadataManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private checkIfSevenZipCanOpen(sevenZip: SevenZip, absolutePath: string) {
-        const result = sevenZip.listToStdout(absolutePath);
+        const result = sevenZip.listToStdoutSync(absolutePath);
         if (!result.success) {
             if (result.consoleOutput) {
                 this.logger.error(result.consoleOutput);
@@ -133,7 +133,7 @@ class MetadataManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private unzipDatabase(sevenZip: SevenZip, absolutePath: string, name: string, databaseFilename: string) {
-        const unzip = sevenZip.unzipToStdout(absolutePath, databaseFilename);
+        const unzip = sevenZip.unzipToStdoutSync(absolutePath, databaseFilename);
         if (unzip.success && unzip.consoleOutput) {
             this.logger.info(`Loaded database ${databaseFilename} from ${absolutePath}`);
             this.print(`Loading the database`);
@@ -371,7 +371,7 @@ class MetadataManager {
     //------------------------------------------------------------------------------------------------------------------
 
     private addToArchive(zipFile: string, filename: string, content: string) {
-        const result = this.context.sevenZip.zipString(content, filename, zipFile);
+        const result = this.context.sevenZip.zipStringSync(content, filename, zipFile);
         if (!result.success) {
             if (result.consoleOutput) {
                 this.context.logger.error(result.consoleOutput);

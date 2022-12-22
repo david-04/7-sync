@@ -168,9 +168,7 @@ class SetupWizard {
             ],
             normalizePath: true,
             defaultAnswer: preset,
-            validate: sevenZip => Promise.resolve(
-                this.formatValidationResult(this.validateSevenZip(sevenZip))
-            )
+            validate: async sevenZip => this.formatValidationResult(await this.validateSevenZip(sevenZip))
         });
     }
 
@@ -178,10 +176,10 @@ class SetupWizard {
     // Validate that the 7-Zip command can be executed
     //------------------------------------------------------------------------------------------------------------------
 
-    private static validateSevenZip(sevenZip: string) {
+    private static async validateSevenZip(sevenZip: string) {
         const useAbsolutePath = "Please specify an absolute path if 7-Zip is not in the search path.";
         try {
-            const result1 = SevenZip.runAnyCommand({ executable: sevenZip });
+            const result1 = await SevenZip.runAnyCommand({ executable: sevenZip });
             if (result1.success) {
                 return true;
             } else {
