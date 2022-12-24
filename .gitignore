@@ -5,6 +5,7 @@
 /test/compare
 /test/destination
 /test/source
+/test/*benchmark*
 /test/*.log
 /test/*.out
 *.tmp

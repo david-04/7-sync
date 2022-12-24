@@ -42,7 +42,7 @@ class CommandLineParser {
             password: undefined,
             sevenZip: undefined,
             silent: false,
-            parallel: 1
+            parallel: 2
         }),
         init: this.as<Readonly<InitOptions>>({
             command: "init",
@@ -60,6 +60,7 @@ class CommandLineParser {
 
     private static showUsageAndExit(): never {
         const configFile = this.DEFAULT_CONFIG_FILE;
+        const parallel = this.DEFAULT_OPTIONS.sync.parallel;
         this.exitWithMessage(`
               Create an encrypted copy of a directory using 7-Zip.
             |
@@ -77,7 +78,7 @@ class CommandLineParser {
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${configFile})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
-            |   --${this.OPTIONS.parallel}=<NO_OF_JOBS>     run multiple 7-Zip instances in parallel (default: 1)
+            |   --${this.OPTIONS.parallel}=<NO_OF_JOBS>     zip multiple files in parallel (default: ${parallel})
             |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
             |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
@@ -191,18 +192,24 @@ class CommandLineParser {
                 this.exitWithError(`Option --${suppliedKey} requires a value`);
             }
         }
-        if ("number" === typeof defaultValue) {
-            const parsedNumber = parseInt(asAny(suppliedValue));
-            if (isNaN(parsedNumber)) {
-                this.exitWithError(`Invalid value for --${suppliedKey} (${suppliedValue} is not a number)`);
-            }
-            if (suppliedKey === this.OPTIONS.parallel && parsedNumber < 1) {
-                this.exitWithError(`Invalid value for --${suppliedKey} (it must be 1 or greater)`);
-            }
-            asAny(defaultOptions)[defaultKey] = parsedNumber;
-        } else {
-            asAny(defaultOptions)[defaultKey] = suppliedValue;
+        asAny(defaultOptions)[defaultKey] = "number" === typeof defaultValue
+            ? CommandLineParser.parseOptionAsNumber(suppliedValue, suppliedKey)
+            : suppliedValue;
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Parse an option value that's expected to be a number
+    //------------------------------------------------------------------------------------------------------------------
+
+    private static parseOptionAsNumber(suppliedValue: string | boolean, suppliedKey: string) {
+        const parsedNumber = parseInt(asAny(suppliedValue));
+        if (isNaN(parsedNumber)) {
+            this.exitWithError(`Invalid value for --${suppliedKey} (${suppliedValue} is not a number)`);
         }
+        if (suppliedKey === this.OPTIONS.parallel && parsedNumber < 1) {
+            this.exitWithError(`Invalid value for --${suppliedKey} (it must be 1 or greater)`);
+        }
+        return parsedNumber;
     }
 
     //------------------------------------------------------------------------------------------------------------------
