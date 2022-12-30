@@ -61,7 +61,7 @@ class Application {
     sync(context) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                context.sevenZip.runSelfTest();
+                yield context.sevenZip.runSelfTest();
                 const metadataManager = new MetadataManager(context);
                 const { json, mustSaveImmediately } = yield metadataManager.loadOrInitializeDatabase();
                 const database = DatabaseAssembler.assemble(context, json);
@@ -74,7 +74,7 @@ class Application {
                 const message = context.options.dryRun ? "Starting the dry run" : "Starting the synchronization";
                 context.logger.info(message);
                 context.print(message);
-                return Synchronizer.run(context, metadataManager, database);
+                return yield Synchronizer.run(context, metadataManager, database);
             }
             catch (exception) {
                 if (exception instanceof FriendlyException) {
@@ -100,7 +100,7 @@ process.on("beforeExit", () => {
         Application.main();
     }
 });
-const APPLICATION_VERSION = "1.0.3";
+const APPLICATION_VERSION = "1.1.0";
 const COPYRIGHT_OWNER = "David Hofmann";
 const COPYRIGHT_YEARS = "2022";
 class Context {
@@ -567,10 +567,43 @@ class SyncStats {
             || this.purged.success;
     }
 }
+class AsyncTaskPool {
+    constructor(maxParallelTasks) {
+        this.maxParallelTasks = maxParallelTasks;
+        this.tasks = new DoubleLinkedList();
+        this.promises = new Array();
+        this.runningTaskCount = 0;
+    }
+    enqueue(callback) {
+        this.tasks.append(callback);
+        this.startNextTask();
+    }
+    startNextTask() {
+        const task = this.tasks.head;
+        if (task && this.runningTaskCount < this.maxParallelTasks) {
+            this.tasks.remove(task);
+            this.runningTaskCount++;
+            const execute = () => __awaiter(this, void 0, void 0, function* () {
+                yield task.value();
+                this.runningTaskCount--;
+                this.startNextTask();
+            });
+            this.promises.push(execute());
+        }
+    }
+    waitForAllTasksToComplete() {
+        return __awaiter(this, void 0, void 0, function* () {
+            do {
+                yield Promise.all(this.promises);
+            } while (this.tasks.head);
+        });
+    }
+}
 var _a;
 class CommandLineParser {
     static showUsageAndExit() {
         const configFile = this.DEFAULT_CONFIG_FILE;
+        const parallel = this.DEFAULT_OPTIONS.sync.parallel;
         this.exitWithMessage(`
               Create an encrypted copy of a directory using 7-Zip.
             |
@@ -588,6 +621,7 @@ class CommandLineParser {
             |   --${this.OPTIONS.config}=<CONFIG_FILE>      use the given configuration file (default: ${configFile})
             |   --${this.OPTIONS.dryRun}                   perform a trial run without making any changes
             |   --${this.OPTIONS.help}                      display this help and exit
+            |   --${this.OPTIONS.parallel}=<NO_OF_JOBS>     zip multiple files in parallel (default: ${parallel})
             |   --${this.OPTIONS.password}=<PASSWORD>       use this password instead of prompting for it
             |   --${this.OPTIONS.silent}                    suppress console output
             |   --${this.OPTIONS.version}                   display version information and exit
@@ -674,7 +708,19 @@ class CommandLineParser {
                 this.exitWithError(`Option --${suppliedKey} requires a value`);
             }
         }
-        asAny(defaultOptions)[defaultKey] = suppliedValue;
+        asAny(defaultOptions)[defaultKey] = "number" === typeof defaultValue
+            ? CommandLineParser.parseOptionAsNumber(suppliedValue, suppliedKey)
+            : suppliedValue;
+    }
+    static parseOptionAsNumber(suppliedValue, suppliedKey) {
+        const parsedNumber = parseInt(asAny(suppliedValue));
+        if (isNaN(parsedNumber)) {
+            this.exitWithError(`Invalid value for --${suppliedKey} (${suppliedValue} is not a number)`);
+        }
+        if (suppliedKey === this.OPTIONS.parallel && parsedNumber < 1) {
+            this.exitWithError(`Invalid value for --${suppliedKey} (it must be 1 or greater)`);
+        }
+        return parsedNumber;
     }
     static getInternalKey(mapping, suppliedKey, isOption) {
         for (const internalKey of Object.keys(mapping)) {
@@ -711,6 +757,7 @@ CommandLineParser.OPTIONS = {
     config: "config",
     dryRun: "dry-run",
     password: "password",
+    parallel: "parallel",
     sevenZip: "7-zip",
     silent: "silent",
     help: "help",
@@ -720,7 +767,7 @@ CommandLineParser.SHARED_DEFAULT_OPTIONS = {
     config: _a.DEFAULT_CONFIG_FILE
 };
 CommandLineParser.DEFAULT_OPTIONS = {
-    sync: _a.as(Object.assign(Object.assign({ command: "sync" }, _a.SHARED_DEFAULT_OPTIONS), { dryRun: false, password: undefined, sevenZip: undefined, silent: false })),
+    sync: _a.as(Object.assign(Object.assign({ command: "sync" }, _a.SHARED_DEFAULT_OPTIONS), { dryRun: false, password: undefined, sevenZip: undefined, silent: false, parallel: 2 })),
     init: _a.as(Object.assign({ command: "init" }, _a.SHARED_DEFAULT_OPTIONS)),
     reconfigure: _a.as(Object.assign({ command: "reconfigure" }, _a.SHARED_DEFAULT_OPTIONS))
 };
@@ -880,6 +927,42 @@ class DatabaseSerializer {
         };
     }
 }
+class DoubleLinkedList {
+    constructor() {
+        this.firstNode = undefined;
+        this.lastNode = undefined;
+    }
+    append(value) {
+        const node = { value };
+        node.previous = this.lastNode;
+        if (this.lastNode) {
+            this.lastNode.next = node;
+            this.lastNode = node;
+        }
+        else {
+            this.firstNode = node;
+            this.lastNode = node;
+        }
+        return node;
+    }
+    remove(node) {
+        if (node.previous) {
+            node.previous.next = node.next;
+        }
+        if (node.next) {
+            node.next.previous = node.previous;
+        }
+        if (node === this.firstNode) {
+            this.firstNode = node.next;
+        }
+        if (node === this.lastNode) {
+            this.lastNode = node.previous;
+        }
+    }
+    get head() {
+        return this.firstNode;
+    }
+}
 class FileListingCreator {
     static create(database) {
         return this.recurseInto(database, []).join("\n") + "\n";
@@ -928,53 +1011,55 @@ class FileManager {
             }
         }
         return newDestinationDirectory
-            ? this.storeNewSubdirectory(directory, source.name, newDestinationDirectory, paths.next)
+            ? this.storeNewSubdirectory(directory, source.name, newDestinationDirectory)
             : undefined;
     }
-    storeNewSubdirectory(parent, sourceName, destination, last) {
+    storeNewSubdirectory(parent, sourceName, destination) {
         const source = new Subdirectory(parent.source, sourceName);
         const newMappedSubdirectory = new MappedSubdirectory(parent, source, destination, "");
         parent.add(newMappedSubdirectory);
-        parent.last = last;
         return newMappedSubdirectory;
     }
     zipFile(parentDirectory, source) {
-        const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
-        this.print(`+ ${paths.source.relativePath}`);
-        const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
-        let success = true;
-        if (this.isDryRun) {
-            this.logger.info(`Would zip ${pathInfo}`);
-        }
-        else {
-            this.logger.info(`Zipping ${pathInfo}`);
-            success = this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
-        }
-        return success
-            ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename, paths.next)
-            : undefined;
+        return __awaiter(this, void 0, void 0, function* () {
+            const paths = this.getSourceAndDestinationPaths(parentDirectory, source, ".7z");
+            this.print(`+ ${paths.source.relativePath}`);
+            const pathInfo = this.getLogFilePathInfo("cp", paths.destination.absolutePath, paths.source.absolutePath);
+            let success = true;
+            if (this.isDryRun) {
+                this.logger.info(`Would zip ${pathInfo}`);
+            }
+            else {
+                this.logger.info(`Zipping ${pathInfo}`);
+                success = yield this.zipFileAndLogErrors(pathInfo, paths.source.relativePath, paths.destination.absolutePath);
+            }
+            return success
+                ? this.storeNewFile(parentDirectory, source.name, paths.destination.filename)
+                : undefined;
+        });
     }
     zipFileAndLogErrors(pathInfo, sourceRelativePath, destinationAbsolutePath) {
-        try {
-            const result = this.context.sevenZip.zipFile(this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath);
-            if (!result.success) {
-                this.logger.error(result.consoleOutput);
-                this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
-                this.print(FileManager.LOG_MESSAGE_FAILED);
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield this.context.sevenZip.zipFile(this.database.source.absolutePath, sourceRelativePath, destinationAbsolutePath);
+                if (!result.success) {
+                    this.logger.error(result.consoleOutput);
+                    this.logger.error(`Failed to zip ${pathInfo}: ${result.errorMessage}`);
+                    this.print(FileManager.LOG_MESSAGE_FAILED);
+                }
+                return result.success;
             }
-            return result.success;
-        }
-        catch (exception) {
-            this.logger.error(`Failed to zip ${pathInfo} - ${firstLineOnly(exception)}`);
-            this.print(FileManager.LOG_MESSAGE_FAILED);
-            return false;
-        }
+            catch (exception) {
+                this.logger.error(`Failed to zip ${pathInfo} - ${firstLineOnly(exception)}`);
+                this.print(FileManager.LOG_MESSAGE_FAILED);
+                return false;
+            }
+        });
     }
-    storeNewFile(parent, sourceName, destinationName, last) {
+    storeNewFile(parent, sourceName, destinationName) {
         const properties = FileUtils.getProperties(node.path.join(parent.source.absolutePath, sourceName));
         const newMappedFile = new MappedFile(parent, new File(parent.source, sourceName), new File(parent.destination, destinationName), properties.birthtimeMs, properties.ctimeMs, properties.size);
         parent.add(newMappedFile);
-        parent.last = last;
         return newMappedFile;
     }
     deleteFile(options) {
@@ -1032,7 +1117,7 @@ class FileManager {
     getSourceAndDestinationPaths(directory, source, suffix) {
         const sourceAbsolute = node.path.join(directory.source.absolutePath, source.name);
         const sourceRelative = node.path.relative(this.database.source.absolutePath, sourceAbsolute);
-        const next = this.getNextAvailableFilename(directory, "", suffix);
+        const next = this.reserveNextAvailableFilename(directory, "", suffix);
         const destinationAbsolute = node.path.join(directory.destination.absolutePath, next.filename);
         const destinationRelative = node.path.relative(this.database.destination.absolutePath, destinationAbsolute);
         return {
@@ -1044,8 +1129,7 @@ class FileManager {
                 filename: next.filename,
                 absolutePath: destinationAbsolute,
                 relativePath: destinationRelative
-            },
-            next: next.enumeratedName
+            }
         };
     }
     getLogFilePathInfo(operation, destinationPath, sourcePath) {
@@ -1066,8 +1150,10 @@ class FileManager {
             return source;
         }
     }
-    getNextAvailableFilename(directory, prefix, suffix) {
-        return this.context.filenameEnumerator.getNextAvailableFilename(directory.destination.absolutePath, directory.last, prefix, suffix);
+    reserveNextAvailableFilename(directory, prefix, suffix) {
+        const next = this.context.filenameEnumerator.getNextAvailableFilename(directory.destination.absolutePath, directory.last, prefix, suffix);
+        directory.last = next.enumeratedName;
+        return next;
     }
 }
 FileManager.LOG_MESSAGE_FAILED = "===> FAILED";
@@ -1581,7 +1667,7 @@ class MetadataManager {
         });
     }
     checkIfSevenZipCanOpen(sevenZip, absolutePath) {
-        const result = sevenZip.listToStdout(absolutePath);
+        const result = sevenZip.listToStdoutSync(absolutePath);
         if (!result.success) {
             if (result.consoleOutput) {
                 this.logger.error(result.consoleOutput);
@@ -1591,7 +1677,7 @@ class MetadataManager {
         return result.success;
     }
     unzipDatabase(sevenZip, absolutePath, name, databaseFilename) {
-        const unzip = sevenZip.unzipToStdout(absolutePath, databaseFilename);
+        const unzip = sevenZip.unzipToStdoutSync(absolutePath, databaseFilename);
         if (unzip.success && unzip.consoleOutput) {
             this.logger.info(`Loaded database ${databaseFilename} from ${absolutePath}`);
             this.print(`Loading the database`);
@@ -1758,7 +1844,7 @@ class MetadataManager {
         return total ? { latest: files[total - 1], orphans: files.slice(0, total - 1) } : undefined;
     }
     addToArchive(zipFile, filename, content) {
-        const result = this.context.sevenZip.zipString(content, filename, zipFile);
+        const result = this.context.sevenZip.zipStringSync(content, filename, zipFile);
         if (!result.success) {
             if (result.consoleOutput) {
                 this.context.logger.error(result.consoleOutput);
@@ -1915,25 +2001,27 @@ class SetupWizard {
                 ],
                 normalizePath: true,
                 defaultAnswer: preset,
-                validate: sevenZip => Promise.resolve(this.formatValidationResult(this.validateSevenZip(sevenZip)))
+                validate: (sevenZip) => __awaiter(this, void 0, void 0, function* () { return this.formatValidationResult(yield this.validateSevenZip(sevenZip)); })
             });
         });
     }
     static validateSevenZip(sevenZip) {
-        const useAbsolutePath = "Please specify an absolute path if 7-Zip is not in the search path.";
-        try {
-            const result1 = SevenZip.runAnyCommand({ executable: sevenZip });
-            if (result1.success) {
-                return true;
+        return __awaiter(this, void 0, void 0, function* () {
+            const useAbsolutePath = "Please specify an absolute path if 7-Zip is not in the search path.";
+            try {
+                const result1 = yield SevenZip.runAnyCommand({ executable: sevenZip });
+                if (result1.success) {
+                    return true;
+                }
+                else {
+                    return `Running ${sevenZip} causes an error\n${result1.errorMessage}\n${useAbsolutePath}`;
+                }
             }
-            else {
-                return `Running ${sevenZip} causes an error\n${result1.errorMessage}\n${useAbsolutePath}`;
+            catch (exception) {
+                console.log(exception);
+                return `Can't execute ${sevenZip}\n${firstLineOnly(exception)}${useAbsolutePath}`;
             }
-        }
-        catch (exception) {
-            console.log(exception);
-            return `Can't execute ${sevenZip}\n${firstLineOnly(exception)}${useAbsolutePath}`;
-        }
+        });
     }
     static prompt(options) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1981,20 +2069,22 @@ class SevenZip {
         return new SevenZip(this.executable, newPassword, this.logger, this.console);
     }
     runSelfTest() {
-        this.logger.info(`Verifying that 7-Zip is working correctly`);
-        this.print("Verifying that 7-Zip is working correctly");
-        const directory = this.createTemporaryDirectory();
-        try {
-            const correctPassword = this.cloneWithDifferentPassword("correct-password");
-            const invalidPassword = this.cloneWithDifferentPassword("invalid-password");
-            correctPassword.runAllSelfTests(directory, invalidPassword);
-            this.removeTestDirectory(directory);
-        }
-        catch (exception) {
-            tryCatchIgnore(() => this.removeTestDirectory(directory));
-            rethrow(exception, message => `7-Zip is not working correctly: ${message} (see log file for details)`);
-        }
-        this.logger.debug("All 7-Zip tests have passed");
+        return __awaiter(this, void 0, void 0, function* () {
+            this.logger.info(`Verifying that 7-Zip is working correctly`);
+            this.print("Verifying that 7-Zip is working correctly");
+            const directory = this.createTemporaryDirectory();
+            try {
+                const correctPassword = this.cloneWithDifferentPassword("correct-password");
+                const invalidPassword = this.cloneWithDifferentPassword("invalid-password");
+                yield correctPassword.runAllSelfTests(directory, invalidPassword);
+                this.removeTestDirectory(directory);
+            }
+            catch (exception) {
+                tryCatchIgnore(() => this.removeTestDirectory(directory));
+                rethrow(exception, message => `7-Zip is not working correctly: ${message} (see log file for details)`);
+            }
+            this.logger.debug("All 7-Zip tests have passed");
+        });
     }
     createTemporaryDirectory() {
         const tempDirectory = tryCatchRethrowFriendlyException(() => node.path.resolve(node.os.tmpdir()), error => `Failed to determine the system's temp directory - ${error}`);
@@ -2014,18 +2104,20 @@ class SevenZip {
         }
     }
     runAllSelfTests(directory, sevenZipWithWrongPassword) {
-        const filename = "data.txt";
-        const content = "Test data";
-        const zipFile = node.path.join(directory, "archive.7z");
-        this.createTestFile(node.path.join(directory, filename), content);
-        this.testGeneralInvocation();
-        this.testInvalidParameters();
-        this.testZipAndUnzipFile(directory, filename, content, zipFile);
-        this.testZipAndUnzipString(content, "In-memory data", zipFile);
-        this.testZipNonExistentFile(directory, "non-existent-file", zipFile);
-        sevenZipWithWrongPassword.testUnzipWithWrongPassword(zipFile, filename, content);
-        this.selfTestList(zipFile);
-        sevenZipWithWrongPassword.testListWithWrongPassword(zipFile);
+        return __awaiter(this, void 0, void 0, function* () {
+            const filename = "data.txt";
+            const content = "Test data";
+            const zipFile = node.path.join(directory, "archive.7z");
+            this.createTestFile(node.path.join(directory, filename), content);
+            yield this.testGeneralInvocation();
+            yield this.testInvalidParameters();
+            yield this.testZipAndUnzipFile(directory, filename, content, zipFile);
+            yield this.testZipAndUnzipString(content, "In-memory data", zipFile);
+            yield this.testZipNonExistentFile(directory, "non-existent-file", zipFile);
+            yield sevenZipWithWrongPassword.testUnzipWithWrongPassword(zipFile, filename, content);
+            yield this.selfTestList(zipFile);
+            yield sevenZipWithWrongPassword.testListWithWrongPassword(zipFile);
+        });
     }
     createTestFile(file, content) {
         tryCatchRethrowFriendlyException(() => node.fs.writeFileSync(file, content), error => `Failed to create the test file ${file} - ${error}`);
@@ -2034,92 +2126,108 @@ class SevenZip {
         }
     }
     testGeneralInvocation() {
-        const result = this.runSevenZip({});
-        if (!result.success) {
-            this.logExecution(result);
-            throw new FriendlyException(`The program can't be started - ${result.errorMessage}`);
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.runSevenZip({});
+            if (!result.success) {
+                this.logExecution(result);
+                throw new FriendlyException(`The program can't be started - ${result.errorMessage}`);
+            }
+        });
     }
     testInvalidParameters() {
-        const result = this.runSevenZip({ parameters: ["--invalid-option", "non-existent-file"] });
-        if (result.success) {
-            this.logExecution(result);
-            throw new FriendlyException("Passing invalid parameters does not cause an error");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.runSevenZip({ parameters: ["--invalid-option", "non-existent-file"] });
+            if (result.success) {
+                this.logExecution(result);
+                throw new FriendlyException("Passing invalid parameters does not cause an error");
+            }
+        });
     }
     testZipAndUnzipFile(directory, filename, content, zipFile) {
-        const zipResult = this.zipFile(directory, filename, zipFile);
-        if (!zipResult.success) {
-            this.logExecution(zipResult);
-            throw new FriendlyException("Failed to add a file to a zip archive");
-        }
-        const unzipResult = this.unzipToStdout(zipFile, filename);
-        if (!zipResult.success) {
-            this.logExecution(zipResult, LogLevel.INFO);
-            this.logExecution(unzipResult);
-            throw new FriendlyException("Failed to extract a file from a zip archive");
-        }
-        if (content !== unzipResult.consoleOutput) {
-            this.logExecution(zipResult, LogLevel.INFO);
-            this.logExecution(unzipResult, LogLevel.INFO);
-            this.logger.error(`Expected unzip ${content} but received ${unzipResult.consoleOutput}`);
-            throw new FriendlyException("Unzipping file content returns invalid data");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const zipResult = yield this.zipFile(directory, filename, zipFile);
+            if (!zipResult.success) {
+                this.logExecution(zipResult);
+                throw new FriendlyException("Failed to add a file to a zip archive");
+            }
+            const unzipResult = yield this.unzipToStdout(zipFile, filename);
+            if (!zipResult.success) {
+                this.logExecution(zipResult, LogLevel.INFO);
+                this.logExecution(unzipResult);
+                throw new FriendlyException("Failed to extract a file from a zip archive");
+            }
+            if (content !== unzipResult.consoleOutput) {
+                this.logExecution(zipResult, LogLevel.INFO);
+                this.logExecution(unzipResult, LogLevel.INFO);
+                this.logger.error(`Expected unzip ${content} but received ${unzipResult.consoleOutput}`);
+                throw new FriendlyException("Unzipping file content returns invalid data");
+            }
+        });
     }
     testZipAndUnzipString(content, filenameInArchive, zipFile) {
-        const zipResult = this.zipString(content, filenameInArchive, zipFile);
-        if (!zipResult.success) {
-            this.logExecution(zipResult);
-            throw new FriendlyException("Failed to add string content to a zip archive");
-        }
-        const unzipResult = this.unzipToStdout(zipFile, filenameInArchive);
-        if (!unzipResult.success) {
-            this.logExecution(zipResult, LogLevel.INFO);
-            this.logExecution(unzipResult);
-            throw new FriendlyException("Failed to extract a file from a zip archive");
-        }
-        if (content !== unzipResult.consoleOutput) {
-            this.logExecution(zipResult, LogLevel.INFO);
-            this.logExecution(unzipResult, LogLevel.INFO);
-            this.logger.error(`Expected "${content}" as unzipped content but received "${unzipResult.consoleOutput}"`);
-            throw new FriendlyException("Unzipping file content returns invalid data");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const zipResult = yield this.zipString(content, filenameInArchive, zipFile);
+            if (!zipResult.success) {
+                this.logExecution(zipResult);
+                throw new FriendlyException("Failed to add string content to a zip archive");
+            }
+            const unzipResult = yield this.unzipToStdout(zipFile, filenameInArchive);
+            if (!unzipResult.success) {
+                this.logExecution(zipResult, LogLevel.INFO);
+                this.logExecution(unzipResult);
+                throw new FriendlyException("Failed to extract a file from a zip archive");
+            }
+            if (content !== unzipResult.consoleOutput) {
+                this.logExecution(zipResult, LogLevel.INFO);
+                this.logExecution(unzipResult, LogLevel.INFO);
+                this.logger.error(`Expected "${content}" as unzipped content but received "${unzipResult.consoleOutput}"`);
+                throw new FriendlyException("Unzipping file content returns invalid data");
+            }
+        });
     }
     testUnzipWithWrongPassword(zipFile, filenameInArchive, content) {
-        const result = this.unzipToStdout(zipFile, filenameInArchive);
-        if (result.success) {
-            this.logExecution(result);
-            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
-            throw new FriendlyException("Unzipping with a wrong password does not cause an error");
-        }
-        if (result.consoleOutput === content) {
-            this.logExecution(result);
-            this.logger.error(`Despite the wrong password, the correct file content (${content}) was returned`);
-            throw new FriendlyException("Unzipping with a wrong password returns the correct file content");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.unzipToStdout(zipFile, filenameInArchive);
+            if (result.success) {
+                this.logExecution(result);
+                this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
+                throw new FriendlyException("Unzipping with a wrong password does not cause an error");
+            }
+            if (result.consoleOutput === content) {
+                this.logExecution(result);
+                this.logger.error(`Despite the wrong password, the correct file content (${content}) was returned`);
+                throw new FriendlyException("Unzipping with a wrong password returns the correct file content");
+            }
+        });
     }
     testZipNonExistentFile(directory, file, zipFile) {
-        const result = this.zipFile(directory, file, zipFile);
-        if (result.success) {
-            this.logExecution(result);
-            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
-            throw new FriendlyException("Zipping a non-existent file does not cause an error");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.zipFile(directory, file, zipFile);
+            if (result.success) {
+                this.logExecution(result);
+                this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
+                throw new FriendlyException("Zipping a non-existent file does not cause an error");
+            }
+        });
     }
     selfTestList(zipFile) {
-        const result = this.listToStdout(zipFile);
-        if (!result.success) {
-            this.logExecution(result);
-            throw new FriendlyException(`Listing the contents of a zip archive failed`);
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.listToStdout(zipFile);
+            if (!result.success) {
+                this.logExecution(result);
+                throw new FriendlyException(`Listing the contents of a zip archive failed`);
+            }
+        });
     }
     testListWithWrongPassword(zipFile) {
-        const result = this.listToStdout(zipFile);
-        if (result.success) {
-            this.logExecution(result);
-            this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
-            throw new FriendlyException("Listing archive file contents with a wrong password does not cause an error");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.listToStdout(zipFile);
+            if (result.success) {
+                this.logExecution(result);
+                this.logger.error(SevenZip.EXPECT_EXIT_CODE_OTHER_THAN_ZERO);
+                throw new FriendlyException("Listing archive file contents with a wrong password does not cause an error");
+            }
+        });
     }
     logExecution(options, logLevel = LogLevel.ERROR) {
         var _a;
@@ -2127,23 +2235,26 @@ class SevenZip {
             `Running command: ${options.getCommand()}`,
             options.consoleOutput || "The command did not produce any console output",
             (_a = options.errorMessage) !== null && _a !== void 0 ? _a : "",
-            null !== options.details.status ? `The command exited with code ${options.details.status}` : ""
+            null !== options.exitCode ? `The command exited with code ${options.exitCode}` : ""
         ]
             .filter(line => line)
             .forEach(line => this.logger.log(logLevel, line));
     }
     zipFile(workingDirectory, sourceFile, zipFile) {
-        return this.verifyZipResult(zipFile, this.runSevenZip({
-            workingDirectory,
-            parameters: [
-                ...this.getZipParameters(),
-                zipFile,
-                sourceFile
-            ]
-        }));
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.verifyZipResult(zipFile, yield this.runSevenZip({
+                workingDirectory,
+                parameters: [
+                    ...this.getZipParameters(),
+                    zipFile,
+                    "--",
+                    sourceFile
+                ]
+            }));
+        });
     }
-    zipString(content, filenameInArchive, zipFile) {
-        return this.verifyZipResult(zipFile, this.runSevenZip({
+    zipStringSync(content, filenameInArchive, zipFile) {
+        return this.verifyZipResultSync(zipFile, this.runSevenZipSync({
             parameters: [
                 ...this.getZipParameters(),
                 `-si${filenameInArchive}`,
@@ -2152,11 +2263,23 @@ class SevenZip {
             stdin: content
         }));
     }
-    verifyZipResult(zipFile, zipResult) {
+    zipString(content, filenameInArchive, zipFile) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.verifyZipResult(zipFile, yield this.runSevenZip({
+                parameters: [
+                    ...this.getZipParameters(),
+                    `-si${filenameInArchive}`,
+                    zipFile
+                ],
+                stdin: content
+            }));
+        });
+    }
+    verifyZipResultSync(zipFile, zipResult) {
         if (!FileUtils.existsAndIsFile(zipFile)) {
             return Object.assign(Object.assign({}, zipResult), { success: false, errorMessage: `7-Zip returned no error but ${zipFile} was not created either` });
         }
-        const listResult = this.listToStdout(zipFile);
+        const listResult = this.listToStdoutSync(zipFile);
         if (!listResult.success) {
             return Object.assign(Object.assign({}, zipResult), { success: false, errorMessage: `The zip file was created but listing its contents failed - ${listResult.errorMessage}`, consoleOutput: [
                     "================================[ zip command ]================================",
@@ -2170,8 +2293,28 @@ class SevenZip {
         }
         return zipResult;
     }
-    unzipToStdout(zipFile, filenameInArchive) {
-        return this.runSevenZip({
+    verifyZipResult(zipFile, zipResult) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!FileUtils.existsAndIsFile(zipFile)) {
+                return Object.assign(Object.assign({}, zipResult), { success: false, errorMessage: `7-Zip returned no error but ${zipFile} was not created either` });
+            }
+            const listResult = yield this.listToStdout(zipFile);
+            if (!listResult.success) {
+                return Object.assign(Object.assign({}, zipResult), { success: false, errorMessage: `The zip file was created but listing its contents failed - ${listResult.errorMessage}`, consoleOutput: [
+                        "================================[ zip command ]================================",
+                        "",
+                        zipResult.consoleOutput,
+                        "",
+                        "================================[ list command ]================================",
+                        "",
+                        listResult.consoleOutput
+                    ].join("\n") });
+            }
+            return zipResult;
+        });
+    }
+    unzipToStdoutSync(zipFile, filenameInArchive) {
+        return this.runSevenZipSync({
             parameters: [
                 ...this.getUnzipParameters(),
                 `-so`,
@@ -2180,12 +2323,34 @@ class SevenZip {
             ],
         });
     }
-    listToStdout(zipFile) {
-        return this.runSevenZip({
+    unzipToStdout(zipFile, filenameInArchive) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.runSevenZip({
+                parameters: [
+                    ...this.getUnzipParameters(),
+                    `-so`,
+                    zipFile,
+                    filenameInArchive
+                ],
+            });
+        });
+    }
+    listToStdoutSync(zipFile) {
+        return this.runSevenZipSync({
             parameters: [
                 ...this.getListParameters(),
                 zipFile
             ]
+        });
+    }
+    listToStdout(zipFile) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.runSevenZip({
+                parameters: [
+                    ...this.getListParameters(),
+                    zipFile
+                ]
+            });
         });
     }
     getZipParameters() {
@@ -2217,10 +2382,15 @@ class SevenZip {
             `-p${this.password}`
         ];
     }
-    runSevenZip(options) {
-        return SevenZip.runAnyCommand(Object.assign(Object.assign({}, options), { executable: this.executable }));
+    runSevenZipSync(options) {
+        return SevenZip.runAnyCommandSync(Object.assign(Object.assign({}, options), { executable: this.executable }));
     }
-    static runAnyCommand(options) {
+    runSevenZip(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return SevenZip.runAnyCommand(Object.assign(Object.assign({}, options), { executable: this.executable }));
+        });
+    }
+    static runAnyCommandSync(options) {
         var _a, _b, _c;
         const result = node.child_process.spawnSync(options.executable, (_a = options.parameters) !== null && _a !== void 0 ? _a : [], {
             cwd: options.workingDirectory,
@@ -2235,8 +2405,55 @@ class SevenZip {
             errorMessage: this.formatErrorMessage(result.status, result.error),
             consoleOutput: [(_b = result.stdout) !== null && _b !== void 0 ? _b : "", (_c = result.stderr) !== null && _c !== void 0 ? _c : ""].map(text => text.trim()).join("\n").trim(),
             getCommand: () => this.formatCommand(options),
-            details: Object.assign({}, result)
+            exitCode: result.status
         };
+    }
+    static runAnyCommand(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise(resolve => {
+                var _a, _b, _c;
+                let stderr = "";
+                let stdout = "";
+                try {
+                    const process = node.child_process.spawn(options.executable, (_a = options.parameters) !== null && _a !== void 0 ? _a : [], {
+                        cwd: options.workingDirectory,
+                        shell: false,
+                        windowsHide: true,
+                    });
+                    process.stderr.on("data", data => stderr += data);
+                    process.stdout.on("data", data => stdout += data);
+                    process.on("error", error => {
+                        resolve({
+                            success: false,
+                            errorMessage: this.formatErrorMessage(null, error),
+                            consoleOutput: [stdout !== null && stdout !== void 0 ? stdout : "", stderr !== null && stderr !== void 0 ? stderr : ""].map(text => text.trim()).join("\n").trim(),
+                            getCommand: () => this.formatCommand(options),
+                            exitCode: process.exitCode
+                        });
+                    });
+                    process.on("close", code => {
+                        resolve({
+                            success: 0 === code,
+                            errorMessage: this.formatErrorMessage(code),
+                            consoleOutput: [stdout !== null && stdout !== void 0 ? stdout : "", stderr !== null && stderr !== void 0 ? stderr : ""].map(text => text.trim()).join("\n").trim(),
+                            getCommand: () => this.formatCommand(options),
+                            exitCode: process.exitCode
+                        });
+                    });
+                    process.stdin.write((_b = options.stdin) !== null && _b !== void 0 ? _b : "");
+                    process.stdin.end();
+                }
+                catch (error) {
+                    resolve({
+                        success: false,
+                        errorMessage: this.formatErrorMessage(null, error instanceof Error ? error : new Error(`${error}`)),
+                        consoleOutput: [stdout !== null && stdout !== void 0 ? stdout : "", stderr !== null && stderr !== void 0 ? stderr : ""].map(text => text.trim()).join("\n").trim(),
+                        getCommand: () => this.formatCommand(options),
+                        exitCode: (_c = process.exitCode) !== null && _c !== void 0 ? _c : null
+                    });
+                }
+            });
+        });
     }
     static formatErrorMessage(status, error) {
         const exitCode = "number" === typeof status ? `${status}` : undefined;
@@ -2415,20 +2632,24 @@ class Synchronizer {
         this.logger = context.logger;
         this.isDryRun = context.options.dryRun;
         this.print = context.print;
+        this.asyncTaskPool = new AsyncTaskPool(Math.max(1, context.options.parallel));
     }
     static run(context, metadataManager, database) {
-        const synchronizer = new Synchronizer(context, metadataManager, database);
-        synchronizer.syncDirectory(database);
-        const statistics = synchronizer.statistics;
-        if (!statistics.copied.total && !statistics.deleted.total && !statistics.orphans.total) {
-            context.print("The destination is already up to date");
-            context.logger.info("The destination is already up to date - no changes required");
-        }
-        if (database.hasUnsavedChanges()) {
-            synchronizer.updateIndex();
-        }
-        StatisticsReporter.run(context, synchronizer.statistics);
-        return WarningsGenerator.run(context, synchronizer.statistics);
+        return __awaiter(this, void 0, void 0, function* () {
+            const synchronizer = new Synchronizer(context, metadataManager, database);
+            synchronizer.syncDirectory(database);
+            yield synchronizer.asyncTaskPool.waitForAllTasksToComplete();
+            const statistics = synchronizer.statistics;
+            if (!statistics.copied.total && !statistics.deleted.total && !statistics.orphans.total) {
+                context.print("The destination is already up to date");
+                context.logger.info("The destination is already up to date - no changes required");
+            }
+            if (database.hasUnsavedChanges()) {
+                synchronizer.updateIndex();
+            }
+            StatisticsReporter.run(context, synchronizer.statistics);
+            return WarningsGenerator.run(context, synchronizer.statistics);
+        });
     }
     syncDirectory(directory) {
         const absoluteDestinationPath = directory.destination.absolutePath;
@@ -2600,14 +2821,15 @@ class Synchronizer {
         }
     }
     processNewFile(parentDirectory, sourceDirent) {
-        if (this.fileManager.zipFile(parentDirectory, sourceDirent)) {
-            this.statistics.copied.files.success++;
-            return true;
-        }
-        else {
-            this.statistics.copied.files.failed++;
-            return false;
-        }
+        this.asyncTaskPool.enqueue(() => __awaiter(this, void 0, void 0, function* () {
+            if (yield this.fileManager.zipFile(parentDirectory, sourceDirent)) {
+                this.statistics.copied.files.success++;
+            }
+            else {
+                this.statistics.copied.files.failed++;
+            }
+        }));
+        return true;
     }
     processVanishedItem(parentDirectory, databaseEntry, sourceDirent) {
         const prefix = this.isDryRun ? "Would purge" : "Purging";
@@ -2707,27 +2929,29 @@ class Synchronizer {
         }
     }
     processModifiedFile(parentDirectory, databaseEntry, sourceDirent, reason) {
-        parentDirectory.delete(databaseEntry);
-        const deleteSucceeded = this.fileManager.deleteFile({
-            destination: databaseEntry.destination.absolutePath,
-            source: databaseEntry.source.absolutePath,
-            reason: `because ${reason}`,
-            suppressConsoleOutput: true
-        });
-        if (deleteSucceeded) {
-            this.statistics.deleted.files.success++;
-        }
-        else {
-            this.statistics.deleted.files.failed++;
-        }
-        const copySucceeded = !!this.fileManager.zipFile(parentDirectory, sourceDirent);
-        if (copySucceeded) {
-            this.statistics.copied.files.success++;
-        }
-        else {
-            this.statistics.copied.files.failed++;
-        }
-        return deleteSucceeded && copySucceeded;
+        this.asyncTaskPool.enqueue(() => __awaiter(this, void 0, void 0, function* () {
+            parentDirectory.delete(databaseEntry);
+            const deleteSucceeded = this.fileManager.deleteFile({
+                destination: databaseEntry.destination.absolutePath,
+                source: databaseEntry.source.absolutePath,
+                reason: `because ${reason}`,
+                suppressConsoleOutput: true
+            });
+            if (deleteSucceeded) {
+                this.statistics.deleted.files.success++;
+            }
+            else {
+                this.statistics.deleted.files.failed++;
+            }
+            const copySucceeded = !!(yield this.fileManager.zipFile(parentDirectory, sourceDirent));
+            if (copySucceeded) {
+                this.statistics.copied.files.success++;
+            }
+            else {
+                this.statistics.copied.files.failed++;
+            }
+        }));
+        return true;
     }
     updateIndex() {
         const { remainingOrphans, isUpToDate } = this.metadataManager.updateIndex(this.database);

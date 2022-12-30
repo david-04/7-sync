@@ -2,11 +2,19 @@
 RUN=node "../$(7_SYNC_JS)"
 VERSION=$(shell grep -E "^## \[[0-9.]+\]" CHANGELOG.md | head -1 | sed "s|^\#\# \[||;s|\].*||")
 
+autorun : ;
+	$(info )
+	$(info $()  build ..... compile the application)
+	$(info $()  help ...... 7-sync --help)
+	$(info $()  publish ... publish the release to NPM)
+	$(info $()  release ... assemble the release)
+	$(info $()  version ... 7-sync --version)
+
+autorun.editor : build;
+
 #-----------------------------------------------------------------------------------------------------------------------
 # Compile
 #-----------------------------------------------------------------------------------------------------------------------
-
-autorun : build;
 
 build : $(7_SYNC_JS);
 
@@ -50,6 +58,13 @@ update-version :
 	sed 's|.*APPLICATION_VERSION.*|const APPLICATION_VERSION = "$(VERSION)"|' src/version.ts \
 		> src/version.ts.tmp
 	mv -f src/version.ts.tmp src/version.ts
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Publish
+#-----------------------------------------------------------------------------------------------------------------------
+
+publish :
+	cd package && npm publish
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Clean
