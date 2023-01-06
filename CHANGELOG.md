@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.1.1](https://github.com/david-04/7-sync/releases/tag/v1.1.1) (2023-01-07)
+
+- Fixed an issue that prevented the last few files from being added to the database and the index file, causing orphan warnings in subsequent synchronisations
+
 ## [1.1.0](https://github.com/david-04/7-sync/releases/tag/v1.1.0) (2022-12-30)
 
 - Increased throughput by zipping multiple files simultaneously (command line option `--parallel`, default: `2`)

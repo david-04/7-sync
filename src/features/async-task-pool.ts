@@ -48,6 +48,7 @@ class AsyncTaskPool {
     public async waitForAllTasksToComplete() {
         do {
             await Promise.all(this.promises);
-        } while (this.tasks.head);
+        } while (this.tasks.head || 0 < this.runningTaskCount);
+        await Promise.all(this.promises);
     }
 }
