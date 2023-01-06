@@ -100,9 +100,9 @@ process.on("beforeExit", () => {
         Application.main();
     }
 });
-const APPLICATION_VERSION = "1.1.0";
+const APPLICATION_VERSION = "1.1.1";
 const COPYRIGHT_OWNER = "David Hofmann";
-const COPYRIGHT_YEARS = "2022";
+const COPYRIGHT_YEARS = "2022-2023";
 class Context {
     constructor(options, config, files, logger, console, filenameEnumerator, sevenZip) {
         this.options = options;
@@ -595,7 +595,8 @@ class AsyncTaskPool {
         return __awaiter(this, void 0, void 0, function* () {
             do {
                 yield Promise.all(this.promises);
-            } while (this.tasks.head);
+            } while (this.tasks.head || 0 < this.runningTaskCount);
+            yield Promise.all(this.promises);
         });
     }
 }

@@ -55,7 +55,7 @@ update-version :
 		| sed -E 's|"version": "[0-9.]+"|"version": "$(VERSION)"|' \
 		> package/package.json.tmp
 	mv -f package/package.json.tmp package/package.json
-	sed 's|.*APPLICATION_VERSION.*|const APPLICATION_VERSION = "$(VERSION)"|' src/version.ts \
+	sed 's|.*APPLICATION_VERSION.*|const APPLICATION_VERSION = "$(VERSION)";|' src/version.ts \
 		> src/version.ts.tmp
 	mv -f src/version.ts.tmp src/version.ts
 
