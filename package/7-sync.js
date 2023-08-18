@@ -934,30 +934,30 @@ class DoubleLinkedList {
         this.lastNode = undefined;
     }
     append(value) {
-        const node = { value };
-        node.previous = this.lastNode;
+        const newNode = { value };
+        newNode.previous = this.lastNode;
         if (this.lastNode) {
-            this.lastNode.next = node;
-            this.lastNode = node;
+            this.lastNode.next = newNode;
+            this.lastNode = newNode;
         }
         else {
-            this.firstNode = node;
-            this.lastNode = node;
+            this.firstNode = newNode;
+            this.lastNode = newNode;
         }
-        return node;
+        return newNode;
     }
-    remove(node) {
-        if (node.previous) {
-            node.previous.next = node.next;
+    remove(nodeToDelete) {
+        if (nodeToDelete.previous) {
+            nodeToDelete.previous.next = nodeToDelete.next;
         }
-        if (node.next) {
-            node.next.previous = node.previous;
+        if (nodeToDelete.next) {
+            nodeToDelete.next.previous = nodeToDelete.previous;
         }
-        if (node === this.firstNode) {
-            this.firstNode = node.next;
+        if (nodeToDelete === this.firstNode) {
+            this.firstNode = nodeToDelete.next;
         }
-        if (node === this.lastNode) {
-            this.lastNode = node.previous;
+        if (nodeToDelete === this.lastNode) {
+            this.lastNode = nodeToDelete.previous;
         }
     }
     get head() {
@@ -2930,20 +2930,20 @@ class Synchronizer {
         }
     }
     processModifiedFile(parentDirectory, databaseEntry, sourceDirent, reason) {
+        parentDirectory.delete(databaseEntry);
+        const deleteSucceeded = this.fileManager.deleteFile({
+            destination: databaseEntry.destination.absolutePath,
+            source: databaseEntry.source.absolutePath,
+            reason: `because ${reason}`,
+            suppressConsoleOutput: true
+        });
+        if (deleteSucceeded) {
+            this.statistics.deleted.files.success++;
+        }
+        else {
+            this.statistics.deleted.files.failed++;
+        }
         this.asyncTaskPool.enqueue(() => __awaiter(this, void 0, void 0, function* () {
-            parentDirectory.delete(databaseEntry);
-            const deleteSucceeded = this.fileManager.deleteFile({
-                destination: databaseEntry.destination.absolutePath,
-                source: databaseEntry.source.absolutePath,
-                reason: `because ${reason}`,
-                suppressConsoleOutput: true
-            });
-            if (deleteSucceeded) {
-                this.statistics.deleted.files.success++;
-            }
-            else {
-                this.statistics.deleted.files.failed++;
-            }
             const copySucceeded = !!(yield this.fileManager.zipFile(parentDirectory, sourceDirent));
             if (copySucceeded) {
                 this.statistics.copied.files.success++;
