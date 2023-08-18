@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.1.2 (2023-08-18)
+## [1.1.2](https://github.com/david-04/7-sync/releases/tag/v1.1.1) (2023-08-18)
 
 - Fixed a race condition that could delete directories before the contained files were deleted
 
