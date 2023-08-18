@@ -22,34 +22,34 @@ class DoubleLinkedList<T> {
     //------------------------------------------------------------------------------------------------------------------
 
     public append(value: T) {
-        const node: Node<T> = { value };
-        node.previous = this.lastNode;
+        const newNode: Node<T> = { value };
+        newNode.previous = this.lastNode;
         if (this.lastNode) {
-            this.lastNode.next = node;
-            this.lastNode = node;
+            this.lastNode.next = newNode;
+            this.lastNode = newNode;
         } else {
-            this.firstNode = node;
-            this.lastNode = node;
+            this.firstNode = newNode;
+            this.lastNode = newNode;
         }
-        return node;
+        return newNode;
     }
 
     //------------------------------------------------------------------------------------------------------------------
     // Remove a given node from the list
     //------------------------------------------------------------------------------------------------------------------
 
-    public remove(node: Node<T>) {
-        if (node.previous) {
-            node.previous.next = node.next;
+    public remove(nodeToDelete: Node<T>) {
+        if (nodeToDelete.previous) {
+            nodeToDelete.previous.next = nodeToDelete.next;
         }
-        if (node.next) {
-            node.next.previous = node.previous;
+        if (nodeToDelete.next) {
+            nodeToDelete.next.previous = nodeToDelete.previous;
         }
-        if (node === this.firstNode) {
-            this.firstNode = node.next;
+        if (nodeToDelete === this.firstNode) {
+            this.firstNode = nodeToDelete.next;
         }
-        if (node === this.lastNode) {
-            this.lastNode = node.previous;
+        if (nodeToDelete === this.lastNode) {
+            this.lastNode = nodeToDelete.previous;
         }
     }
 

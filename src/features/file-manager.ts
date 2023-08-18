@@ -209,13 +209,9 @@ class FileManager {
     private doDeleteFileOrDirectory(path: string, isDirectory: boolean) {
         if (!this.isDryRun) {
             try {
-                if (!FileUtils.exists(path)) {
-                    this.logger.info(`${path} has already been deleted (nothing to do)`);
-                } else {
-                    node.fs.rmSync(path, isDirectory ? { recursive: true, force: true } : {});
-                    if (FileUtils.exists(path)) {
-                        throw new FriendlyException("No exception was raised but the file is still present");
-                    }
+                node.fs.rmSync(path, isDirectory ? { recursive: true, force: true } : {});
+                if (FileUtils.exists(path)) {
+                    throw new FriendlyException("No exception was raised but the file is still present");
                 }
             } catch (exception) {
                 this.logger.error(`Failed to delete ${path} - ${firstLineOnly(exception)}`);

@@ -384,7 +384,7 @@ class Synchronizer {
     }
 
     //------------------------------------------------------------------------------------------------------------------
-    // Process a previously synced file that's no longer in the source but might still be in the destination
+    // Process a previously synced directory that's no longer in the source but might still be in the destination
     //------------------------------------------------------------------------------------------------------------------
 
     private processDeletedDirectory(
@@ -466,19 +466,19 @@ class Synchronizer {
     private processModifiedFile(
         parentDirectory: MappedDirectory, databaseEntry: MappedFile, sourceDirent: Dirent, reason: string
     ) {
+        parentDirectory.delete(databaseEntry);
+        const deleteSucceeded = this.fileManager.deleteFile({
+            destination: databaseEntry.destination.absolutePath,
+            source: databaseEntry.source.absolutePath,
+            reason: `because ${reason}`,
+            suppressConsoleOutput: true
+        });
+        if (deleteSucceeded) {
+            this.statistics.deleted.files.success++;
+        } else {
+            this.statistics.deleted.files.failed++;
+        }
         this.asyncTaskPool.enqueue(async () => {
-            parentDirectory.delete(databaseEntry);
-            const deleteSucceeded = this.fileManager.deleteFile({
-                destination: databaseEntry.destination.absolutePath,
-                source: databaseEntry.source.absolutePath,
-                reason: `because ${reason}`,
-                suppressConsoleOutput: true
-            });
-            if (deleteSucceeded) {
-                this.statistics.deleted.files.success++;
-            } else {
-                this.statistics.deleted.files.failed++;
-            }
             const copySucceeded = !!(await this.fileManager.zipFile(parentDirectory, sourceDirent));
             if (copySucceeded) {
                 this.statistics.copied.files.success++;
